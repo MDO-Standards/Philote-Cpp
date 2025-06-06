@@ -37,11 +37,9 @@ target_link_libraries(VariableTests protobuf::libprotobuf gRPC::grpc++)
 gtest_discover_tests(VariableTests)
 
 # variable edge cases tests
-add_executable(VariableEdgeCasesTests variable_edge_cases_tests.cpp)
-target_link_libraries(VariableEdgeCasesTests PhiloteCpp)
-target_link_libraries(VariableEdgeCasesTests GTest::gtest_main GTest::gmock)
-target_link_libraries(VariableEdgeCasesTests protobuf::libprotobuf gRPC::grpc++)
-gtest_discover_tests(VariableEdgeCasesTests)
+# add_executable(VariableEdgeCasesTests variable_edge_cases_tests.cpp)
+# target_link_libraries(VariableEdgeCasesTests PhiloteCpp GTest protobuf)
+# gtest_discover_tests(VariableEdgeCasesTests)
 
 # discipline tests
 add_executable(DisciplineTests discipline_test.cpp)

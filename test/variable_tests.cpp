@@ -258,40 +258,106 @@ TEST(VariableTests, SegmentGetter)
 }
 
 /*
-	Test error cases for invalid indices.
+	Test invalid indices in element access.
 */
 TEST(VariableTests, InvalidIndices)
 {
-	// Create a 2-dimensional array
 	Variable array = Variable(kInput, {2, 2});
+	std::vector<double> data = {1.0, 2.0, 3.0, 4.0};
+	array.Segment(0, 3, data);
 
-	// Test accessing out of bounds index
+	// Test negative index
+	EXPECT_THROW(array(-1), std::out_of_range);
+
+	// Test index beyond array size
 	EXPECT_THROW(array(4), std::out_of_range);
+	EXPECT_THROW(array(5), std::out_of_range);
 
-	// Test segment with invalid start/end
-	std::vector<double> data = {1.0, 2.0};
-	EXPECT_THROW(array.Segment(3, 4, data), std::out_of_range);
-	EXPECT_THROW(array.Segment(2, 1, data), std::invalid_argument);
+	// Test zero-sized array
+	Variable empty_array = Variable(kInput, {0});
+	EXPECT_THROW(empty_array(0), std::out_of_range);
 }
 
 /*
-	Test the element retrieval operator.
+	Test edge cases for the segment function.
 */
-// TEST(VariableTest, SendTest)
-//{
-//	// Create a mock gRPC client stream
-//	MockClientReaderWriter<Array, Array> mockClient;
-//
-//	// Create an instance of your Variable class
-//	Variable variable;
-//
-//	// Set up your test data
-//	std::string name = "test_name";
-//	std::string subname = "test_subname";
-//	size_t chunk_size = 10;
-//
-//	// Call the Send method with the mock gRPC client stream
-//	variable.Send(name, subname, &mockClient, chunk_size);
-//
-//	// Add your assertions and expectations here to verify the behavior of the Send method
-// }
+TEST(VariableTests, SegmentEdgeCases)
+{
+	// Test empty array
+	Variable empty_array = Variable(kInput, {0});
+	std::vector<double> empty_data;
+	EXPECT_THROW(empty_array.Segment(0, 0, empty_data), std::out_of_range);
+
+	// Test single element array
+	Variable single_array = Variable(kInput, {1});
+	std::vector<double> single_data = {1.0};
+	EXPECT_NO_THROW(single_array.Segment(0, 0, single_data));
+
+	// Test invalid start index
+	Variable array = Variable(kInput, {2, 2});
+	std::vector<double> data = {1.0, 2.0};
+	EXPECT_THROW(array.Segment(-1, 1, data), std::invalid_argument);
+	EXPECT_THROW(array.Segment(4, 5, data), std::out_of_range);
+
+	// Test invalid end index
+	EXPECT_THROW(array.Segment(0, 5, data), std::out_of_range);
+	EXPECT_THROW(array.Segment(2, 1, data), std::invalid_argument);
+
+	// Test empty data vector
+	EXPECT_THROW(array.Segment(0, 1, std::vector<double>()), std::length_error);
+
+	// Test data size mismatch
+	std::vector<double> large_data = {1.0, 2.0, 3.0, 4.0, 5.0};
+	EXPECT_THROW(array.Segment(0, 1, large_data), std::length_error);
+}
+
+/*
+	Test edge cases for chunking operations.
+*/
+TEST(VariableTests, ChunkingEdgeCases)
+{
+	// Test empty array chunking
+	Variable empty_array = Variable(kInput, {0});
+	EXPECT_THROW(empty_array.CreateChunk(0, 0), std::out_of_range);
+
+	// Test invalid chunk indices
+	Variable array = Variable(kInput, {4});
+	std::vector<double> data = {1.0, 2.0, 3.0, 4.0};
+	array.Segment(0, 3, data);
+
+	EXPECT_THROW(array.CreateChunk(-1, 2), std::invalid_argument);
+	EXPECT_THROW(array.CreateChunk(0, 5), std::out_of_range);
+	EXPECT_THROW(array.CreateChunk(3, 2), std::invalid_argument);
+
+	// Test invalid chunk assignment
+	Array invalid_chunk;
+	invalid_chunk.set_start(-1);
+	invalid_chunk.set_end(2);
+	EXPECT_THROW(array.AssignChunk(invalid_chunk), std::invalid_argument);
+
+	invalid_chunk.set_start(0);
+	invalid_chunk.set_end(5);
+	EXPECT_THROW(array.AssignChunk(invalid_chunk), std::out_of_range);
+}
+
+/*
+	Test edge cases for metadata operations.
+*/
+TEST(VariableTests, MetadataEdgeCases)
+{
+	// Test empty metadata
+	philote::VariableMetaData empty_meta;
+	EXPECT_NO_THROW(Variable(empty_meta));
+
+	// Test metadata with zero dimensions
+	philote::VariableMetaData zero_dim_meta;
+	zero_dim_meta.set_type(philote::kInput);
+	zero_dim_meta.add_shape(0);
+	EXPECT_NO_THROW(Variable(zero_dim_meta));
+
+	// Test metadata with negative dimensions
+	philote::VariableMetaData neg_dim_meta;
+	neg_dim_meta.set_type(philote::kInput);
+	neg_dim_meta.add_shape(-1);
+	EXPECT_NO_THROW(Variable(neg_dim_meta));
+}
