@@ -102,6 +102,8 @@ Status DisciplineServer::GetVariableDefinitions(ServerContext *context,
                                                 const Empty *request,
                                                 ServerWriter<VariableMetaData> *writer)
 {
+    if (!writer)
+        return Status::OK;
     for (const VariableMetaData &var : discipline_->var_meta())
         writer->Write(var);
 
@@ -112,6 +114,8 @@ Status DisciplineServer::GetPartialDefinitions(ServerContext *context,
                                                const Empty *request,
                                                ServerWriter<PartialsMetaData> *writer)
 {
+    if (!writer)
+        return Status::OK;
     for (const PartialsMetaData &partial : discipline_->partials_meta())
         writer->Write(partial);
 

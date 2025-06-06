@@ -42,3 +42,9 @@ target_link_libraries(DisciplineTests PhiloteCpp)
 target_link_libraries(DisciplineTests GTest::gtest_main)
 target_include_directories(DisciplineTests PRIVATE ${Protobuf_INCLUDE_DIRS} ${gRPC_INCLUDE_DIRS})
 gtest_discover_tests(DisciplineTests)
+
+# discipline server tests
+add_executable(DisciplineServerTests discipline_server_test.cpp)
+target_link_libraries(DisciplineServerTests PhiloteCpp)
+target_link_libraries(DisciplineServerTests GTest::gtest_main GTest::gmock)
+gtest_discover_tests(DisciplineServerTests)

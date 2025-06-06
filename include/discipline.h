@@ -250,7 +250,7 @@ namespace philote
          *
          * @param options_struct
          */
-        void SetOptions(const google::protobuf::Struct &options_struct);
+        virtual void SetOptions(const google::protobuf::Struct &options_struct);
 
         /**
          * @brief Sets up the analysis server before any function or gradient
