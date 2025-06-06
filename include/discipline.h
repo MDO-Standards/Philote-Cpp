@@ -373,6 +373,16 @@ namespace philote
          */
         std::vector<philote::PartialsMetaData> GetPartialsMeta();
 
+        /**
+         * @brief Sets the stub for testing purposes.
+         *
+         * @param stub The stub to be used by the client.
+         */
+        void SetStub(std::unique_ptr<philote::DisciplineService::StubInterface> stub)
+        {
+            stub_ = std::move(stub);
+        }
+
     protected:
         //! streaming options for the client/server connection
         philote::StreamOptions stream_options_;
@@ -381,7 +391,7 @@ namespace philote
         philote::DisciplineProperties properties_;
 
         //! gRPC client stub for the generic discipline definition
-        std::unique_ptr<philote::DisciplineService::Stub> stub_;
+        std::unique_ptr<philote::DisciplineService::StubInterface> stub_;
 
         //! variable meta data
         std::vector<philote::VariableMetaData> var_meta_;

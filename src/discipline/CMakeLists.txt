@@ -34,3 +34,4 @@ add_library(Discipline OBJECT
     discipline_client.cpp
 )
 target_link_libraries(Discipline PRIVATE protobuf::libprotobuf gRPC::grpc++)
+add_dependencies(Discipline GrpcGenerated)

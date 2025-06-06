@@ -48,7 +48,7 @@ DisciplineClient::DisciplineClient()
     stub_ = nullptr;
 }
 
-void DisciplineClient::ConnectChannel(const std::shared_ptr<ChannelInterface> &channel)
+void DisciplineClient::ConnectChannel(const std::shared_ptr<grpc::ChannelInterface> &channel)
 {
     stub_ = DisciplineService::NewStub(channel);
 }
@@ -89,7 +89,7 @@ void DisciplineClient::GetVariableDefinitions()
 {
     ClientContext context;
     Empty request;
-    std::unique_ptr<ClientReader<VariableMetaData>> reactor;
+    std::unique_ptr<grpc::ClientReaderInterface<philote::VariableMetaData>> reactor;
 
     if (!var_meta_.empty())
     {
@@ -102,13 +102,14 @@ void DisciplineClient::GetVariableDefinitions()
     VariableMetaData meta;
     while (reactor->Read(&meta))
         var_meta_.push_back(meta);
+    reactor->Finish();
 }
 
 void DisciplineClient::GetPartialDefinitions()
 {
     ClientContext context;
     Empty request;
-    std::unique_ptr<ClientReader<PartialsMetaData>> reactor;
+    std::unique_ptr<grpc::ClientReaderInterface<philote::PartialsMetaData>> reactor;
 
     if (!partials_meta_.empty())
     {
@@ -121,6 +122,7 @@ void DisciplineClient::GetPartialDefinitions()
     PartialsMetaData meta;
     while (reactor->Read(&meta))
         partials_meta_.push_back(meta);
+    reactor->Finish();
 }
 
 vector<string> DisciplineClient::GetVariableNames()

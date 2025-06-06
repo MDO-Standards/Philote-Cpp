@@ -34,3 +34,4 @@ add_library(ExplicitDiscipline OBJECT
     explicit_client.cpp
 )
 target_link_libraries(ExplicitDiscipline PRIVATE protobuf::libprotobuf gRPC::grpc++)
+add_dependencies(ExplicitDiscipline GrpcGenerated)

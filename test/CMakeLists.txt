@@ -31,20 +31,33 @@
 
 # array tests
 add_executable(VariableTests variable_tests.cpp)
-target_link_libraries(VariableTests PhiloteCpp)
-target_link_libraries(VariableTests GTest::gtest_main GTest::gmock)
-target_include_directories(VariableTests PRIVATE ${Protobuf_INCLUDE_DIRS} ${gRPC_INCLUDE_DIRS})
+target_link_libraries(VariableTests PhiloteCpp GTest::gtest_main GTest::gmock protobuf::libprotobuf)
+# target_include_directories(VariableTests PRIVATE ${Protobuf_INCLUDE_DIRS} ${gRPC_INCLUDE_DIRS})
 gtest_discover_tests(VariableTests)
 
 # discipline tests
 add_executable(DisciplineTests discipline_test.cpp)
 target_link_libraries(DisciplineTests PhiloteCpp)
 target_link_libraries(DisciplineTests GTest::gtest_main)
-target_include_directories(DisciplineTests PRIVATE ${Protobuf_INCLUDE_DIRS} ${gRPC_INCLUDE_DIRS})
+# target_include_directories(DisciplineTests PRIVATE ${Protobuf_INCLUDE_DIRS} ${gRPC_INCLUDE_DIRS})
 gtest_discover_tests(DisciplineTests)
 
 # discipline server tests
 add_executable(DisciplineServerTests discipline_server_test.cpp)
-target_link_libraries(DisciplineServerTests PhiloteCpp)
-target_link_libraries(DisciplineServerTests GTest::gtest_main GTest::gmock)
+target_link_libraries(DisciplineServerTests PhiloteCpp GTest::gtest_main GTest::gmock protobuf::libprotobuf)
 gtest_discover_tests(DisciplineServerTests)
+
+# discipline client tests
+add_executable(DisciplineClientTests discipline_client_test.cpp)
+add_dependencies(DisciplineClientTests GrpcGenerated)
+target_link_libraries(DisciplineClientTests PhiloteCpp GTest::gtest_main GTest::gmock protobuf::libprotobuf)
+target_include_directories(DisciplineClientTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src/discipline
+)
+gtest_discover_tests(DisciplineClientTests)
+
+# Add dependencies for targets that use the generated gRPC files
+add_dependencies(ImplicitDiscipline GrpcGenerated)
+add_dependencies(Discipline GrpcGenerated)
+add_dependencies(ExplicitDiscipline GrpcGenerated)
