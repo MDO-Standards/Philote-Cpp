@@ -42,4 +42,5 @@ add_library(PhiloteCpp STATIC
     $<TARGET_OBJECTS:ExplicitDiscipline>
     $<TARGET_OBJECTS:ImplicitDiscipline>
 )
+target_link_libraries(PhiloteCpp PUBLIC protobuf::libprotobuf gRPC::grpc++)
 

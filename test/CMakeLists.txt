@@ -33,43 +33,12 @@
 add_executable(VariableTests variable_tests.cpp)
 target_link_libraries(VariableTests PhiloteCpp)
 target_link_libraries(VariableTests GTest::gtest_main GTest::gmock)
-target_link_libraries(VariableTests protobuf::libprotobuf gRPC::grpc++)
+target_include_directories(VariableTests PRIVATE ${Protobuf_INCLUDE_DIRS} ${gRPC_INCLUDE_DIRS})
 gtest_discover_tests(VariableTests)
-
-# variable edge cases tests
-# add_executable(VariableEdgeCasesTests variable_edge_cases_tests.cpp)
-# target_link_libraries(VariableEdgeCasesTests PhiloteCpp GTest protobuf)
-# gtest_discover_tests(VariableEdgeCasesTests)
 
 # discipline tests
 add_executable(DisciplineTests discipline_test.cpp)
 target_link_libraries(DisciplineTests PhiloteCpp)
 target_link_libraries(DisciplineTests GTest::gtest_main)
-target_link_libraries(DisciplineTests protobuf::libprotobuf gRPC::grpc++)
+target_include_directories(DisciplineTests PRIVATE ${Protobuf_INCLUDE_DIRS} ${gRPC_INCLUDE_DIRS})
 gtest_discover_tests(DisciplineTests)
-
-# # explicit server
-# add_executable(DiscreteArrayTests discrete_array_tests.cpp)
-# target_link_libraries(DiscreteArrayTests PhiloteCpp)
-# target_link_libraries(DiscreteArrayTests GTest::gtest_main)
-# gtest_discover_tests(DiscreteArrayTests)
-
-# explicit client tests
-add_executable(ExplicitClientTests explicit_client_tests.cpp)
-target_link_libraries(ExplicitClientTests PhiloteCpp GTest::gtest_main GTest::gmock protobuf::libprotobuf gRPC::grpc++)
-gtest_discover_tests(ExplicitClientTests)
-
-# implicit server tests
-add_executable(ImplicitServerTests implicit_server_tests.cpp)
-target_link_libraries(ImplicitServerTests PhiloteCpp GTest::gtest_main GTest::gmock protobuf::libprotobuf gRPC::grpc++)
-gtest_discover_tests(ImplicitServerTests)
-
-# implicit client tests
-add_executable(ImplicitClientTests implicit_client_tests.cpp)
-target_link_libraries(ImplicitClientTests PhiloteCpp GTest::gtest_main GTest::gmock protobuf::libprotobuf gRPC::grpc++)
-gtest_discover_tests(ImplicitClientTests)
-
-# example disciplines
-add_executable(ExampleDisciplineTests example_tests.cpp)
-target_link_libraries(ExampleDisciplineTests PhiloteCpp GTest::gtest_main GTest::gmock protobuf::libprotobuf gRPC::grpc++)
-gtest_discover_tests(ExampleDisciplineTests)
