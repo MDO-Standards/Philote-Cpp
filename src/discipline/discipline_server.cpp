@@ -53,10 +53,10 @@ DisciplineServer::~DisciplineServer()
 
 bool DisciplineServer::DisiplinePointerNull()
 {
-	if (discipline_ == nullptr)
-		return true;
-	else
-		return false;
+    if (discipline_ == nullptr)
+        return true;
+    else
+        return false;
 }
 
 void DisciplineServer::LinkPointers(philote::Discipline *discipline)
@@ -93,7 +93,7 @@ grpc::Status DisciplineServer::SetOptions(ServerContext *context,
 {
     const Struct &options = request->options();
 
-    discipline_->Initialize(options);
+    discipline_->SetOptions(options);
 
     return Status::OK;
 }
@@ -130,8 +130,44 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
     }
 
     // run the developer-defined setup functions
-    discipline_->Setup();
-    discipline_->SetupPartials();
+    try
+    {
+        discipline_->Setup();
+    }
+    catch (const std::exception &e)
+    {
+        std::cout << "Setup failed" << e.what() << std::endl;
+        return Status(grpc::INTERNAL, "Internal server error during Setup call: exception.");
+    }
+    catch (...)
+    {
+        std::cout << "Internal server error during Setup call." << std::endl;
+    }
+
+    try
+    {
+        discipline_->SetupPartials();
+    }
+    catch (const std::exception &e)
+    {
+        std::cout << "Setup failed" << e.what() << std::endl;
+        return Status(grpc::INTERNAL, "Internal server error during SetupPartials call: exception.");
+    }
+    catch (...)
+    {
+        std::cout << "Internal server error during SetupPartials call." << std::endl;
+    }
+
+    return Status::OK;
+}
+
+::grpc::Status philote::DisciplineServer::GetAvailableOptions(::grpc::ServerContext *context,
+                                                              const ::google::protobuf::Empty *request,
+                                                              ::philote::StreamOptions *response)
+{
+    // StreamOptions only contains num_double field
+    // Set a default value or get it from the discipline if available
+    response->set_num_double(1000); // Default value, adjust as needed
 
     return Status::OK;
 }

@@ -44,6 +44,11 @@ Discipline::Discipline()
     discipline_server_.LinkPointers(this);
 }
 
+std::map<std::string, std::string> &Discipline::options_list()
+{
+    return options_list_;
+}
+
 std::vector<philote::VariableMetaData> &Discipline::var_meta()
 {
     return var_meta_;
@@ -94,22 +99,35 @@ void Discipline::AddOutput(const string &name,
 
 void Discipline::DeclarePartials(const string &f, const string &x)
 {
-
     // determine and assign the shape of the partials array
     vector<int64_t> shape_f, shape_x;
+    bool found_f = false, found_x = false;
+
+    // First find the output variable shape
     for (const auto &var : var_meta_)
     {
         if (var.name() == f and var.type() == kOutput)
         {
             for (const auto &dim : var.shape())
                 shape_f.push_back(dim);
+            found_f = true;
         }
+    }
 
+    // Then find the input variable shape
+    for (const auto &var : var_meta_)
+    {
         if (var.name() == x and var.type() == kInput)
         {
             for (const auto &dim : var.shape())
                 shape_x.push_back(dim);
+            found_x = true;
         }
+    }
+
+    if (!found_f || !found_x)
+    {
+        throw std::runtime_error("Could not find both input and output variables for partials declaration");
     }
 
     // create the combined shape array
@@ -117,22 +135,25 @@ void Discipline::DeclarePartials(const string &f, const string &x)
 
     if (shape_f.size() == 1 and shape_f[0] == 1 and shape_x.size() == 1 and shape_x[0] == 1)
     {
+        // Both are scalars
         shape.resize(1);
         shape[0] = 1;
     }
     else if (shape_f.size() == 1 and shape_f[0] == 1)
     {
-        shape.resize(shape_x.size());
+        // Output is scalar, input is vector/matrix
         shape = shape_x;
     }
     else if (shape_x.size() == 1 and shape_x[0] == 1)
     {
-        shape.resize(shape_f.size());
+        // Input is scalar, output is vector/matrix
         shape = shape_f;
     }
     else
     {
-        shape.resize(shape_f.size() + shape_x.size());
+        // Both are vectors/matrices
+        // For partial derivatives, we want output dimensions first, then input dimensions
+        shape.reserve(shape_f.size() + shape_x.size());
         shape.insert(shape.end(), shape_f.begin(), shape_f.end());
         shape.insert(shape.end(), shape_x.begin(), shape_x.end());
     }
@@ -147,8 +168,8 @@ void Discipline::DeclarePartials(const string &f, const string &x)
     partials_meta_.push_back(meta);
 }
 
-void Discipline::Initialize(const Struct &options_struct)
-{ 
+void Discipline::SetOptions(const google::protobuf::Struct &options_struct)
+{
 }
 
 void Discipline::Setup()
@@ -158,3 +179,5 @@ void Discipline::Setup()
 void Discipline::SetupPartials()
 {
 }
+
+philote::Discipline::~Discipline() = default;

@@ -32,6 +32,7 @@
 
 #include <google/protobuf/struct.pb.h>
 
+#include <map>
 #include <variable.h>
 
 #include <data.pb.h>
@@ -62,12 +63,12 @@ namespace philote
          */
         ~DisciplineServer() override;
 
-		/**
-		 *	Checks if the Discipline pointer is null.
-		 *
-		 * @return true if the pointer is null, otherwise false.
-		 */
-		bool DisiplinePointerNull();
+        /**
+         *	Checks if the Discipline pointer is null.
+         *
+         * @return true if the pointer is null, otherwise false.
+         */
+        bool DisiplinePointerNull();
 
         /**
          * @brief Links all pointers needed by the discipline base class
@@ -116,6 +117,10 @@ namespace philote
         grpc::Status SetOptions(grpc::ServerContext *context,
                                 const ::philote::DisciplineOptions *request,
                                 google::protobuf::Empty *response) override;
+
+        ::grpc::Status GetAvailableOptions(::grpc::ServerContext *context,
+                                           const ::google::protobuf::Empty *request,
+                                           ::philote::StreamOptions *response) override;
 
         /**
          * @brief RPC to define the discipline variables on the client side
@@ -180,7 +185,14 @@ namespace philote
          * @brief Destroy the Discipline object
          *
          */
-        ~Discipline() = default;
+        ~Discipline();
+
+        /**
+         * Gets the options list.
+         *
+         * @return
+         */
+        std::map<std::string, std::string> &options_list();
 
         /**
          * @brief Accesses the variable meta data
@@ -238,7 +250,7 @@ namespace philote
          *
          * @param options_struct
          */
-        virtual void Initialize(const google::protobuf::Struct &options_struct);
+        void SetOptions(const google::protobuf::Struct &options_struct);
 
         /**
          * @brief Sets up the analysis server before any function or gradient
@@ -258,6 +270,9 @@ namespace philote
         virtual void SetupPartials();
 
     protected:
+        //! options list
+        std::map<std::string, std::string> options_list_;
+
         //! Properties of the discipline (continuity, etc.)
         philote::DisciplineProperties properties_;
 
