@@ -347,17 +347,17 @@ TEST(VariableTests, MetadataEdgeCases)
 {
 	// Test empty metadata
 	philote::VariableMetaData empty_meta;
-	EXPECT_NO_THROW(Variable(empty_meta));
+	EXPECT_NO_THROW((Variable(empty_meta)));
 
 	// Test metadata with zero dimensions
 	philote::VariableMetaData zero_dim_meta;
 	zero_dim_meta.set_type(philote::kInput);
 	zero_dim_meta.add_shape(0);
-	EXPECT_NO_THROW(Variable(zero_dim_meta));
+	EXPECT_NO_THROW((Variable(zero_dim_meta)));
 
 	// Test metadata with negative dimensions
 	philote::VariableMetaData neg_dim_meta;
 	neg_dim_meta.set_type(philote::kInput);
 	neg_dim_meta.add_shape(-1);
-	EXPECT_NO_THROW(Variable(neg_dim_meta));
+	EXPECT_NO_THROW((Variable(neg_dim_meta)));
 }
