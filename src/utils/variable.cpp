@@ -89,37 +89,32 @@ Variable::Variable(const philote::PartialsMetaData &meta)
 void Variable::Segment(const size_t &start, const size_t &end,
                        const std::vector<double> &data)
 {
-    // check that the segment matches length of (end - start)
+    if (start > end)
+        throw std::invalid_argument("Start index greater than end index in Variable::Segment");
+    if (end >= data_.size())
+        throw std::out_of_range("End index out of range in Variable::Segment");
+    if (data.size() == 0 && start > end)
+        return; // allow empty segment for start > end as a no-op
     if ((end - start) + 1 != data.size())
     {
-        std::string expected = std::to_string((end - start));
+        std::string expected = std::to_string((end - start) + 1);
         std::string actual = std::to_string(data.size());
         throw std::length_error("Vector data has incompatable length. Should be " +
                                 expected + ", but received " + actual + ".");
     }
-
-    // assign the segment
     for (size_t i = 0; i < (end - start) + 1; i++)
-        data_[start + i] = data[i];
+        data_.at(start + i) = data[i];
 }
 
 std::vector<double> Variable::Segment(const size_t &start, const size_t &end) const
 {
+    if (start > end)
+        throw std::invalid_argument("Start index greater than end index in Variable::Segment getter");
+    if (end >= data_.size())
+        throw std::out_of_range("End index out of range in Variable::Segment getter");
     std::vector<double> data(end - start + 1);
-
-    // check that the segment matches length of (end - start)
-    if ((end - start) > data_.size())
-    {
-        std::string actual = std::to_string((end - start));
-        std::string expected = std::to_string(data_.size());
-        throw std::length_error("Vector data has incompatable length. Should be smaller than " +
-                                expected + ", but received " + actual + ".");
-    }
-
-    // assign the segment
     for (size_t i = 0; i < (end - start) + 1; i++)
         data[i] = data_.at(start + i);
-
     return data;
 }
 
@@ -135,25 +130,29 @@ size_t Variable::Size() const
 
 double Variable::operator()(const size_t &i) const
 {
-    return data_[i];
+    if (i >= data_.size())
+        throw std::out_of_range("Index out of range in Variable::operator() const");
+    return data_.at(i);
 }
 
 double &Variable::operator()(const size_t &i)
 {
-    return data_[i];
+    if (i >= data_.size())
+        throw std::out_of_range("Index out of range in Variable::operator() non-const");
+    return data_.at(i);
 }
 
 Array Variable::CreateChunk(const size_t &start, const size_t &end) const
 {
-	philote::Array out;
+    philote::Array out;
 
     out.set_start(start);
     out.set_end(end);
 
     // set the data
-	const vector<double> segment = Segment(start, end);
-	for (const double value : segment)
-		out.add_data(value);
+    const vector<double> segment = Segment(start, end);
+    for (const double value : segment)
+        out.add_data(value);
 
     return out;
 }
@@ -168,23 +167,23 @@ void Variable::Send(string name,
     size_t start, end;
     size_t n = Size();
 
-	// find the chunk indices and create the chunk
-	size_t num_chunks = n / chunk_size;
-	if (num_chunks == 0)
-		num_chunks = 1;
+    // find the chunk indices and create the chunk
+    size_t num_chunks = n / chunk_size;
+    if (num_chunks == 0)
+        num_chunks = 1;
 
-	for (size_t i = 0; i < num_chunks; i++)
-	{
-		start = i * chunk_size;
-		end = start + chunk_size;
-		if (end > n)
-			end = n - 1;
+    for (size_t i = 0; i < num_chunks; i++)
+    {
+        start = i * chunk_size;
+        end = start + chunk_size;
+        if (end > n)
+            end = n - 1;
 
-		array = CreateChunk(start, end);
-		array.set_name(name);
-		array.set_subname(subname);
-		stream->Write(array);
-	}
+        array = CreateChunk(start, end);
+        array.set_name(name);
+        array.set_subname(subname);
+        stream->Write(array);
+    }
 }
 
 void Variable::Send(string name,
@@ -197,31 +196,38 @@ void Variable::Send(string name,
     size_t start = 0, end;
     size_t n = Size();
 
-	// find the chunk indices and create the chunk
-	size_t num_chunks = n / chunk_size;
-	if (num_chunks == 0)
-		num_chunks = 1;
+    // find the chunk indices and create the chunk
+    size_t num_chunks = n / chunk_size;
+    if (num_chunks == 0)
+        num_chunks = 1;
 
-	for (size_t i = 0; i < num_chunks; i++)
-	{
-		start = i * chunk_size;
-		end = start + chunk_size;
-		if (end > n)
-		{
-			end = n - 1;
-		}
+    for (size_t i = 0; i < num_chunks; i++)
+    {
+        start = i * chunk_size;
+        end = start + chunk_size;
+        if (end > n)
+        {
+            end = n - 1;
+        }
 
-		array = CreateChunk(start, end);
-		array.set_name(name);
-		array.set_subname(subname);
-		stream->Write(array);
-	}
+        array = CreateChunk(start, end);
+        array.set_name(name);
+        array.set_subname(subname);
+        stream->Write(array);
+    }
 }
 
 void Variable::AssignChunk(const Array &data)
 {
     size_t start = data.start();
     size_t end = data.end();
+
+    if (start > end)
+        throw std::invalid_argument("Start index greater than end index in Variable::AssignChunk");
+    if (end >= data_.size())
+        throw std::out_of_range("End index out of range in Variable::AssignChunk");
+    if (data.data_size() != static_cast<int>((end - start + 1)))
+        throw std::length_error("Chunk data size does not match the specified range in Variable::AssignChunk");
 
     for (size_t i = 0; i < end - start + 1; i++)
         data_[start + i] = data.data(i);
