@@ -31,6 +31,7 @@
 #pragma once
 
 #include <disciplines.grpc.pb.h>
+#include "discipline_server.h"
 
 #include <discipline.h>
 
@@ -188,6 +189,8 @@ namespace philote
     private:
         //! Implicit discipline server
         philote::ImplicitServer implicit_;
+        //! Discipline server
+        philote::DisciplineServer discipline_server_;
     };
 
     /**

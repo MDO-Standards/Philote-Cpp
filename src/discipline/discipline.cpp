@@ -41,7 +41,7 @@ using philote::StreamOptions;
 
 Discipline::Discipline()
 {
-    discipline_server_.LinkPointers(this);
+    // Removed: discipline_server_.LinkPointers(this);
 }
 
 std::map<std::string, std::string> &Discipline::options_list()

@@ -38,6 +38,7 @@
 #include <variable.h>
 
 #include <disciplines.grpc.pb.h>
+#include "discipline_server.h"
 
 namespace philote
 {
@@ -158,6 +159,8 @@ namespace philote
     private:
         //! Explicit discipline server
         philote::ExplicitServer explicit_;
+        //! Discipline server
+        philote::DisciplineServer discipline_server_;
     };
 
     /**

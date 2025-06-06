@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
+
 #include "discipline.h"
 #include <google/protobuf/struct.pb.h>
 

@@ -41,127 +41,7 @@
 namespace philote
 {
     // forward declaration
-    class Discipline;
-
-    /**
-     * @brief Base class for all analysis discipline servers
-     *
-     */
-    class DisciplineServer : public DisciplineService::Service
-    {
-    public:
-        /**
-         * @brief Construct a new Discipline Server object
-         *
-         */
-        DisciplineServer() = default;
-
-        /**
-         * @brief Destroy the Discipline Server object
-         *
-         * Deallocates all pointers required by the discipline base class
-         */
-        ~DisciplineServer() override;
-
-        /**
-         *	Checks if the Discipline pointer is null.
-         *
-         * @return true if the pointer is null, otherwise false.
-         */
-        bool DisiplinePointerNull();
-
-        /**
-         * @brief Links all pointers needed by the discipline base class
-         *
-         * @param discipline
-         */
-        void LinkPointers(philote::Discipline *discipline);
-
-        /**
-         * @brief Unlinks all pointers
-         */
-        void UnlinkPointers();
-
-        /**
-         * @brief RPC to send the discipline properties to the client
-         *
-         * @param context
-         * @param request
-         * @param response
-         * @return grpc::Status
-         */
-        grpc::Status GetInfo(grpc::ServerContext *context,
-                             google::protobuf::Empty *request,
-                             ::philote::DisciplineProperties *response);
-
-        /**
-         * @brief RPC to define the discipline stream options to the client
-         *
-         * @param context
-         * @param request
-         * @param response
-         * @return grpc::Status
-         */
-        grpc::Status SetStreamOptions(grpc::ServerContext *context,
-                                      const ::philote::StreamOptions *request,
-                                      google::protobuf::Empty *response) override;
-
-        /**
-         * @brief Set the discipline options
-         *
-         * @param context
-         * @param request
-         * @param response
-         * @return grpc::Status
-         */
-        grpc::Status SetOptions(grpc::ServerContext *context,
-                                const ::philote::DisciplineOptions *request,
-                                google::protobuf::Empty *response) override;
-
-        ::grpc::Status GetAvailableOptions(::grpc::ServerContext *context,
-                                           const ::google::protobuf::Empty *request,
-                                           ::philote::StreamOptions *response) override;
-
-        /**
-         * @brief RPC to define the discipline variables on the client side
-         *
-         * @param context
-         * @param request
-         * @param writer
-         * @return grpc::Status
-         */
-        grpc::Status GetVariableDefinitions(grpc::ServerContext *context,
-                                            const google::protobuf::Empty *request,
-                                            grpc::ServerWriter<::philote::VariableMetaData> *writer) override;
-
-        /**
-         * @brief RPC to define the discipline partials on the client side
-         *
-         * @param context
-         * @param request
-         * @param writer
-         * @return grpc::Status
-         */
-        grpc::Status GetPartialDefinitions(grpc::ServerContext *context,
-                                           const google::protobuf::Empty *request,
-                                           grpc::ServerWriter<::philote::PartialsMetaData> *writer) override;
-
-        /**
-         * @brief RPC that invokes the discipline setup function
-         *
-         * @param context
-         * @param request
-         * @param response
-         * @return grpc::Status
-         */
-        grpc::Status Setup(grpc::ServerContext *context,
-                           const google::protobuf::Empty *request,
-                           google::protobuf::Empty *response) override;
-
-    private:
-        //! Pointer to the discipline implementation
-        philote::Discipline *discipline_ = nullptr;
-    };
+    class DisciplineServer;
 
     /**
      * @brief Definition of the discipline base class
@@ -253,40 +133,34 @@ namespace philote
         virtual void SetOptions(const google::protobuf::Struct &options_struct);
 
         /**
-         * @brief Sets up the analysis server before any function or gradient
-         * evaluation.
+         * @brief Setup function that is called by the server when the client
+         * calls the setup RPC.
          *
-         * This function should be overridden by the developer of the
-         * discipline.
          */
         virtual void Setup();
 
         /**
-         * @brief Defines the partials for this discipline.
+         * @brief Setup function that is called by the server when the client
+         * calls the setup RPC. This function is used to setup the partials.
          *
-         * This function should be overridden by the developer of the
-         * discipline.
          */
         virtual void SetupPartials();
 
     protected:
-        //! options list
+        //! List of options that can be set by the client
         std::map<std::string, std::string> options_list_;
 
-        //! Properties of the discipline (continuity, etc.)
+        //! List of variable meta data
+        std::vector<philote::VariableMetaData> var_meta_;
+
+        //! List of partials meta data
+        std::vector<philote::PartialsMetaData> partials_meta_;
+
+        //! Discipline properties
         philote::DisciplineProperties properties_;
 
-        //! Options that determine how data is streamed
-        StreamOptions stream_opts_;
-
-        //! vector containing all variable metadata for the discipline
-        std::vector<VariableMetaData> var_meta_;
-
-        //! vector containing all partials metadata for the discipline
-        std::vector<PartialsMetaData> partials_meta_;
-
-        //! Basic discipline server
-        philote::DisciplineServer discipline_server_;
+        //! Stream options
+        philote::StreamOptions stream_opts_;
     };
 
     /**

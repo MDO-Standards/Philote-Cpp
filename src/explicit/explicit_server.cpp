@@ -70,7 +70,7 @@ Status ExplicitServer::ComputeFunction(ServerContext *context,
 
     // preallocate the inputs based on meta data
     Variables inputs;
-    for (auto &var : implementation_->var_meta())
+    for (auto &var : static_cast<philote::Discipline *>(implementation_)->var_meta())
     {
         string name = var.name();
         if (var.type() == kInput)
@@ -96,7 +96,7 @@ Status ExplicitServer::ComputeFunction(ServerContext *context,
 
     // preallocate outputs
     Variables outputs;
-    for (const VariableMetaData &var : implementation_->var_meta())
+    for (const VariableMetaData &var : static_cast<philote::Discipline *>(implementation_)->var_meta())
     {
         if (var.type() == kOutput)
             outputs[var.name()] = Variable(var);
@@ -109,7 +109,7 @@ Status ExplicitServer::ComputeFunction(ServerContext *context,
     for (const auto &out : outputs)
     {
         const string &name = out.first;
-        out.second.Send(name, "", stream, implementation_->stream_opts().num_double());
+        out.second.Send(name, "", stream, static_cast<philote::Discipline *>(implementation_)->stream_opts().num_double());
     }
 
     return Status::OK;
@@ -123,7 +123,7 @@ Status ExplicitServer::ComputeGradient(ServerContext *context,
 
     // preallocate the inputs based on meta data
     Variables inputs;
-    for (const auto &var : implementation_->var_meta())
+    for (const auto &var : static_cast<philote::Discipline *>(implementation_)->var_meta())
     {
         string name = var.name();
         if (var.type() == kInput)
@@ -138,8 +138,8 @@ Status ExplicitServer::ComputeGradient(ServerContext *context,
         const auto &end = array.end();
 
         // get the variable corresponding to the current message
-        const auto &var = std::find_if(implementation_->var_meta().begin(),
-                                       implementation_->var_meta().end(),
+        const auto &var = std::find_if(static_cast<philote::Discipline *>(implementation_)->var_meta().begin(),
+                                       static_cast<philote::Discipline *>(implementation_)->var_meta().end(),
                                        [&name](const VariableMetaData &var)
                                        { return var.name() == name; });
 
@@ -157,7 +157,7 @@ Status ExplicitServer::ComputeGradient(ServerContext *context,
 
     // preallocate outputs
     Partials partials;
-    for (const PartialsMetaData &par : implementation_->partials_meta())
+    for (const PartialsMetaData &par : static_cast<philote::Discipline *>(implementation_)->partials_meta())
     {
         vector<size_t> shape;
         for (const int64_t &dim : par.shape())
@@ -178,7 +178,7 @@ Status ExplicitServer::ComputeGradient(ServerContext *context,
         par.second.Send(name,
                         subname,
                         stream,
-                        implementation_->stream_opts().num_double());
+                        static_cast<philote::Discipline *>(implementation_)->stream_opts().num_double());
     }
 
     return Status::OK;

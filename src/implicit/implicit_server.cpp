@@ -69,7 +69,7 @@ grpc::Status ImplicitServer::ComputeResiduals(grpc::ServerContext *context,
 
     // preallocate the variables based on meta data
     Variables inputs, outputs, residuals;
-    for (const auto &var : implementation_->var_meta())
+    for (const auto &var : static_cast<philote::Discipline *>(implementation_)->var_meta())
     {
         string name = var.name();
         if (var.type() == kInput)
@@ -89,8 +89,8 @@ grpc::Status ImplicitServer::ComputeResiduals(grpc::ServerContext *context,
         const auto &end = array.end();
 
         // get the variable corresponding to the current message
-        const auto &var = std::find_if(implementation_->var_meta().begin(),
-                                       implementation_->var_meta().end(),
+        const auto &var = std::find_if(static_cast<philote::Discipline *>(implementation_)->var_meta().begin(),
+                                       static_cast<philote::Discipline *>(implementation_)->var_meta().end(),
                                        [&name](const VariableMetaData &var)
                                        { return var.name() == name; });
 
@@ -113,7 +113,7 @@ grpc::Status ImplicitServer::ComputeResiduals(grpc::ServerContext *context,
     {
         const string &name = res.first;
 
-        res.second.Send(name, "", stream, implementation_->stream_opts().num_double());
+        res.second.Send(name, "", stream, static_cast<philote::Discipline *>(implementation_)->stream_opts().num_double());
     }
 
     return Status::OK;
@@ -127,7 +127,7 @@ grpc::Status ImplicitServer::SolveResiduals(grpc::ServerContext *context,
 
     // preallocate the inputs based on meta data
     Variables inputs;
-    for (const auto &var : implementation_->var_meta())
+    for (const auto &var : static_cast<philote::Discipline *>(implementation_)->var_meta())
     {
         string name = var.name();
         if (var.type() == kInput or var.type() == kOutput)
@@ -142,8 +142,8 @@ grpc::Status ImplicitServer::SolveResiduals(grpc::ServerContext *context,
         const auto &end = array.end();
 
         // get the variable corresponding to the current message
-        const auto &var = std::find_if(implementation_->var_meta().begin(),
-                                       implementation_->var_meta().end(),
+        const auto &var = std::find_if(static_cast<philote::Discipline *>(implementation_)->var_meta().begin(),
+                                       static_cast<philote::Discipline *>(implementation_)->var_meta().end(),
                                        [&name](const VariableMetaData &var)
                                        { return var.name() == name; });
 
@@ -161,7 +161,7 @@ grpc::Status ImplicitServer::SolveResiduals(grpc::ServerContext *context,
 
     // preallocate outputs
     Variables outputs;
-    for (const VariableMetaData &var : implementation_->var_meta())
+    for (const VariableMetaData &var : static_cast<philote::Discipline *>(implementation_)->var_meta())
     {
         if (var.type() == kOutput)
             outputs[var.name()] = Variable(var);
@@ -175,7 +175,7 @@ grpc::Status ImplicitServer::SolveResiduals(grpc::ServerContext *context,
     {
         const string &name = var.first;
 
-        var.second.Send(name, "", stream, implementation_->stream_opts().num_double());
+        var.second.Send(name, "", stream, static_cast<philote::Discipline *>(implementation_)->stream_opts().num_double());
     }
 
     return Status::OK;
@@ -189,7 +189,7 @@ grpc::Status ImplicitServer::ComputeResidualGradients(grpc::ServerContext *conte
 
     // preallocate the inputs based on meta data
     Variables inputs, outputs;
-    for (const auto &var : implementation_->var_meta())
+    for (const auto &var : static_cast<philote::Discipline *>(implementation_)->var_meta())
     {
         const string &name = var.name();
         if (var.type() == kInput)
@@ -206,8 +206,8 @@ grpc::Status ImplicitServer::ComputeResidualGradients(grpc::ServerContext *conte
         const auto &end = array.end();
 
         // get the variable corresponding to the current message
-        const auto &var = std::find_if(implementation_->var_meta().begin(),
-                                       implementation_->var_meta().end(),
+        const auto &var = std::find_if(static_cast<philote::Discipline *>(implementation_)->var_meta().begin(),
+                                       static_cast<philote::Discipline *>(implementation_)->var_meta().end(),
                                        [&name](const VariableMetaData &var)
                                        { return var.name() == name; });
 
@@ -224,7 +224,7 @@ grpc::Status ImplicitServer::ComputeResidualGradients(grpc::ServerContext *conte
 
     // preallocate outputs
     Partials partials;
-    for (const PartialsMetaData &par : implementation_->partials_meta())
+    for (const PartialsMetaData &par : static_cast<philote::Discipline *>(implementation_)->partials_meta())
     {
         vector<size_t> shape;
         for (const int64_t &dim : par.shape())
@@ -242,7 +242,7 @@ grpc::Status ImplicitServer::ComputeResidualGradients(grpc::ServerContext *conte
         const string &name = par.first.first;
         const string &subname = par.first.second;
 
-        par.second.Send(name, subname, stream, implementation_->stream_opts().num_double());
+        par.second.Send(name, subname, stream, static_cast<philote::Discipline *>(implementation_)->stream_opts().num_double());
     }
 
     return Status::OK;

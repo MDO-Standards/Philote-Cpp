@@ -20,10 +20,11 @@
 #include <gmock/gmock.h>
 #include <grpcpp/impl/channel_interface.h>
 #include <grpcpp/support/sync_stream.h>
-#include <memory>
-#include <vector>
 
-#include "discipline.h"
+#include <google/protobuf/struct.pb.h>
+#include <grpcpp/support/async_stream.h>
+
+#include "discipline_client.h"
 #include "disciplines_mock.grpc.pb.h"
 
 using ::testing::_;

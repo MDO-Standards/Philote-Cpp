@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+
+#include "discipline_server.h"
 #include "discipline.h"
 #include <google/protobuf/struct.pb.h>
 #include <grpcpp/grpcpp.h>

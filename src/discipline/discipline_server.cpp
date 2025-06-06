@@ -28,7 +28,7 @@
     therein. The DoD does not exercise any editorial, security, or other
     control over the information you may find at these locations.
 */
-#include <vector>
+#include "discipline_server.h"
 #include "discipline.h"
 
 using std::string;

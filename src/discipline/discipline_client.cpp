@@ -28,7 +28,7 @@
     therein. The DoD does not exercise any editorial, security, or other
     control over the information you may find at these locations.
 */
-#include "discipline.h"
+#include "discipline_client.h"
 
 using google::protobuf::Empty;
 using grpc::ChannelInterface;
