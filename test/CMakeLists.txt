@@ -31,7 +31,7 @@
 
 # array tests
 add_executable(VariableTests variable_tests.cpp)
-target_link_libraries(VariableTests PhiloteCpp GTest::gtest_main GTest::gmock protobuf::libprotobuf)
+target_link_libraries(VariableTests PhiloteCpp GTest::gtest_main GTest::gmock)
 # target_include_directories(VariableTests PRIVATE ${Protobuf_INCLUDE_DIRS} ${gRPC_INCLUDE_DIRS})
 gtest_discover_tests(VariableTests)
 
@@ -44,13 +44,13 @@ gtest_discover_tests(DisciplineTests)
 
 # discipline server tests
 add_executable(DisciplineServerTests discipline_server_test.cpp)
-target_link_libraries(DisciplineServerTests PhiloteCpp GTest::gtest_main GTest::gmock protobuf::libprotobuf)
+target_link_libraries(DisciplineServerTests PhiloteCpp GTest::gtest_main GTest::gmock)
 gtest_discover_tests(DisciplineServerTests)
 
 # discipline client tests
 add_executable(DisciplineClientTests discipline_client_test.cpp)
 add_dependencies(DisciplineClientTests GrpcGenerated)
-target_link_libraries(DisciplineClientTests PhiloteCpp GTest::gtest_main GTest::gmock protobuf::libprotobuf)
+target_link_libraries(DisciplineClientTests PhiloteCpp GTest::gtest_main GTest::gmock)
 target_include_directories(DisciplineClientTests PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src/discipline
