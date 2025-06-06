@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2024 Christopher A. Lupp
+    Copyright 2022-2025 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -71,10 +71,10 @@ void DisciplineClient::SendStreamOptions()
 
 void DisciplineClient::SendOptions(const DisciplineOptions &options)
 {
-	ClientContext context;
-	::google::protobuf::Empty response;
+    ClientContext context;
+    ::google::protobuf::Empty response;
 
-	stub_->SetOptions(&context, options, &response);
+    stub_->SetOptions(&context, options, &response);
 }
 
 void DisciplineClient::Setup()
@@ -96,12 +96,12 @@ void DisciplineClient::GetVariableDefinitions()
         // clear any existing meta data
         var_meta_.clear();
     }
-	// get the meta data
-	reactor = stub_->GetVariableDefinitions(&context, request);
+    // get the meta data
+    reactor = stub_->GetVariableDefinitions(&context, request);
 
-	VariableMetaData meta;
-	while (reactor->Read(&meta))
-		var_meta_.push_back(meta);
+    VariableMetaData meta;
+    while (reactor->Read(&meta))
+        var_meta_.push_back(meta);
 }
 
 void DisciplineClient::GetPartialDefinitions()
@@ -110,17 +110,17 @@ void DisciplineClient::GetPartialDefinitions()
     Empty request;
     std::unique_ptr<ClientReader<PartialsMetaData>> reactor;
 
-	if (!partials_meta_.empty())
-	{
-		// clear any existing meta data
-		partials_meta_.clear();
-	}
-	// get the meta data
-	reactor = stub_->GetPartialDefinitions(&context, request);
+    if (!partials_meta_.empty())
+    {
+        // clear any existing meta data
+        partials_meta_.clear();
+    }
+    // get the meta data
+    reactor = stub_->GetPartialDefinitions(&context, request);
 
-	PartialsMetaData meta;
-	while (reactor->Read(&meta))
-		partials_meta_.push_back(meta);
+    PartialsMetaData meta;
+    while (reactor->Read(&meta))
+        partials_meta_.push_back(meta);
 }
 
 vector<string> DisciplineClient::GetVariableNames()

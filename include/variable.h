@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2024 Christopher A. Lupp
+    Copyright 2022-2025 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -132,14 +132,14 @@ namespace philote
          */
         double &operator()(const size_t &i);
 
-		/**
+        /**
          * @brief Create a Chunk of the variable
          *
          * @param start
          * @param end
          * @return philote::Array
          */
-		philote::Array CreateChunk(const size_t &start, const size_t &end) const;
+        philote::Array CreateChunk(const size_t &start, const size_t &end) const;
 
         /**
          * @brief Sends the variable from the client to the server
