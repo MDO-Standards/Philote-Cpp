@@ -37,8 +37,7 @@ gtest_discover_tests(VariableTests)
 
 # discipline tests
 add_executable(DisciplineTests discipline_test.cpp)
-target_link_libraries(DisciplineTests PhiloteCpp)
-target_link_libraries(DisciplineTests GTest::gtest_main)
+target_link_libraries(DisciplineTests PhiloteCpp GTest::gtest_main GTest::gmock)
 # target_include_directories(DisciplineTests PRIVATE ${Protobuf_INCLUDE_DIRS} ${gRPC_INCLUDE_DIRS})
 gtest_discover_tests(DisciplineTests)
 
@@ -56,6 +55,25 @@ target_include_directories(DisciplineClientTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/discipline
 )
 gtest_discover_tests(DisciplineClientTests)
+
+# explicit discipline tests
+add_executable(ExplicitDisciplineTests explicit_discipline_test.cpp)
+add_dependencies(ExplicitDisciplineTests GrpcGenerated)
+target_link_libraries(ExplicitDisciplineTests 
+    PhiloteCpp 
+    GTest::gtest_main 
+    GTest::gmock
+    protobuf::libprotobuf
+    gRPC::grpc++
+)
+target_include_directories(ExplicitDisciplineTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src/explicit
+    ${CMAKE_SOURCE_DIR}/src/generated
+    ${Protobuf_INCLUDE_DIRS}
+    ${gRPC_INCLUDE_DIRS}
+)
+gtest_discover_tests(ExplicitDisciplineTests)
 
 # Add dependencies for targets that use the generated gRPC files
 add_dependencies(ImplicitDiscipline GrpcGenerated)
