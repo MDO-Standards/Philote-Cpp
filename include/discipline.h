@@ -77,12 +77,14 @@ namespace philote
         /**
          * @brief Accesses the variable meta data
          */
-        std::vector<philote::VariableMetaData> &var_meta();
+        std::vector<philote::VariableMetaData> &var_meta() { return var_meta_; }
+        const std::vector<philote::VariableMetaData> &var_meta() const { return var_meta_; }
 
         /**
          * @brief Accesses the partials meta data
          */
-        std::vector<philote::PartialsMetaData> &partials_meta();
+        std::vector<philote::PartialsMetaData> &partials_meta() { return partials_meta_; }
+        const std::vector<philote::PartialsMetaData> &partials_meta() const { return partials_meta_; }
 
         /**
          * @brief Gets the discipline properties
@@ -96,7 +98,8 @@ namespace philote
          *
          * @return StreamOptions&
          */
-        philote::StreamOptions &stream_opts();
+        philote::StreamOptions &stream_opts() { return stream_opts_; }
+        const philote::StreamOptions &stream_opts() const { return stream_opts_; }
 
         /**
          * @brief Declares an input
@@ -273,5 +276,4 @@ namespace philote
         //! vector containing all partials metadata for the discipline
         std::vector<philote::PartialsMetaData> partials_meta_;
     };
-
 }

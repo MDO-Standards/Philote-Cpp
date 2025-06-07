@@ -32,6 +32,7 @@
 
 using grpc::ClientReaderWriter;
 using grpc::ServerReaderWriter;
+using grpc::ServerReaderWriterInterface;
 using std::map;
 using std::shared_ptr;
 using std::string;
@@ -186,30 +187,23 @@ void Variable::Send(string name,
     }
 }
 
-void Variable::Send(string name,
-                    string subname,
-                    ServerReaderWriter<Array, Array> *stream,
-                    const size_t &chunk_size) const
+void philote::Variable::Send(std::string name,
+                             std::string subname,
+                             grpc::ServerReaderWriterInterface<::philote::Array, ::philote::Array> *stream,
+                             const size_t &chunk_size) const
 {
     Array array;
-
     size_t start = 0, end;
     size_t n = Size();
-
-    // find the chunk indices and create the chunk
     size_t num_chunks = n / chunk_size;
     if (num_chunks == 0)
         num_chunks = 1;
-
     for (size_t i = 0; i < num_chunks; i++)
     {
         start = i * chunk_size;
         end = start + chunk_size;
         if (end > n)
-        {
             end = n - 1;
-        }
-
         array = CreateChunk(start, end);
         array.set_name(name);
         array.set_subname(subname);

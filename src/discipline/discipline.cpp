@@ -49,24 +49,9 @@ std::map<std::string, std::string> &Discipline::options_list()
     return options_list_;
 }
 
-std::vector<philote::VariableMetaData> &Discipline::var_meta()
-{
-    return var_meta_;
-}
-
-std::vector<philote::PartialsMetaData> &Discipline::partials_meta()
-{
-    return partials_meta_;
-}
-
 DisciplineProperties &Discipline::properties()
 {
     return properties_;
-}
-
-StreamOptions &Discipline::stream_opts()
-{
-    return stream_opts_;
 }
 
 void Discipline::AddInput(const string &name,
@@ -165,7 +150,7 @@ void Discipline::DeclarePartials(const string &f, const string &x)
     for (const auto &dim : shape)
         meta.add_shape(dim);
 
-    partials_meta_.push_back(meta);
+    partials_meta().push_back(meta);
 }
 
 void Discipline::SetOptions(const google::protobuf::Struct &options_struct)

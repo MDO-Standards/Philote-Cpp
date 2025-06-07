@@ -82,8 +82,8 @@ namespace philote
          * @return grpc::Status
          */
         grpc::Status ComputeFunction(grpc::ServerContext *context,
-                                     grpc::ServerReaderWriter<::philote::Array,
-                                                              ::philote::Array> *stream);
+                                     grpc::ServerReaderWriterInterface<::philote::Array,
+                                                                       ::philote::Array> *stream);
 
         /**
          * @brief RPC that computes initiates gradient evaluation
@@ -93,8 +93,8 @@ namespace philote
          * @return grpc::Status
          */
         grpc::Status ComputeGradient(grpc::ServerContext *context,
-                                     grpc::ServerReaderWriter<::philote::Array,
-                                                              ::philote::Array> *stream);
+                                     grpc::ServerReaderWriterInterface<::philote::Array,
+                                                                       ::philote::Array> *stream);
 
     private:
         //! Pointer to the implementation of the explicit discipline

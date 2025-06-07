@@ -152,13 +152,13 @@ namespace philote
                   const size_t &chunk_size) const;
 
         /**
-         * @brief Sends the variable from the server to the client
+         * @brief Sends the variable from the server to the client using the interface
          *
          * @param stream
          */
         void Send(std::string name,
                   std::string subname,
-                  grpc::ServerReaderWriter<::philote::Array, ::philote::Array> *stream,
+                  grpc::ServerReaderWriterInterface<::philote::Array, ::philote::Array> *stream,
                   const size_t &chunk_size) const;
 
         /**
