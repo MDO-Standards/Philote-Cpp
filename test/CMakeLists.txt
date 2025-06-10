@@ -63,8 +63,6 @@ target_link_libraries(ExplicitDisciplineTests
     PhiloteCpp 
     GTest::gtest_main 
     GTest::gmock
-    protobuf::libprotobuf
-    gRPC::grpc++
 )
 target_include_directories(ExplicitDisciplineTests PRIVATE
     ${CMAKE_SOURCE_DIR}/include
@@ -82,8 +80,6 @@ target_link_libraries(ExplicitDisciplineServerTests
     PhiloteCpp 
     GTest::gtest_main 
     GTest::gmock
-    protobuf::libprotobuf
-    gRPC::grpc++
 )
 target_include_directories(ExplicitDisciplineServerTests PRIVATE
     ${CMAKE_SOURCE_DIR}/include
@@ -101,8 +97,6 @@ target_link_libraries(ExplicitClientTests
     PhiloteCpp 
     GTest::gtest_main 
     GTest::gmock
-    protobuf::libprotobuf
-    gRPC::grpc++
 )
 target_include_directories(ExplicitClientTests PRIVATE
     ${CMAKE_SOURCE_DIR}/include
