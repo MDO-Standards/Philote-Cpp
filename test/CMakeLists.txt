@@ -98,3 +98,6 @@ gtest_discover_tests(ExplicitDisciplineServerTests)
 add_dependencies(ImplicitDiscipline GrpcGenerated)
 add_dependencies(Discipline GrpcGenerated)
 add_dependencies(ExplicitDiscipline GrpcGenerated)
+
+# Set test discovery timeout
+set(GTEST_DISCOVER_TESTS_DISCOVERY_TIMEOUT 60)

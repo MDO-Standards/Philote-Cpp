@@ -58,7 +58,11 @@ void DisciplineClient::GetInfo()
     ClientContext context;
     Empty request;
 
-    stub_->GetInfo(&context, request, &properties_);
+    auto status = stub_->GetInfo(&context, request, &properties_);
+    if (!status.ok())
+    {
+        throw std::runtime_error("Failed to get discipline info: " + status.error_message());
+    }
 }
 
 void DisciplineClient::SendStreamOptions()
@@ -66,7 +70,11 @@ void DisciplineClient::SendStreamOptions()
     ClientContext context;
     ::google::protobuf::Empty response;
 
-    stub_->SetStreamOptions(&context, stream_options_, &response);
+    auto status = stub_->SetStreamOptions(&context, stream_options_, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("Failed to set stream options: " + status.error_message());
+    }
 }
 
 void DisciplineClient::SendOptions(const DisciplineOptions &options)
@@ -74,7 +82,11 @@ void DisciplineClient::SendOptions(const DisciplineOptions &options)
     ClientContext context;
     ::google::protobuf::Empty response;
 
-    stub_->SetOptions(&context, options, &response);
+    auto status = stub_->SetOptions(&context, options, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("Failed to set options: " + status.error_message());
+    }
 }
 
 void DisciplineClient::Setup()
@@ -82,7 +94,11 @@ void DisciplineClient::Setup()
     ClientContext context;
     ::google::protobuf::Empty request, response;
 
-    stub_->Setup(&context, request, &response);
+    auto status = stub_->Setup(&context, request, &response);
+    if (!status.ok())
+    {
+        throw std::runtime_error("Failed to setup discipline: " + status.error_message());
+    }
 }
 
 void DisciplineClient::GetVariableDefinitions()
@@ -102,7 +118,12 @@ void DisciplineClient::GetVariableDefinitions()
     VariableMetaData meta;
     while (reactor->Read(&meta))
         var_meta_.push_back(meta);
-    reactor->Finish();
+
+    auto status = reactor->Finish();
+    if (!status.ok())
+    {
+        throw std::runtime_error("Failed to get variable definitions: " + status.error_message());
+    }
 }
 
 void DisciplineClient::GetPartialDefinitions()
@@ -122,7 +143,12 @@ void DisciplineClient::GetPartialDefinitions()
     PartialsMetaData meta;
     while (reactor->Read(&meta))
         partials_meta_.push_back(meta);
-    reactor->Finish();
+
+    auto status = reactor->Finish();
+    if (!status.ok())
+    {
+        throw std::runtime_error("Failed to get partial definitions: " + status.error_message());
+    }
 }
 
 vector<string> DisciplineClient::GetVariableNames()
@@ -139,18 +165,15 @@ vector<string> DisciplineClient::GetVariableNames()
 
 VariableMetaData DisciplineClient::GetVariableMeta(const string &name)
 {
-    VariableMetaData out;
-
     for (const auto &var : var_meta_)
     {
         if (var.name() == name)
         {
-            out = var;
-            break;
+            return var;
         }
     }
 
-    return out;
+    throw std::runtime_error("Variable not found: " + name);
 }
 
 std::vector<philote::PartialsMetaData> DisciplineClient::GetPartialsMeta()
