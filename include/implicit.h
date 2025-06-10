@@ -199,7 +199,7 @@ namespace philote
      * This class may be inherited from or used by MDO framework developers.
      * However, it is a fully functional Philote MDO client.
      */
-    class ImplicitClient : public DisciplineClient
+    class ImplicitClient : public BaseDisciplineClient
     {
     public:
         //! Constructor

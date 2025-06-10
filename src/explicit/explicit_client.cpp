@@ -55,18 +55,18 @@ void ExplicitClient::ConnectChannel(std::shared_ptr<ChannelInterface> channel)
 philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
 {
     grpc::ClientContext context;
-    std::shared_ptr<grpc::ClientReaderWriter<Array, Array>>
+    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
         stream(stub_->ComputeFunction(&context));
 
     // send/assign inputs and preallocate outputs
     Variables outputs;
 
-    for (const VariableMetaData &var : var_meta_)
+    for (const VariableMetaData &var : GetVariableMetaAll())
     {
         const string &name = var.name();
 
         if (var.type() == kInput)
-            inputs.at(name).Send(name, "", stream.get(), stream_options_.num_double());
+            inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
 
         if (var.type() == kOutput)
             outputs[var.name()] = Variable(var);
@@ -90,17 +90,17 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
 philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
 {
     grpc::ClientContext context;
-    std::shared_ptr<grpc::ClientReaderWriter<Array, Array>>
+    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
         stream(stub_->ComputeGradient(&context));
 
     // send/assign inputs
-    for (const VariableMetaData &var : var_meta_)
+    for (const VariableMetaData &var : GetVariableMetaAll())
     {
         const string name = var.name();
         const string subname = var.name();
 
         if (var.type() == kInput)
-            inputs.at(name).Send(name, subname, stream.get(), stream_options_.num_double());
+            inputs.at(name).Send(name, subname, stream.get(), GetStreamOptions().num_double());
     }
 
     // finish streaming data to the server
@@ -108,7 +108,7 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
 
     // preallocate partials
     Partials partials;
-    for (const auto &par : partials_meta_)
+    for (const auto &par : GetPartialsMetaConst())
     {
         partials[make_pair(par.name(), par.subname())] = Variable(par);
     }

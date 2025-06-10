@@ -36,6 +36,7 @@
 
 #include <discipline.h>
 #include <variable.h>
+#include "discipline_client.h"
 
 #include <disciplines.grpc.pb.h>
 #include "discipline_server.h"
@@ -169,7 +170,7 @@ namespace philote
      * This class may be inherited from or used by MDO framework developers.
      * However, it is a fully functional Philote MDO client.
      */
-    class ExplicitClient : public DisciplineClient
+    class ExplicitClient : public ::philote::DisciplineClient
     {
     public:
         //! Constructor
@@ -204,8 +205,18 @@ namespace philote
          */
         Partials ComputeGradient(const Variables &inputs);
 
-    private:
+        /**
+         * @brief Set the stub (for testing purposes)
+         *
+         * @param stub
+         */
+        void SetStub(std::unique_ptr<ExplicitService::StubInterface> stub)
+        {
+            stub_ = std::move(stub);
+        }
+
+    protected:
         //! explicit service stub
-        std::unique_ptr<ExplicitService::Stub> stub_;
+        std::unique_ptr<ExplicitService::StubInterface> stub_;
     };
 }

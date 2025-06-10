@@ -94,6 +94,25 @@ target_include_directories(ExplicitDisciplineServerTests PRIVATE
 )
 gtest_discover_tests(ExplicitDisciplineServerTests)
 
+# explicit client tests
+add_executable(ExplicitClientTests explicit_client_test.cpp)
+add_dependencies(ExplicitClientTests GrpcGenerated)
+target_link_libraries(ExplicitClientTests 
+    PhiloteCpp 
+    GTest::gtest_main 
+    GTest::gmock
+    protobuf::libprotobuf
+    gRPC::grpc++
+)
+target_include_directories(ExplicitClientTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src/explicit
+    ${CMAKE_SOURCE_DIR}/src/generated
+    ${Protobuf_INCLUDE_DIRS}
+    ${gRPC_INCLUDE_DIRS}
+)
+gtest_discover_tests(ExplicitClientTests)
+
 # Add dependencies for targets that use the generated gRPC files
 add_dependencies(ImplicitDiscipline GrpcGenerated)
 add_dependencies(Discipline GrpcGenerated)

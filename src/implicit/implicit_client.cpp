@@ -43,7 +43,7 @@ using philote::Variables;
 
 void ImplicitClient::ConnectChannel(shared_ptr<ChannelInterface> channel)
 {
-    DisciplineClient::ConnectChannel(channel);
+    BaseDisciplineClient::ConnectChannel(channel);
     stub_ = ImplicitService::NewStub(channel);
 }
 

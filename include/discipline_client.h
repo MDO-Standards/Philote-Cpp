@@ -130,6 +130,62 @@ namespace philote
             stub_ = std::move(stub);
         }
 
+        /**
+         * @brief Get the stream options
+         *
+         * @return const StreamOptions&
+         */
+        const StreamOptions &GetStreamOptions() const { return stream_options_; }
+
+        /**
+         * @brief Set the stream options
+         *
+         * @param options
+         */
+        void SetStreamOptions(const StreamOptions &options) { stream_options_ = options; }
+
+        /**
+         * @brief Get the discipline properties
+         *
+         * @return const DisciplineProperties&
+         */
+        const DisciplineProperties &GetProperties() const { return properties_; }
+
+        /**
+         * @brief Set the discipline properties
+         *
+         * @param props
+         */
+        void SetProperties(const DisciplineProperties &props) { properties_ = props; }
+
+        /**
+         * @brief Get the variable metadata
+         *
+         * @return const std::vector<VariableMetaData>&
+         */
+        const std::vector<VariableMetaData> &GetVariableMetaAll() const { return var_meta_; }
+
+        /**
+         * @brief Set the variable metadata
+         *
+         * @param meta
+         */
+        void SetVariableMeta(const std::vector<VariableMetaData> &meta) { var_meta_ = meta; }
+
+        /**
+         * @brief Get the partials metadata (const version)
+         *
+         * @return const std::vector<PartialsMetaData>&
+         */
+        const std::vector<PartialsMetaData> &GetPartialsMetaConst() const { return partials_meta_; }
+
+        /**
+         * @brief Set the partials metadata
+         *
+         * @param meta
+         */
+        void SetPartialsMetaData(const std::vector<PartialsMetaData> &meta) { partials_meta_ = meta; }
+
     private:
         //! gRPC stub
         std::unique_ptr<philote::DisciplineService::StubInterface> stub_;

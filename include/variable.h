@@ -162,6 +162,16 @@ namespace philote
                   const size_t &chunk_size) const;
 
         /**
+         * @brief Sends the variable from the client to the server using the interface
+         *
+         * @param stream
+         */
+        void Send(std::string name,
+                  std::string subname,
+                  grpc::ClientReaderWriterInterface<::philote::Array, ::philote::Array> *stream,
+                  const size_t &chunk_size) const;
+
+        /**
          * @brief Assigns a chunk to the variable
          *
          * @param stream

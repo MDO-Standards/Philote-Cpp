@@ -170,20 +170,20 @@ namespace philote
      * @brief Base class for all analysis discipline clients
      *
      */
-    class DisciplineClient
+    class BaseDisciplineClient
     {
     public:
         /**
          * @brief Construct a new Discipline Client object
          *
          */
-        DisciplineClient();
+        BaseDisciplineClient();
 
         /**
          * @brief Destroy the Discipline Client object
          *
          */
-        ~DisciplineClient() = default;
+        ~BaseDisciplineClient() = default;
 
         /**
          * @brief Connects the client stub to a gRPC channel
