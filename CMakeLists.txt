@@ -48,6 +48,11 @@ set(
     FALSE
     CACHE BOOL "Build examples"
 )
+set(
+    ENABLE_COVERAGE
+    FALSE
+    CACHE BOOL "Enable code coverage analysis"
+)
 
 # add cmake scripts
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -55,7 +60,30 @@ LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # set the C++ standard
 set(CMAKE_CXX_STANDARD 17)
 
-
+# Coverage configuration
+if(ENABLE_COVERAGE)
+    message("Enabling code coverage...")
+    
+    # Check if we have the required tools
+    find_program(GCOV_PATH gcov)
+    find_program(LCOV_PATH lcov)
+    find_program(GENHTML_PATH genhtml)
+    
+    if(NOT GCOV_PATH)
+        message(FATAL_ERROR "gcov not found! Install gcov and try again.")
+    endif()
+    
+    # Set coverage flags
+    set(COVERAGE_COMPILER_FLAGS "-g -O0 --coverage -fprofile-arcs -ftest-coverage")
+    set(COVERAGE_LINKER_FLAGS "--coverage")
+    
+    # Apply flags to all targets
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COVERAGE_COMPILER_FLAGS}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COVERAGE_COMPILER_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${COVERAGE_LINKER_FLAGS}")
+    
+    message("Coverage flags: ${COVERAGE_COMPILER_FLAGS}")
+endif()
 
 # Find gRPC and its dependencies
 find_package(Protobuf CONFIG REQUIRED)
@@ -105,3 +133,98 @@ install(EXPORT
     DESTINATION "${CMAKE_INSTALL_PREFIX}/cmake"
     NAMESPACE PhiloteCpp::
 )
+
+# Coverage targets
+if(ENABLE_COVERAGE AND BUILD_TESTS)
+    
+    # List of source directories to include in coverage
+    set(COVERAGE_EXCLUDES
+        '/usr/include/*'
+        '*/test/*'
+        '*/tests/*'
+        '*/gtest/*'
+        '*/gmock/*'
+        '*/src/generated/*'
+        '*/cmake-build-*/*'
+        '*/build/*'
+        '*/cmake/*'
+        '*/examples/*'
+    )
+    
+    # Coverage target that runs tests and generates coverage
+    add_custom_target(coverage
+        COMMENT "Generating code coverage report"
+        
+        # Clean previous coverage data
+        COMMAND find ${CMAKE_BINARY_DIR} -name "*.gcda" -delete
+        
+        # Run tests to generate coverage data
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+        
+        # Generate coverage info files for each source file
+        COMMAND find ${CMAKE_BINARY_DIR}/src -name "*.gcno" -exec ${GCOV_PATH} -p -b {} + || true
+        
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        DEPENDS PhiloteCpp
+    )
+    
+    # If lcov is available, create HTML reports
+    if(LCOV_PATH AND GENHTML_PATH)
+        add_custom_target(coverage-html
+            COMMENT "Generating HTML coverage report"
+            
+            # Clean previous coverage data
+            COMMAND find ${CMAKE_BINARY_DIR} -name "*.gcda" -delete
+            COMMAND ${LCOV_PATH} --zerocounters --directory ${CMAKE_BINARY_DIR}
+            
+            # Run tests
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+            
+            # Capture coverage data
+            COMMAND ${LCOV_PATH} --capture --directory ${CMAKE_BINARY_DIR} --output-file coverage.info
+            
+            # Remove unwanted files from coverage
+            COMMAND ${LCOV_PATH} --remove coverage.info ${COVERAGE_EXCLUDES} --output-file coverage_filtered.info
+            
+            # Generate HTML report
+            COMMAND ${GENHTML_PATH} coverage_filtered.info --output-directory coverage_html
+            
+            # Print summary
+            COMMAND ${LCOV_PATH} --summary coverage_filtered.info
+            
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            DEPENDS PhiloteCpp
+        )
+        
+        message("Coverage targets added: 'coverage' and 'coverage-html'")
+        message("  Run: make coverage        # for basic gcov reports")
+        message("  Run: make coverage-html   # for HTML reports")
+    else()
+        add_custom_target(coverage-html
+            COMMAND ${CMAKE_COMMAND} -E echo "lcov and genhtml are required for HTML coverage reports"
+            COMMAND ${CMAKE_COMMAND} -E echo "Install lcov: apt-get install lcov (Ubuntu) or brew install lcov (macOS)"
+        )
+        message("Coverage target added: 'coverage' (lcov not found, HTML reports unavailable)")
+    endif()
+    
+    # Codecov-friendly target that generates coverage.xml
+    add_custom_target(coverage-xml
+        COMMENT "Generating XML coverage report for Codecov"
+        
+        # Clean previous coverage data
+        COMMAND find ${CMAKE_BINARY_DIR} -name "*.gcda" -delete
+        
+        # Run tests
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+        
+        # Generate individual .gcov files for each source file
+        COMMAND find ${CMAKE_BINARY_DIR} -name "*.gcno" -exec ${GCOV_PATH} -p -b -o {} + || true
+        
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        DEPENDS PhiloteCpp
+    )
+    
+    message("Codecov target added: 'coverage-xml'")
+    message("  CI Usage: cmake -DENABLE_COVERAGE=ON .. && make coverage-xml")
+    
+endif()
