@@ -128,6 +128,31 @@ namespace philote
         void DeclarePartials(const std::string &f, const std::string &x);
 
         /**
+         * @brief Add an option to the discipline
+         *
+         * @param name Option name
+         * @param type Option type as string (e.g., "bool", "int", "float", "string")
+         */
+        void AddOption(const std::string &name, const std::string &type);
+
+        /**
+         * @brief Initialize function that sets up available options
+         *
+         * This function is called during discipline construction. It should be
+         * used to define what option names and types are available. The
+         * SetOptions function is used to actually set the option values.
+         */
+        virtual void Initialize();
+
+        /**
+         * @brief Configure function that is called after options are set
+         *
+         * This function is called after SetOptions but before Setup. It can be
+         * used for any configuration that depends on the option values.
+         */
+        virtual void Configure();
+
+        /**
          * @brief Sets up all discipline options based on a protobuf struct that
          * the server received from the client.
          *

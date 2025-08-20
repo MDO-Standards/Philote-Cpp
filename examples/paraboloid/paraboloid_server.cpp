@@ -54,6 +54,24 @@ public:
     ~Paraboloid() = default;
 
 private:
+    // Initialize function to set up available options
+    void Initialize() override
+    {
+        // Call parent initialize first
+        ExplicitDiscipline::Initialize();
+        
+        // Add discipline-specific options
+        AddOption("scale_factor", "float");
+        AddOption("enable_scaling", "bool");
+    }
+
+    // Configure function called after options are set
+    void Configure() override
+    {
+        // Any configuration based on options would go here
+        // For this example, we'll just demonstrate the capability
+    }
+
     // Defines the variables for the discipline
     void Setup() override
     {
@@ -85,8 +103,14 @@ private:
         double x = inputs.at("x")(0);
         double y = inputs.at("y")(0);
 
+        // Traditional approach using std::map with pair keys
         jac[make_pair("f_xy", "x")](0) = 2.0 * x - 6.0 + y;
         jac[make_pair("f_xy", "y")](0) = 2.0 * y + 8.0 + x;
+        
+        // Alternative: PairDict can be used for cleaner syntax in user code
+        // philote::PartialsPairDict pair_jac;
+        // pair_jac("f_xy", "x")(0) = 2.0 * x - 6.0 + y;
+        // pair_jac("f_xy", "y")(0) = 2.0 * y + 8.0 + x;
     }
 };
 

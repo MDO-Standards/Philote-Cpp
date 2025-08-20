@@ -42,6 +42,9 @@ using philote::StreamOptions;
 Discipline::Discipline()
 {
     // Removed: discipline_server_.LinkPointers(this);
+    
+    // Call initialize to set up available options
+    Initialize();
 }
 
 std::map<std::string, std::string> &Discipline::options_list()
@@ -153,8 +156,27 @@ void Discipline::DeclarePartials(const string &f, const string &x)
     partials_meta().push_back(meta);
 }
 
+void Discipline::AddOption(const string &name, const string &type)
+{
+    options_list_[name] = type;
+}
+
+void Discipline::Initialize()
+{
+    // Default implementation does nothing
+    // Should be overridden by derived classes to set up available options
+}
+
+void Discipline::Configure()
+{
+    // Default implementation does nothing
+    // Should be overridden by derived classes for post-option configuration
+}
+
 void Discipline::SetOptions(const google::protobuf::Struct &options_struct)
 {
+    // Call configure after options are set
+    Configure();
 }
 
 void Discipline::Setup()
