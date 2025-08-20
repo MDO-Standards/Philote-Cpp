@@ -160,3 +160,89 @@ TEST_F(DisciplineTest, OptionsListAccess)
     EXPECT_EQ(options.size(), 1);
     EXPECT_EQ(options["test_option"], "double");
 }
+
+// Test AddOption method
+TEST_F(DisciplineTest, AddOptionMethod)
+{
+    // Initially options list should be empty
+    EXPECT_TRUE(discipline->options_list().empty());
+
+    // Add options using the AddOption method
+    discipline->AddOption("scale_factor", "float");
+    discipline->AddOption("enable_scaling", "bool");
+    discipline->AddOption("max_iterations", "int");
+
+    // Verify options were added correctly
+    auto &options = discipline->options_list();
+    EXPECT_EQ(options.size(), 3);
+    EXPECT_EQ(options["scale_factor"], "float");
+    EXPECT_EQ(options["enable_scaling"], "bool");
+    EXPECT_EQ(options["max_iterations"], "int");
+}
+
+// Test DeclarePartials error conditions (uncovered error paths)
+TEST_F(DisciplineTest, DeclarePartialsErrorConditions)
+{
+    // Add some inputs and outputs for testing
+    discipline->AddInput("input1", {2}, "m");
+    discipline->AddInput("input2", {1}, "m");
+    discipline->AddOutput("output1", {3}, "m");
+    discipline->AddOutput("output2", {1}, "m");
+
+    // Test missing output variable error
+    EXPECT_THROW(discipline->DeclarePartials("nonexistent_output", "input1"), std::runtime_error);
+    
+    // Test missing input variable error
+    EXPECT_THROW(discipline->DeclarePartials("output1", "nonexistent_input"), std::runtime_error);
+    
+    // Test both missing
+    EXPECT_THROW(discipline->DeclarePartials("nonexistent_output", "nonexistent_input"), std::runtime_error);
+}
+
+// Test DeclarePartials edge cases for different shape combinations (uncovered paths)
+TEST_F(DisciplineTest, DeclarePartialsShapeCombinations)
+{
+    // Add variables with different shapes
+    discipline->AddInput("scalar_input", {1}, "m");      // scalar
+    discipline->AddInput("vector_input", {3}, "m");      // vector
+    discipline->AddOutput("scalar_output", {1}, "m");    // scalar
+    discipline->AddOutput("vector_output", {2}, "m");    // vector
+
+    // Test output scalar, input vector (uncovered line 133)
+    EXPECT_NO_THROW(discipline->DeclarePartials("scalar_output", "vector_input"));
+    
+    // Test input scalar, output vector (uncovered line 138) 
+    EXPECT_NO_THROW(discipline->DeclarePartials("vector_output", "scalar_input"));
+    
+    // Test scalar-scalar (this should work and is already covered)
+    EXPECT_NO_THROW(discipline->DeclarePartials("scalar_output", "scalar_input"));
+    
+    // Test vector-vector (this should work and is already covered)
+    EXPECT_NO_THROW(discipline->DeclarePartials("vector_output", "vector_input"));
+    
+    // Verify that the partials were added
+    EXPECT_EQ(discipline->partials_meta().size(), 4);
+}
+
+// Test Initialize and Configure method behavior
+TEST_F(DisciplineTest, InitializeConfigureBehavior)
+{
+    // Test that Initialize is called during construction (already tested in constructor)
+    // and Configure is called during SetOptions
+    
+    // Verify the default Initialize does nothing but doesn't crash
+    EXPECT_NO_THROW(discipline->Initialize());
+    
+    // Verify the default Configure does nothing but doesn't crash  
+    EXPECT_NO_THROW(discipline->Configure());
+    
+    // Test that Configure is called during SetOptions
+    google::protobuf::Struct empty_options;
+    EXPECT_NO_THROW(discipline->SetOptions(empty_options));
+    
+    // Test adding options manually after construction
+    discipline->AddOption("manual_option", "string");
+    auto &options = discipline->options_list();
+    EXPECT_TRUE(options.find("manual_option") != options.end());
+    EXPECT_EQ(options["manual_option"], "string");
+}

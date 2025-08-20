@@ -35,6 +35,11 @@ target_link_libraries(VariableTests PhiloteCpp GTest::gtest_main GTest::gmock)
 # target_include_directories(VariableTests PRIVATE ${Protobuf_INCLUDE_DIRS} ${gRPC_INCLUDE_DIRS})
 gtest_discover_tests(VariableTests)
 
+# pair dict tests
+add_executable(PairDictTests pair_dict_tests.cpp)
+target_link_libraries(PairDictTests PhiloteCpp GTest::gtest_main GTest::gmock)
+gtest_discover_tests(PairDictTests)
+
 # discipline tests
 add_executable(DisciplineTests discipline_test.cpp)
 target_link_libraries(DisciplineTests PhiloteCpp GTest::gtest_main GTest::gmock)

@@ -361,3 +361,38 @@ TEST(VariableTests, MetadataEdgeCases)
 	neg_dim_meta.add_shape(-1);
 	EXPECT_THROW((Variable(neg_dim_meta)), std::length_error);
 }
+
+/*
+	Test PartialsMetaData constructor (uncovered area)
+*/
+TEST(VariableTests, ConstructorWithPartialsMetaData)
+{
+	// Test basic PartialsMetaData constructor
+	philote::PartialsMetaData partials_meta;
+	partials_meta.set_name("output");
+	partials_meta.set_subname("input");
+	partials_meta.add_shape(2);
+	partials_meta.add_shape(3);
+
+	Variable partial_var(partials_meta);
+
+	// Verify the variable was created correctly
+	EXPECT_EQ(partial_var.Size(), 6);  // 2 * 3 = 6
+}
+
+/*
+	Test index out-of-bounds for const operator (uncovered area)
+*/
+TEST(VariableTests, ConstOperatorOutOfBounds)
+{
+	Variable array(kInput, {2, 2});
+	const Variable& const_array = array;
+
+	// Valid access should work
+	EXPECT_NO_THROW(const_array(0));
+	EXPECT_NO_THROW(const_array(3));
+
+	// Out-of-bounds access should throw
+	EXPECT_THROW(const_array(4), std::out_of_range);
+	EXPECT_THROW(const_array(100), std::out_of_range);
+}
