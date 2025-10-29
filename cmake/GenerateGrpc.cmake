@@ -62,4 +62,9 @@ add_library(GrpcGenerated OBJECT ${PROTO_SRC} ${GRPC_SRC})
 # Ensure the library depends on the generation target
 add_dependencies(GrpcGenerated GenerateGrpcFiles)
 
+target_include_directories(GrpcGenerated
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${GENERATED_DIR}
+)
 target_link_libraries(GrpcGenerated PRIVATE protobuf::libprotobuf gRPC::grpc++)

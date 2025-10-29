@@ -42,5 +42,12 @@ add_library(PhiloteCpp STATIC
     $<TARGET_OBJECTS:ExplicitDiscipline>
     $<TARGET_OBJECTS:ImplicitDiscipline>
 )
+target_include_directories(PhiloteCpp
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/generated>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/philote>
+)
 target_link_libraries(PhiloteCpp PUBLIC protobuf::libprotobuf gRPC::grpc++)
 

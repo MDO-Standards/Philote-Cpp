@@ -138,11 +138,6 @@ if(NOT gRPC_FOUND)
     endif()
 endif()
 
-# add include directories
-include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_BINARY_DIR}/src/generated)
-
-
 # add subdirectories
 add_subdirectory(src)
 add_subdirectory(include)
