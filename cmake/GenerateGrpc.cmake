@@ -68,3 +68,4 @@ target_include_directories(GrpcGenerated
         ${GENERATED_DIR}
 )
 target_link_libraries(GrpcGenerated PRIVATE protobuf::libprotobuf gRPC::grpc++)
+enable_coverage(GrpcGenerated)

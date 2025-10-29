@@ -58,7 +58,8 @@ jobs:
         ctest --output-on-failure
 
         # Capture coverage data
-        lcov --capture --directory . --output-file coverage.info
+        lcov --capture --directory . --output-file coverage.info \
+          --ignore-errors inconsistent,mismatch,negative
 
         # Filter out unwanted files from coverage
         lcov --remove coverage.info \
@@ -72,14 +73,16 @@ jobs:
           '*/build/*' \
           '*/cmake/*' \
           '*/examples/*' \
-          --output-file coverage_filtered.info
+          --output-file coverage_filtered.info \
+          --ignore-errors inconsistent,unused
 
         # Print summary
-        lcov --summary coverage_filtered.info
+        lcov --summary coverage_filtered.info \
+          --ignore-errors inconsistent
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
       with:
-        directory: build
-        files: '*.gcov'
+        files: ./build/coverage_filtered.info
         token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: true

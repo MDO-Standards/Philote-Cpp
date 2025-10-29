@@ -51,10 +51,5 @@ target_include_directories(PhiloteCpp
 )
 target_compile_features(PhiloteCpp PUBLIC cxx_std_17)
 target_link_libraries(PhiloteCpp PUBLIC protobuf::libprotobuf gRPC::grpc++)
-
-# Apply coverage configuration if enabled
-if(ENABLE_COVERAGE)
-    target_compile_options(PhiloteCpp PRIVATE -g -O0 --coverage -fprofile-arcs -ftest-coverage)
-    target_link_options(PhiloteCpp PRIVATE --coverage)
-endif()
+enable_coverage(PhiloteCpp)
 

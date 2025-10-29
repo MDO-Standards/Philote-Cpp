@@ -69,6 +69,7 @@ set(
 
 # add cmake scripts
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(CodeCoverage)
 
 # Coverage configuration
 if(ENABLE_COVERAGE)

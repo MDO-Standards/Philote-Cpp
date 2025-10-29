@@ -32,26 +32,31 @@
 # array tests
 add_executable(VariableTests variable_tests.cpp)
 target_link_libraries(VariableTests PhiloteCpp GTest::gtest_main GTest::gmock)
+enable_coverage(VariableTests)
 gtest_discover_tests(VariableTests)
 
 # pair dict tests
 add_executable(PairDictTests pair_dict_tests.cpp)
 target_link_libraries(PairDictTests PhiloteCpp GTest::gtest_main GTest::gmock)
+enable_coverage(PairDictTests)
 gtest_discover_tests(PairDictTests)
 
 # discipline tests
 add_executable(DisciplineTests discipline_test.cpp)
 target_link_libraries(DisciplineTests PhiloteCpp GTest::gtest_main GTest::gmock)
+enable_coverage(DisciplineTests)
 gtest_discover_tests(DisciplineTests)
 
 # discipline server tests
 add_executable(DisciplineServerTests discipline_server_test.cpp)
 target_link_libraries(DisciplineServerTests PhiloteCpp GTest::gtest_main GTest::gmock)
+enable_coverage(DisciplineServerTests)
 gtest_discover_tests(DisciplineServerTests)
 
 # discipline client tests
 add_executable(DisciplineClientTests discipline_client_test.cpp)
 target_link_libraries(DisciplineClientTests PhiloteCpp GTest::gtest_main GTest::gmock)
+enable_coverage(DisciplineClientTests)
 target_include_directories(DisciplineClientTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/discipline
 )
@@ -64,6 +69,7 @@ target_link_libraries(ExplicitDisciplineTests
     GTest::gtest_main
     GTest::gmock
 )
+enable_coverage(ExplicitDisciplineTests)
 target_include_directories(ExplicitDisciplineTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/explicit
 )
@@ -76,6 +82,7 @@ target_link_libraries(ExplicitDisciplineServerTests
     GTest::gtest_main
     GTest::gmock
 )
+enable_coverage(ExplicitDisciplineServerTests)
 target_include_directories(ExplicitDisciplineServerTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/explicit
 )
@@ -88,6 +95,7 @@ target_link_libraries(ExplicitClientTests
     GTest::gtest_main
     GTest::gmock
 )
+enable_coverage(ExplicitClientTests)
 target_include_directories(ExplicitClientTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/explicit
 )

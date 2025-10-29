@@ -40,3 +40,4 @@ target_include_directories(ExplicitDiscipline
 )
 target_link_libraries(ExplicitDiscipline PRIVATE protobuf::libprotobuf gRPC::grpc++)
 add_dependencies(ExplicitDiscipline GrpcGenerated)
+enable_coverage(ExplicitDiscipline)

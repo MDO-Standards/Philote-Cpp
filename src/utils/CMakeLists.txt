@@ -35,3 +35,5 @@ target_include_directories(Utilities
         ${CMAKE_BINARY_DIR}/src/generated
 )
 target_link_libraries(Utilities PRIVATE protobuf::libprotobuf gRPC::grpc++)
+add_dependencies(Utilities GrpcGenerated)
+enable_coverage(Utilities)
