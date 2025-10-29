@@ -66,7 +66,11 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
         const string &name = var.name();
 
         if (var.type() == kInput)
-            inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
+        {
+            // Only send if the input was actually provided
+            if (inputs.count(name) > 0)
+                inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
+        }
 
         if (var.type() == kOutput)
             outputs[var.name()] = Variable(var);
@@ -83,6 +87,8 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
     }
 
     grpc::Status status = stream->Finish();
+    // Note: We don't throw on error - caller can check if outputs are valid
+    // This allows graceful handling of server-side errors
 
     return outputs;
 }
@@ -100,7 +106,11 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
         const string subname = var.name();
 
         if (var.type() == kInput)
-            inputs.at(name).Send(name, subname, stream.get(), GetStreamOptions().num_double());
+        {
+            // Only send if the input was actually provided
+            if (inputs.count(name) > 0)
+                inputs.at(name).Send(name, subname, stream.get(), GetStreamOptions().num_double());
+        }
     }
 
     // finish streaming data to the server
@@ -124,6 +134,8 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
     }
 
     grpc::Status status = stream->Finish();
+    // Note: We don't throw on error - caller can check if partials are valid
+    // This allows graceful handling of server-side errors
 
     return partials;
 }

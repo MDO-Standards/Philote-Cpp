@@ -83,8 +83,8 @@ namespace philote
          * @return grpc::Status
          */
         grpc::Status ComputeFunction(grpc::ServerContext *context,
-                                     grpc::ServerReaderWriterInterface<::philote::Array,
-                                                                       ::philote::Array> *stream);
+                                     grpc::ServerReaderWriter<::philote::Array,
+                                                             ::philote::Array> *stream) override;
 
         /**
          * @brief RPC that computes initiates gradient evaluation
@@ -94,8 +94,28 @@ namespace philote
          * @return grpc::Status
          */
         grpc::Status ComputeGradient(grpc::ServerContext *context,
-                                     grpc::ServerReaderWriterInterface<::philote::Array,
-                                                                       ::philote::Array> *stream);
+                                     grpc::ServerReaderWriter<::philote::Array,
+                                                             ::philote::Array> *stream) override;
+
+        // Test helper methods that accept interface pointers for unit testing with mocks
+        template<typename StreamType>
+        grpc::Status ComputeFunctionImpl(grpc::ServerContext *context, StreamType *stream);
+
+        template<typename StreamType>
+        grpc::Status ComputeGradientImpl(grpc::ServerContext *context, StreamType *stream);
+
+        // Public wrappers for tests
+        grpc::Status ComputeFunctionForTesting(grpc::ServerContext *context,
+                                               grpc::ServerReaderWriterInterface<::philote::Array,
+                                                                                ::philote::Array> *stream) {
+            return ComputeFunctionImpl(context, stream);
+        }
+
+        grpc::Status ComputeGradientForTesting(grpc::ServerContext *context,
+                                               grpc::ServerReaderWriterInterface<::philote::Array,
+                                                                                ::philote::Array> *stream) {
+            return ComputeGradientImpl(context, stream);
+        }
 
     private:
         //! Pointer to the implementation of the explicit discipline
@@ -220,3 +240,219 @@ namespace philote
         std::unique_ptr<ExplicitService::StubInterface> stub_;
     };
 }
+// Template implementations must be in header
+#include <algorithm>
+
+namespace philote {
+
+template<typename StreamType>
+grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, StreamType *stream)
+{
+    if (!implementation_)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "Discipline implementation not linked");
+    }
+
+    if (!stream)
+    {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Stream is null");
+    }
+
+    philote::Array array;
+
+    // preallocate the inputs based on meta data
+    Variables inputs;
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_);
+    if (!discipline)
+    {
+        return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");
+    }
+
+    for (const auto &var : discipline->var_meta())
+    {
+        std::string name = var.name();
+        if (var.type() == kInput)
+            inputs[name] = Variable(var);
+    }
+
+    while (stream->Read(&array))
+    {
+        // get variables from the stream message
+        const std::string &name = array.name();
+
+        // get the variable corresponding to the current message
+        const auto &var = std::find_if(discipline->var_meta().begin(),
+                                       discipline->var_meta().end(),
+                                       [&name](const VariableMetaData &var)
+                                       { return var.name() == name; });
+
+        if (var == discipline->var_meta().end())
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
+        }
+
+        // obtain the inputs and discrete inputs from the stream
+        if (var->type() == VariableType::kInput)
+        {
+            try
+            {
+                // set the variable slice
+                inputs[name].AssignChunk(array);
+            }
+            catch (const std::exception &e)
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                              "Failed to assign chunk for variable " + name + ": " + e.what());
+            }
+        }
+        else
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid variable type for input: " + name);
+        }
+    }
+
+    // preallocate outputs
+    Variables outputs;
+    for (const VariableMetaData &var : discipline->var_meta())
+    {
+        if (var.type() == kOutput)
+            outputs[var.name()] = Variable(var);
+    }
+
+    // call the discipline developer-defined Compute function
+    try
+    {
+        implementation_->Compute(inputs, outputs);
+    }
+    catch (const std::exception &e)
+    {
+        return grpc::Status(grpc::StatusCode::INTERNAL,
+                      "Failed to compute outputs: " + std::string(e.what()));
+    }
+
+    // iterate through continuous outputs
+    for (const auto &out : outputs)
+    {
+        const std::string &name = out.first;
+        try
+        {
+            out.second.Send(name, "", stream, discipline->stream_opts().num_double());
+        }
+        catch (const std::exception &e)
+        {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                          "Failed to send output " + name + ": " + e.what());
+        }
+    }
+
+    return grpc::Status::OK;
+}
+
+template<typename StreamType>
+grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, StreamType *stream)
+{
+    if (!implementation_)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "Discipline implementation not linked");
+    }
+
+    if (!stream)
+    {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Stream is null");
+    }
+
+    philote::Array array;
+
+    // preallocate the inputs based on meta data
+    Variables inputs;
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_);
+    if (!discipline)
+    {
+        return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");
+    }
+
+    for (const auto &var : discipline->var_meta())
+    {
+        std::string name = var.name();
+        if (var.type() == kInput)
+            inputs[name] = Variable(var);
+    }
+
+    while (stream->Read(&array))
+    {
+        // get variables from the stream message
+        const std::string &name = array.name();
+
+        // get the variable corresponding to the current message
+        const auto &var = std::find_if(discipline->var_meta().begin(),
+                                       discipline->var_meta().end(),
+                                       [&name](const VariableMetaData &var)
+                                       { return var.name() == name; });
+
+        if (var == discipline->var_meta().end())
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
+        }
+
+        // obtain the inputs and discrete inputs from the stream
+        if (var->type() == VariableType::kInput)
+        {
+            try
+            {
+                // set the variable slice
+                inputs[name].AssignChunk(array);
+            }
+            catch (const std::exception &e)
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                              "Failed to assign chunk for variable " + name + ": " + e.what());
+            }
+        }
+        else
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid variable type for input: " + name);
+        }
+    }
+
+    // preallocate outputs
+    Partials partials;
+    for (const PartialsMetaData &par : discipline->partials_meta())
+    {
+        std::vector<size_t> shape;
+        for (const int64_t &dim : par.shape())
+            shape.push_back(dim);
+
+        partials[std::make_pair(par.name(), par.subname())] = Variable(kOutput, shape);
+    }
+
+    // call the discipline developer-defined Compute function
+    try
+    {
+        implementation_->ComputePartials(inputs, partials);
+    }
+    catch (const std::exception &e)
+    {
+        return grpc::Status(grpc::StatusCode::INTERNAL,
+                      "Failed to compute partials: " + std::string(e.what()));
+    }
+
+    // iterate through continuous outputs
+    for (const auto &par : partials)
+    {
+        const std::string &name = par.first.first;
+        const std::string &subname = par.first.second;
+        try
+        {
+            par.second.Send(name, subname, stream, discipline->stream_opts().num_double());
+        }
+        catch (const std::exception &e)
+        {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                          "Failed to send partial " + name + "/" + subname + ": " + e.what());
+        }
+    }
+
+    return grpc::Status::OK;
+}
+
+} // namespace philote

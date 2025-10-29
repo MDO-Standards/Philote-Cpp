@@ -92,8 +92,8 @@ namespace philote
          * @return grpc::Status
          */
         grpc::Status GetInfo(grpc::ServerContext *context,
-                             google::protobuf::Empty *request,
-                             ::philote::DisciplineProperties *response);
+                             const google::protobuf::Empty *request,
+                             ::philote::DisciplineProperties *response) override;
 
         /**
          * @brief RPC to define the discipline stream options to the client

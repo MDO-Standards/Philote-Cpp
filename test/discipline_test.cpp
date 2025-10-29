@@ -146,7 +146,8 @@ TEST_F(DisciplineTest, PropertiesAccess)
 TEST_F(DisciplineTest, StreamOptionsAccess)
 {
     auto &opts = discipline->stream_opts();
-    EXPECT_EQ(opts.num_double(), 0);
+    // Default is 1000 (set in Discipline constructor to prevent division by zero)
+    EXPECT_EQ(opts.num_double(), 1000);
 }
 
 // Test options list access

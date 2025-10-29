@@ -192,14 +192,26 @@ install(EXPORT
 # Coverage targets
 if(ENABLE_COVERAGE AND BUILD_TESTS)
     
-    # List of source directories to include in coverage
+    # List of source directories to exclude from coverage reports
+    # Test executables have coverage enabled to collect data when running library code,
+    # but test source files themselves are excluded from coverage metrics
     set(COVERAGE_EXCLUDES
         '/usr/include/*'
         '*/test/*'
         '*/tests/*'
+        '*_test.cpp'
+        '*_tests.cpp'
+        '*/test_helpers.*'
         '*/gtest/*'
         '*/gmock/*'
+        '*/googletest/*'
         '*/generated/*'
+        '*.pb.cc'
+        '*.pb.h'
+        '*.grpc.pb.cc'
+        '*.grpc.pb.h'
+        '**/grpc/*'
+        '**/protobuf/*'
         '*/cmake-build-*/*'
         '*/build/*'
         '*/cmake/*'

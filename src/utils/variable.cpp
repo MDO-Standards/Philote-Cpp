@@ -177,8 +177,8 @@ void Variable::Send(string name,
     for (size_t i = 0; i < num_chunks; i++)
     {
         start = i * chunk_size;
-        end = start + chunk_size;
-        if (end > n)
+        end = start + chunk_size - 1;  // end is inclusive
+        if (end >= n)
             end = n - 1;
 
         array = CreateChunk(start, end);
@@ -202,8 +202,8 @@ void philote::Variable::Send(std::string name,
     for (size_t i = 0; i < num_chunks; i++)
     {
         start = i * chunk_size;
-        end = start + chunk_size;
-        if (end > n)
+        end = start + chunk_size - 1;  // end is inclusive
+        if (end >= n)
             end = n - 1;
         array = CreateChunk(start, end);
         array.set_name(name);
@@ -226,8 +226,8 @@ void philote::Variable::Send(std::string name,
     for (size_t i = 0; i < num_chunks; i++)
     {
         start = i * chunk_size;
-        end = start + chunk_size;
-        if (end > n)
+        end = start + chunk_size - 1;  // end is inclusive
+        if (end >= n)
             end = n - 1;
         array = CreateChunk(start, end);
         array.set_name(name);

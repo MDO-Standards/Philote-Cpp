@@ -12,12 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Unit tests for discipline server, explicit discipline server, and implicit discipline server
   - Unit tests for discipline client and explicit client
   - Unit tests for variable handling, stream options, and set options
+- **Extensive test coverage for explicit disciplines, clients, and servers** (~2,600 lines)
+  - Reusable test helpers library with test discipline implementations (Paraboloid, MultiOutput, Vectorized, Error disciplines)
+  - Comprehensive unit tests with mocks for ExplicitClient (36→524 lines) and ExplicitServer (74→587 lines)
+  - End-to-end integration tests with real gRPC communication over localhost (450+ lines)
+  - Error scenario and stress tests covering boundary conditions and failure modes (400+ lines)
+  - TestServerManager utility for automatic server lifecycle management in integration tests
+  - Variable creation helpers, assertion utilities, and data generators for test reusability
+  - Test for RegisterServices() method verifying both discipline and explicit servers are registered
 - Code coverage support in CMake build system
 - CMake package configuration to support using Philote-Cpp as a subproject or installed library
 - Installation support for headers and proto files
 - Nullptr checks in discipline server to prevent crashes
 - Documentation scaffolding using hdoc
 - Philote logo added to README
+- **Usage examples and limitations documentation in README**
+  - Code examples for creating explicit disciplines, servers, and clients
+  - Clear documentation that Compute() and ComputePartials() must be overridden
+  - Explicit documentation of concurrency limitations
 
 ### Changed
 - Reorganized project structure: moved headers to dedicated `include/` directory
@@ -30,9 +42,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed `src/generated/` directory from source tree
   - Updated all include paths to reference build directory
   - Added directory creation to support parallel builds
+- **Simplified ExplicitDiscipline base class**
+  - Removed default validation logic from Compute() and ComputePartials()
+  - These methods now have no implementation and must be overridden by derived classes
+  - Cleaner design aligning with intended usage pattern
 - Updated copyright year to 2022-2025 in source files
 - Cleaned up headers and removed unused code
 - CI now builds gRPC targets first before building the rest of the project
+- Removed unsupported concurrent RPC call tests to reflect actual library limitations
 
 ### Fixed
 - Fixed error handling paths in implicit server for cases without errors
@@ -43,6 +60,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed example includes to properly reference headers in new include/ directory
 - Fixed gRPC plugin symlink issues in CI
 - Minor fix to protoc generation
+- **Fixed Variable API usage throughout test suite**
+  - Corrected element access from `.data()[i]` to `(i)` operator
+  - Corrected shape access from `.shape()` to `.Shape()`
+  - Fixed client metadata methods naming (`SetVariableMeta`, `SetPartialsMetaData`)
+  - Added missing mock interface methods for complete gRPC stream testing
+- **Fixed critical bugs in Array protocol and variable streaming** (39 test failures resolved)
+  - Fixed Array end index to be inclusive (changed `set_end(size)` to `set_end(size-1)`)
+  - Added Array Clear() calls to prevent data accumulation across Read() invocations
+  - Fixed stream options initialization (set default chunk size to 1000 to prevent division by zero)
+  - Fixed GetInfo() RPC signature to include `const` and `override` keywords
+  - Fixed constructor pointer linking in ExplicitDiscipline to enable base RPC calls
+  - Implemented template-based approach for RPC methods to support both mocks and real gRPC
+  - Added input existence checks in ExplicitClient before accessing map
+  - Fixed chunking off-by-one error in Variable::Send() (changed `end = start + chunk_size` to `end = start + chunk_size - 1`)
+  - Updated test expectations to match corrected behavior
 
 ## [0.3.0] - 2023-11-09
 

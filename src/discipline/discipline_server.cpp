@@ -70,7 +70,7 @@ void DisciplineServer::UnlinkPointers()
 }
 
 grpc::Status DisciplineServer::GetInfo(ServerContext *context,
-                                       Empty *request,
+                                       const Empty *request,
                                        DisciplineProperties *response)
 {
     *response = discipline_->properties();

@@ -41,10 +41,8 @@ using philote::StreamOptions;
 
 Discipline::Discipline()
 {
-    // Removed: discipline_server_.LinkPointers(this);
-    
-    // Call initialize to set up available options
-    Initialize();
+    // Initialize stream options with default chunk size
+    stream_opts_.set_num_double(1000);
 }
 
 std::map<std::string, std::string> &Discipline::options_list()
