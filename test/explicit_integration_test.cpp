@@ -275,8 +275,8 @@ TEST_F(ExplicitIntegrationTest, InterleavedFunctionAndGradientCalls) {
 
     // Call gradient
     Partials partials1 = client.ComputeGradient(inputs);
-    EXPECT_DOUBLE_EQ(partials1[{"f", "x"}](0)), 4.0);  // 2*2
-    EXPECT_DOUBLE_EQ(partials1[{"f", "y"}](0)), 6.0);  // 2*3
+    EXPECT_DOUBLE_EQ((partials1[{"f", "x"}](0)), 4.0);  // 2*2
+    EXPECT_DOUBLE_EQ((partials1[{"f", "y"}](0)), 6.0);  // 2*3
 
     // Change inputs and call function again
     inputs["x"] = CreateScalarVariable(1.0);
@@ -287,8 +287,8 @@ TEST_F(ExplicitIntegrationTest, InterleavedFunctionAndGradientCalls) {
 
     // Call gradient again
     Partials partials2 = client.ComputeGradient(inputs);
-    EXPECT_DOUBLE_EQ(partials2[{"f", "x"}](0)), 2.0);
-    EXPECT_DOUBLE_EQ(partials2[{"f", "y"}](0)), 2.0);
+    EXPECT_DOUBLE_EQ((partials2[{"f", "x"}](0)), 2.0);
+    EXPECT_DOUBLE_EQ((partials2[{"f", "y"}](0)), 2.0);
 }
 
 // ============================================================================
@@ -435,11 +435,11 @@ TEST_F(ExplicitIntegrationTest, LargeVectorDataIntegrity) {
     Variables outputs = client.ComputeFunction(inputs);
 
     ASSERT_EQ(outputs.size(), 1);
-    ASSERT_EQ(outputs["z"].shape()[0], n);
+    ASSERT_EQ(outputs["z"].Shape()[0], n);
 
     double expected = 2.0 * m + 3.0;
     for (size_t i = 0; i < n; ++i) {
-        EXPECT_DOUBLE_EQ(outputs["z"].data()[i], expected) << "Mismatch at index " << i;
+        EXPECT_DOUBLE_EQ(outputs["z"](i), expected) << "Mismatch at index " << i;
     }
 }
 
