@@ -37,6 +37,9 @@ project(PhiloteCpp
     VERSION 0.4.0
 )
 
+# Include GNUInstallDirs for standard installation directory variables
+include(GNUInstallDirs)
+
 # cache option variables
 set(
     BUILD_TESTS
@@ -182,7 +185,7 @@ export(TARGETS
 )
 install(EXPORT
     PhiloteCppConfig
-    DESTINATION "${CMAKE_INSTALL_PREFIX}/cmake"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/PhiloteCpp"
     NAMESPACE PhiloteCpp::
 )
 

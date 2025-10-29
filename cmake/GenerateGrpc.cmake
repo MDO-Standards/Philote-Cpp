@@ -50,10 +50,10 @@ add_custom_target(GenerateGrpcFiles
 )
 
 install(FILES ${PROTO_FILES_DEPEND}
-    DESTINATION proto
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/philote/proto
 )
 install(FILES ${PROTO_HEADERS} ${GRPC_HEADERS} ${GRPC_MOCK_HEADERS}
-        DESTINATION include
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/philote
 )
 
 # Create the GrpcGenerated library using the generated sources
