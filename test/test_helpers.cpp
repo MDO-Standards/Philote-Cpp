@@ -2,6 +2,8 @@
 #include <cmath>
 #include <random>
 #include <stdexcept>
+#include <chrono>
+#include <thread>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -304,6 +306,10 @@ std::string TestServerManager::StartServer(ExplicitDiscipline *discipline) {
     }
 
     running_ = true;
+
+    // Give server a moment to fully start
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
     return address_;
 }
 

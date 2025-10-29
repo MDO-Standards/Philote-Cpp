@@ -61,7 +61,10 @@ void DisciplineClient::GetInfo()
     auto status = stub_->GetInfo(&context, request, &properties_);
     if (!status.ok())
     {
-        throw std::runtime_error("Failed to get discipline info: " + status.error_message());
+        std::string error_msg = "Failed to get discipline info [code=" +
+                               std::to_string(status.error_code()) + "]: " +
+                               status.error_message();
+        throw std::runtime_error(error_msg);
     }
 }
 

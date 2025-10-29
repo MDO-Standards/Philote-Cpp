@@ -83,6 +83,12 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
     }
 
     grpc::Status status = stream->Finish();
+    if (!status.ok())
+    {
+        throw std::runtime_error("ComputeFunction failed [code=" +
+                               std::to_string(status.error_code()) + "]: " +
+                               status.error_message());
+    }
 
     return outputs;
 }
@@ -124,6 +130,12 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
     }
 
     grpc::Status status = stream->Finish();
+    if (!status.ok())
+    {
+        throw std::runtime_error("ComputeGradient failed [code=" +
+                               std::to_string(status.error_code()) + "]: " +
+                               status.error_message());
+    }
 
     return partials;
 }
