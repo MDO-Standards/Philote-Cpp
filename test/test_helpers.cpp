@@ -25,19 +25,19 @@ void ParaboloidDiscipline::SetupPartials() {
 }
 
 void ParaboloidDiscipline::Compute(const Variables &inputs, Variables &outputs) {
-    double x = inputs.at("x").data()[0];
-    double y = inputs.at("y").data()[0];
+    double x = inputs.at("x")(0);
+    double y = inputs.at("y")(0);
     double f = x * x + y * y;
 
-    outputs["f"] = CreateScalarVariable(f);
+    outputs["f"](0) = f;
 }
 
 void ParaboloidDiscipline::ComputePartials(const Variables &inputs, Partials &partials) {
-    double x = inputs.at("x").data()[0];
-    double y = inputs.at("y").data()[0];
+    double x = inputs.at("x")(0);
+    double y = inputs.at("y")(0);
 
-    partials[{"f", "x"}] = CreateScalarVariable(2.0 * x);
-    partials[{"f", "y"}] = CreateScalarVariable(2.0 * y);
+    partials[{"f", "x"}](0) = 2.0 * x;
+    partials[{"f", "y"}](0) = 2.0 * y;
 }
 
 // ============================================================================
@@ -62,29 +62,29 @@ void MultiOutputDiscipline::SetupPartials() {
 }
 
 void MultiOutputDiscipline::Compute(const Variables &inputs, Variables &outputs) {
-    double x = inputs.at("x").data()[0];
-    double y = inputs.at("y").data()[0];
+    double x = inputs.at("x")(0);
+    double y = inputs.at("y")(0);
 
-    outputs["sum"] = CreateScalarVariable(x + y);
-    outputs["product"] = CreateScalarVariable(x * y);
-    outputs["difference"] = CreateScalarVariable(x - y);
+    outputs["sum"](0) = x + y;
+    outputs["product"](0) = x * y;
+    outputs["difference"](0) = x - y;
 }
 
 void MultiOutputDiscipline::ComputePartials(const Variables &inputs, Partials &partials) {
-    double x = inputs.at("x").data()[0];
-    double y = inputs.at("y").data()[0];
+    double x = inputs.at("x")(0);
+    double y = inputs.at("y")(0);
 
     // d(sum)/dx = 1, d(sum)/dy = 1
-    partials[{"sum", "x"}] = CreateScalarVariable(1.0);
-    partials[{"sum", "y"}] = CreateScalarVariable(1.0);
+    partials[{"sum", "x"}](0) = 1.0;
+    partials[{"sum", "y"}](0) = 1.0;
 
     // d(product)/dx = y, d(product)/dy = x
-    partials[{"product", "x"}] = CreateScalarVariable(y);
-    partials[{"product", "y"}] = CreateScalarVariable(x);
+    partials[{"product", "x"}](0) = y;
+    partials[{"product", "y"}](0) = x;
 
     // d(difference)/dx = 1, d(difference)/dy = -1
-    partials[{"difference", "x"}] = CreateScalarVariable(1.0);
-    partials[{"difference", "y"}] = CreateScalarVariable(-1.0);
+    partials[{"difference", "x"}](0) = 1.0;
+    partials[{"difference", "y"}](0) = -1.0;
 }
 
 // ============================================================================
@@ -94,10 +94,10 @@ void MultiOutputDiscipline::ComputePartials(const Variables &inputs, Partials &p
 VectorizedDiscipline::VectorizedDiscipline(size_t n, size_t m) : n_(n), m_(m) {}
 
 void VectorizedDiscipline::Setup() {
-    AddInput("A", {n_, m_}, "");
-    AddInput("x", {m_}, "");
-    AddInput("b", {n_}, "");
-    AddOutput("z", {n_}, "");
+    AddInput("A", {static_cast<int64_t>(n_), static_cast<int64_t>(m_)}, "");
+    AddInput("x", {static_cast<int64_t>(m_)}, "");
+    AddInput("b", {static_cast<int64_t>(n_)}, "");
+    AddOutput("z", {static_cast<int64_t>(n_)}, "");
 }
 
 void VectorizedDiscipline::SetupPartials() {
@@ -107,54 +107,36 @@ void VectorizedDiscipline::SetupPartials() {
 }
 
 void VectorizedDiscipline::Compute(const Variables &inputs, Variables &outputs) {
-    const double *A = inputs.at("A").data();
-    const double *x = inputs.at("x").data();
-    const double *b = inputs.at("b").data();
-
-    std::vector<double> z(n_, 0.0);
-
     // z = A * x + b
     for (size_t i = 0; i < n_; ++i) {
-        z[i] = b[i];
+        outputs["z"](i) = inputs.at("b")(i);
         for (size_t j = 0; j < m_; ++j) {
-            z[i] += A[i * m_ + j] * x[j];
+            outputs["z"](i) += inputs.at("A")(i * m_ + j) * inputs.at("x")(j);
         }
     }
-
-    outputs["z"] = CreateVectorVariable(z);
 }
 
 void VectorizedDiscipline::ComputePartials(const Variables &inputs, Partials &partials) {
-    const double *A = inputs.at("A").data();
-    const double *x = inputs.at("x").data();
-
     // dz/dA: Each z[i] depends on A[i,:], with derivatives equal to x
-    std::vector<double> dz_dA(n_ * m_);
     for (size_t i = 0; i < n_; ++i) {
         for (size_t j = 0; j < m_; ++j) {
-            dz_dA[i * m_ + j] = x[j];
+            partials[{"z", "A"}](i * m_ + j) = inputs.at("x")(j);
         }
     }
-    partials[{"z", "A"}] = CreateMatrixVariable(n_, m_, 0.0);
-    std::copy(dz_dA.begin(), dz_dA.end(), const_cast<double*>(partials[{"z", "A"}].data()));
 
     // dz/dx: Each z[i] depends on all x[j], with derivatives equal to A[i,j]
-    std::vector<double> dz_dx(n_ * m_);
     for (size_t i = 0; i < n_; ++i) {
         for (size_t j = 0; j < m_; ++j) {
-            dz_dx[i * m_ + j] = A[i * m_ + j];
+            partials[{"z", "x"}](i * m_ + j) = inputs.at("A")(i * m_ + j);
         }
     }
-    partials[{"z", "x"}] = CreateMatrixVariable(n_, m_, 0.0);
-    std::copy(dz_dx.begin(), dz_dx.end(), const_cast<double*>(partials[{"z", "x"}].data()));
 
     // dz/db: Identity matrix (dz[i]/db[j] = delta_ij)
-    std::vector<double> dz_db(n_ * n_, 0.0);
     for (size_t i = 0; i < n_; ++i) {
-        dz_db[i * n_ + i] = 1.0;
+        for (size_t j = 0; j < n_; ++j) {
+            partials[{"z", "b"}](i * n_ + j) = (i == j) ? 1.0 : 0.0;
+        }
     }
-    partials[{"z", "b"}] = CreateMatrixVariable(n_, n_, 0.0);
-    std::copy(dz_db.begin(), dz_db.end(), const_cast<double*>(partials[{"z", "b"}].data()));
 }
 
 // ============================================================================
@@ -179,15 +161,14 @@ void ErrorDiscipline::Compute(const Variables &inputs, Variables &outputs) {
     if (mode_ == ErrorMode::THROW_ON_COMPUTE) {
         throw std::runtime_error("ErrorDiscipline: Error in Compute()");
     }
-    double x = inputs.at("x").data()[0];
-    outputs["y"] = CreateScalarVariable(x);
+    outputs["y"](0) = inputs.at("x")(0);
 }
 
 void ErrorDiscipline::ComputePartials(const Variables &inputs, Partials &partials) {
     if (mode_ == ErrorMode::THROW_ON_PARTIALS) {
         throw std::runtime_error("ErrorDiscipline: Error in ComputePartials()");
     }
-    partials[{"y", "x"}] = CreateScalarVariable(1.0);
+    partials[{"y", "x"}](0) = 1.0;
 }
 
 // ============================================================================
@@ -195,20 +176,24 @@ void ErrorDiscipline::ComputePartials(const Variables &inputs, Partials &partial
 // ============================================================================
 
 Variable CreateScalarVariable(double value) {
-    Variable var({1});
-    var.data()[0] = value;
+    Variable var(kInput, {1});
+    var(0) = value;
     return var;
 }
 
 Variable CreateVectorVariable(const std::vector<double> &values) {
-    Variable var({values.size()});
-    std::copy(values.begin(), values.end(), var.data());
+    Variable var(kInput, {values.size()});
+    for (size_t i = 0; i < values.size(); ++i) {
+        var(i) = values[i];
+    }
     return var;
 }
 
 Variable CreateMatrixVariable(size_t rows, size_t cols, double fill_value) {
-    Variable var({rows, cols});
-    std::fill(var.data(), var.data() + rows * cols, fill_value);
+    Variable var(kInput, {rows, cols});
+    for (size_t i = 0; i < rows * cols; ++i) {
+        var(i) = fill_value;
+    }
     return var;
 }
 
@@ -233,21 +218,18 @@ Partials CreatePartials(const std::map<std::pair<std::string, std::string>, std:
 // ============================================================================
 
 void ExpectVariablesEqual(const Variable &expected, const Variable &actual, double tolerance) {
-    ASSERT_EQ(expected.shape().size(), actual.shape().size())
+    ASSERT_EQ(expected.Shape().size(), actual.Shape().size())
         << "Variable shapes have different dimensions";
 
-    for (size_t i = 0; i < expected.shape().size(); ++i) {
-        ASSERT_EQ(expected.shape()[i], actual.shape()[i])
+    for (size_t i = 0; i < expected.Shape().size(); ++i) {
+        ASSERT_EQ(expected.Shape()[i], actual.Shape()[i])
             << "Variable shapes differ at dimension " << i;
     }
 
-    size_t total_size = 1;
-    for (size_t dim : expected.shape()) {
-        total_size *= dim;
-    }
+    size_t total_size = expected.Size();
 
     for (size_t i = 0; i < total_size; ++i) {
-        EXPECT_NEAR(expected.data()[i], actual.data()[i], tolerance)
+        EXPECT_NEAR(expected(i), actual(i), tolerance)
             << "Variables differ at index " << i;
     }
 }
@@ -273,11 +255,11 @@ void ExpectPartialsMapsEqual(const Partials &expected, const Partials &actual, d
 }
 
 void ExpectVariableShape(const Variable &var, const std::vector<size_t> &expected_shape) {
-    ASSERT_EQ(var.shape().size(), expected_shape.size())
+    ASSERT_EQ(var.Shape().size(), expected_shape.size())
         << "Variable has different number of dimensions than expected";
 
     for (size_t i = 0; i < expected_shape.size(); ++i) {
-        EXPECT_EQ(var.shape()[i], expected_shape[i])
+        EXPECT_EQ(var.Shape()[i], expected_shape[i])
             << "Variable shape differs at dimension " << i;
     }
 }
