@@ -1,3 +1,3 @@
 [submodule "proto"]
 	path = proto
-	url = https://github.com/Philote-MDO/Philote-MDO.git
+	url = https://github.com/MDO-Standards/Philote-MDO.git
