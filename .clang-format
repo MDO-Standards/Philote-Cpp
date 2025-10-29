@@ -1,0 +1,87 @@
+# Philote-Cpp ClangFormat Configuration
+# Based on Google C++ Style Guide with 4-space indentation
+
+# Use Google style as base
+BasedOnStyle: Google
+
+# Override: Use 4 spaces for indentation instead of 2
+IndentWidth: 4
+ContinuationIndentWidth: 4
+
+# Tab configuration
+UseTab: Never
+TabWidth: 4
+
+# Column limit (line length)
+ColumnLimit: 80
+
+# Pointer and reference alignment
+PointerAlignment: Left
+ReferenceAlignment: Left
+
+# Namespace indentation
+NamespaceIndentation: None
+
+# Access modifier indentation
+AccessModifierOffset: -4
+
+# Constructor initializer list
+ConstructorInitializerIndentWidth: 4
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+
+# Include sorting
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  # Related header
+  - Regex:           '^"(.*/)?(.*).h"'
+    Priority:        1
+  # C system headers
+  - Regex:           '^<(assert|complex|ctype|errno|fenv|float|inttypes|iso646|limits|locale|math|setjmp|signal|stdalign|stdarg|stdatomic|stdbool|stddef|stdint|stdio|stdlib|stdnoreturn|string|tgmath|threads|time|uchar|wchar|wctype)\.h>'
+    Priority:        2
+  # C++ standard library headers
+  - Regex:           '^<[a-z_]+>'
+    Priority:        3
+  # Other libraries (grpc, etc)
+  - Regex:           '^<.*>'
+    Priority:        4
+  # Project headers
+  - Regex:           '^".*"'
+    Priority:        5
+
+# Bracing
+BreakBeforeBraces: Attach
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+
+# Spacing
+SpaceAfterCStyleCast: false
+SpaceAfterTemplateKeyword: true
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInAngles: false
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Line breaking
+AlwaysBreakAfterReturnType: None
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: true
+BinPackParameters: true
+
+# Comments
+ReflowComments: true
+SpacesBeforeTrailingComments: 2
+
+# Other
+DerivePointerAlignment: false
+IndentCaseLabels: true
+IndentPPDirectives: None
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+
+# Language version
+Standard: c++20

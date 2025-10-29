@@ -99,6 +99,32 @@ Important patterns, guidelines, and known limitations.
 - Current limitations
 - Debugging tips
 
+### Coding Style Guide
+@ref coding_style
+
+Coding standards and style guidelines for contributors.
+
+**Topics covered:**
+- Google C++ style with 4-space indentation
+- Naming conventions
+- File organization and structure
+- Comments and documentation
+- Language features and best practices
+- Code review checklist
+
+### Release Process
+@ref release_process
+
+Guide to creating releases and managing versions.
+
+**Topics covered:**
+- Automated release workflow
+- Semantic versioning
+- Creating stable releases and prereleases
+- Label-based release triggers
+- CHANGELOG management
+- Troubleshooting releases
+
 ## Quick Reference
 
 ### Simple Explicit Discipline

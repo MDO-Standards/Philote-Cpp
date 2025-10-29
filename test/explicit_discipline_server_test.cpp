@@ -212,7 +212,6 @@ TEST_F(ExplicitServerTest, ComputeFunctionSimpleScalar) {
     EXPECT_CALL(*stream, Read(_))
         .WillOnce(Invoke([](philote::Array* array) {
             array->Clear();  // Clear any previous data
-            array->Clear();  // Clear any previous data
             array->set_name("x");
             array->set_type(VariableType::kInput);
             array->set_start(0);
@@ -221,7 +220,6 @@ TEST_F(ExplicitServerTest, ComputeFunctionSimpleScalar) {
             return true;
         }))
         .WillOnce(Invoke([](philote::Array* array) {
-            array->Clear();  // Clear any previous data
             array->Clear();  // Clear any previous data
             array->set_name("y");
             array->set_type(VariableType::kInput);
@@ -242,10 +240,6 @@ TEST_F(ExplicitServerTest, ComputeFunctionSimpleScalar) {
         }));
 
     grpc::Status status = server_->ComputeFunctionForTesting(context_.get(), stream.get());
-
-    if (!status.ok()) {
-        std::cerr << "DEBUG: Error: " << status.error_message() << " (code: " << status.error_code() << ")\n";
-    }
     EXPECT_TRUE(status.ok());
 }
 
