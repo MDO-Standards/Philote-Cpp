@@ -32,90 +32,74 @@
 # array tests
 add_executable(VariableTests variable_tests.cpp)
 target_link_libraries(VariableTests PhiloteCpp GTest::gtest_main GTest::gmock)
-# target_include_directories(VariableTests PRIVATE ${Protobuf_INCLUDE_DIRS} ${gRPC_INCLUDE_DIRS})
+enable_coverage(VariableTests)
 gtest_discover_tests(VariableTests)
 
 # pair dict tests
 add_executable(PairDictTests pair_dict_tests.cpp)
 target_link_libraries(PairDictTests PhiloteCpp GTest::gtest_main GTest::gmock)
+enable_coverage(PairDictTests)
 gtest_discover_tests(PairDictTests)
 
 # discipline tests
 add_executable(DisciplineTests discipline_test.cpp)
 target_link_libraries(DisciplineTests PhiloteCpp GTest::gtest_main GTest::gmock)
-# target_include_directories(DisciplineTests PRIVATE ${Protobuf_INCLUDE_DIRS} ${gRPC_INCLUDE_DIRS})
+enable_coverage(DisciplineTests)
 gtest_discover_tests(DisciplineTests)
 
 # discipline server tests
 add_executable(DisciplineServerTests discipline_server_test.cpp)
 target_link_libraries(DisciplineServerTests PhiloteCpp GTest::gtest_main GTest::gmock)
+enable_coverage(DisciplineServerTests)
 gtest_discover_tests(DisciplineServerTests)
 
 # discipline client tests
 add_executable(DisciplineClientTests discipline_client_test.cpp)
-add_dependencies(DisciplineClientTests GrpcGenerated)
 target_link_libraries(DisciplineClientTests PhiloteCpp GTest::gtest_main GTest::gmock)
+enable_coverage(DisciplineClientTests)
 target_include_directories(DisciplineClientTests PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src/discipline
 )
 gtest_discover_tests(DisciplineClientTests)
 
 # explicit discipline tests
 add_executable(ExplicitDisciplineTests explicit_discipline_test.cpp)
-add_dependencies(ExplicitDisciplineTests GrpcGenerated)
-target_link_libraries(ExplicitDisciplineTests 
-    PhiloteCpp 
-    GTest::gtest_main 
+target_link_libraries(ExplicitDisciplineTests
+    PhiloteCpp
+    GTest::gtest_main
     GTest::gmock
 )
+enable_coverage(ExplicitDisciplineTests)
 target_include_directories(ExplicitDisciplineTests PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src/explicit
-    ${CMAKE_SOURCE_DIR}/src/generated
-    ${Protobuf_INCLUDE_DIRS}
-    ${gRPC_INCLUDE_DIRS}
 )
 gtest_discover_tests(ExplicitDisciplineTests)
 
 # explicit discipline server tests
 add_executable(ExplicitDisciplineServerTests explicit_discipline_server_test.cpp)
-add_dependencies(ExplicitDisciplineServerTests GrpcGenerated)
-target_link_libraries(ExplicitDisciplineServerTests 
-    PhiloteCpp 
-    GTest::gtest_main 
+target_link_libraries(ExplicitDisciplineServerTests
+    PhiloteCpp
+    GTest::gtest_main
     GTest::gmock
 )
+enable_coverage(ExplicitDisciplineServerTests)
 target_include_directories(ExplicitDisciplineServerTests PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src/explicit
-    ${CMAKE_SOURCE_DIR}/src/generated
-    ${Protobuf_INCLUDE_DIRS}
-    ${gRPC_INCLUDE_DIRS}
 )
 gtest_discover_tests(ExplicitDisciplineServerTests)
 
 # explicit client tests
 add_executable(ExplicitClientTests explicit_client_test.cpp)
-add_dependencies(ExplicitClientTests GrpcGenerated)
-target_link_libraries(ExplicitClientTests 
-    PhiloteCpp 
-    GTest::gtest_main 
+target_link_libraries(ExplicitClientTests
+    PhiloteCpp
+    GTest::gtest_main
     GTest::gmock
 )
+enable_coverage(ExplicitClientTests)
 target_include_directories(ExplicitClientTests PRIVATE
-    ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src/explicit
-    ${CMAKE_SOURCE_DIR}/src/generated
-    ${Protobuf_INCLUDE_DIRS}
-    ${gRPC_INCLUDE_DIRS}
 )
 gtest_discover_tests(ExplicitClientTests)
-
-# Add dependencies for targets that use the generated gRPC files
-add_dependencies(ImplicitDiscipline GrpcGenerated)
-add_dependencies(Discipline GrpcGenerated)
-add_dependencies(ExplicitDiscipline GrpcGenerated)
 
 # Set test discovery timeout
 set(GTEST_DISCOVER_TESTS_DISCOVERY_TIMEOUT 60)

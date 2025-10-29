@@ -33,5 +33,11 @@ add_library(Discipline OBJECT
     discipline.cpp
     discipline_client.cpp
 )
+target_include_directories(Discipline
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_BINARY_DIR}/src/generated
+)
 target_link_libraries(Discipline PRIVATE protobuf::libprotobuf gRPC::grpc++)
 add_dependencies(Discipline GrpcGenerated)
+enable_coverage(Discipline)

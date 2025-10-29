@@ -29,4 +29,11 @@
 #    control over the information you may find at these locations.
 #===============================================================================
 add_library(Utilities OBJECT variable.cpp)
+target_include_directories(Utilities
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_BINARY_DIR}/src/generated
+)
 target_link_libraries(Utilities PRIVATE protobuf::libprotobuf gRPC::grpc++)
+add_dependencies(Utilities GrpcGenerated)
+enable_coverage(Utilities)

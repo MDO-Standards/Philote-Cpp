@@ -1,7 +1,7 @@
 #===============================================================================
 #    Philote C++ Bindings
 #
-#    Copyright 2022-2024 Christopher A. Lupp
+#    Copyright 2022-2025 Christopher A. Lupp
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -29,14 +29,7 @@
 #    control over the information you may find at these locations.
 #===============================================================================
 add_executable(ExampleParaboloidServer paraboloid_server.cpp)
-target_link_libraries(ExampleParaboloidServer PhiloteCpp)
-target_link_libraries(ExampleParaboloidServer gRPC::grpc++)
-target_link_libraries(ExampleParaboloidServer protobuf::libprotobuf)
-
+target_link_libraries(ExampleParaboloidServer PRIVATE PhiloteCpp)
 
 add_executable(ExampleParaboloidClient paraboloid_client.cpp)
-target_link_libraries(ExampleParaboloidClient
-                        PhiloteCpp
-                        protobuf::libprotobuf
-                        gRPC::grpc++
-)
+target_link_libraries(ExampleParaboloidClient PRIVATE PhiloteCpp)

@@ -33,5 +33,11 @@ add_library(ImplicitDiscipline OBJECT
     implicit_discipline.cpp
     implicit_client.cpp
 )
+target_include_directories(ImplicitDiscipline
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_BINARY_DIR}/src/generated
+)
 target_link_libraries(ImplicitDiscipline PRIVATE protobuf::libprotobuf gRPC::grpc++)
 add_dependencies(ImplicitDiscipline GrpcGenerated)
+enable_coverage(ImplicitDiscipline)

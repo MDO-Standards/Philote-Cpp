@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Split discipline header into separate components for better modularity
 - Updated library API for parity with Python package
 - Improved gRPC stub generation and dependency management
+- **Refactored gRPC code generation to use build directory instead of source tree**
+  - Generated files now created in `build/src/generated/` following CMake best practices
+  - Created `cmake/GenerateGrpc.cmake` module for proto generation logic
+  - Removed `src/generated/` directory from source tree
+  - Updated all include paths to reference build directory
+  - Added directory creation to support parallel builds
 - Updated copyright year to 2022-2025 in source files
 - Cleaned up headers and removed unused code
 - CI now builds gRPC targets first before building the rest of the project

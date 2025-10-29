@@ -1,7 +1,7 @@
 #===============================================================================
 #    Philote C++ Bindings
 #
-#    Copyright 2022-2024 Christopher A. Lupp
+#    Copyright 2022-2025 Christopher A. Lupp
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -29,15 +29,7 @@
 #    control over the information you may find at these locations.
 #===============================================================================
 add_executable(ExampleQuadraticServer quadratic_server.cpp)
-target_link_libraries(ExampleQuadraticServer
-                      PhiloteCpp
-                      protobuf::libprotobuf
-                      gRPC::grpc++
-)
+target_link_libraries(ExampleQuadraticServer PRIVATE PhiloteCpp)
 
 add_executable(ExampleQuadraticClient quadratic_client.cpp)
-target_link_libraries(ExampleQuadraticClient
-                      PhiloteCpp
-                      protobuf::libprotobuf
-                      gRPC::grpc++
-)
+target_link_libraries(ExampleQuadraticClient PRIVATE PhiloteCpp)

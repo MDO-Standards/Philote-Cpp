@@ -33,5 +33,11 @@ add_library(ExplicitDiscipline OBJECT
     explicit_discipline.cpp
     explicit_client.cpp
 )
+target_include_directories(ExplicitDiscipline
+    PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_BINARY_DIR}/src/generated
+)
 target_link_libraries(ExplicitDiscipline PRIVATE protobuf::libprotobuf gRPC::grpc++)
 add_dependencies(ExplicitDiscipline GrpcGenerated)
+enable_coverage(ExplicitDiscipline)

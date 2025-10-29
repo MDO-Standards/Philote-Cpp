@@ -35,7 +35,20 @@ cmake_minimum_required (VERSION 3.23)
 
 project(PhiloteCpp
     VERSION 0.4.0
+    LANGUAGES CXX
 )
+
+# Set a default build type if none was specified
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to 'Release' as none was specified")
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build" FORCE)
+    # Set the possible values of build type for cmake-gui
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+        "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+# Include GNUInstallDirs for standard installation directory variables
+include(GNUInstallDirs)
 
 # cache option variables
 set(
@@ -55,34 +68,23 @@ set(
 )
 
 # add cmake scripts
-LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
-# set the C++ standard
-set(CMAKE_CXX_STANDARD 17)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(CodeCoverage)
 
 # Coverage configuration
 if(ENABLE_COVERAGE)
     message("Enabling code coverage...")
-    
+
     # Check if we have the required tools
     find_program(GCOV_PATH gcov)
     find_program(LCOV_PATH lcov)
     find_program(GENHTML_PATH genhtml)
-    
+
     if(NOT GCOV_PATH)
         message(FATAL_ERROR "gcov not found! Install gcov and try again.")
     endif()
-    
-    # Set coverage flags
-    set(COVERAGE_COMPILER_FLAGS "-g -O0 --coverage -fprofile-arcs -ftest-coverage")
-    set(COVERAGE_LINKER_FLAGS "--coverage")
-    
-    # Apply flags to all targets
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COVERAGE_COMPILER_FLAGS}")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COVERAGE_COMPILER_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${COVERAGE_LINKER_FLAGS}")
-    
-    message("Coverage flags: ${COVERAGE_COMPILER_FLAGS}")
+
+    message("Coverage will be applied to library targets")
 endif()
 
 # Find gRPC and its dependencies
@@ -127,18 +129,19 @@ if(NOT gRPC_FOUND)
             INTERFACE_LINK_LIBRARIES "${GRPC_LINK_LIBRARIES}"
         )
     endif()
+endif()
 
-    # Find grpc_cpp_plugin
+# Find grpc_cpp_plugin (needed for proto generation)
+# First check if gRPC CONFIG provided the target
+if(TARGET gRPC::grpc_cpp_plugin)
+    get_target_property(GRPC_CPP_PLUGIN gRPC::grpc_cpp_plugin LOCATION)
+else()
+    # Fall back to find_program
     find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin)
     if(NOT GRPC_CPP_PLUGIN)
         message(FATAL_ERROR "grpc_cpp_plugin not found")
     endif()
 endif()
-
-# add include directories
-include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/src/generated)
-
 
 # add subdirectories
 add_subdirectory(src)
@@ -182,7 +185,7 @@ export(TARGETS
 )
 install(EXPORT
     PhiloteCppConfig
-    DESTINATION "${CMAKE_INSTALL_PREFIX}/cmake"
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/PhiloteCpp"
     NAMESPACE PhiloteCpp::
 )
 
@@ -196,7 +199,7 @@ if(ENABLE_COVERAGE AND BUILD_TESTS)
         '*/tests/*'
         '*/gtest/*'
         '*/gmock/*'
-        '*/src/generated/*'
+        '*/generated/*'
         '*/cmake-build-*/*'
         '*/build/*'
         '*/cmake/*'
