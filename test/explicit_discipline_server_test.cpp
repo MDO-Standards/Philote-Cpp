@@ -358,8 +358,8 @@ TEST_F(ExplicitServerTest, ComputeFunctionComputeThrows) {
     y_meta.set_type(kOutput);
     y_meta.add_shape(1);
 
-    mock_discipline->AddInputMeta(x_meta);
-    mock_discipline->AddOutputMeta(y_meta);
+    mock_discipline->var_meta().push_back(x_meta);
+    mock_discipline->var_meta().push_back(y_meta);
 
     // Mock Compute to throw
     EXPECT_CALL(*mock_discipline, Compute(_, _))
@@ -544,9 +544,9 @@ TEST_F(ExplicitServerTest, ComputeGradientComputePartialsThrows) {
     partial_meta.set_subname("x");
     partial_meta.add_shape(1);
 
-    mock_discipline->AddInputMeta(x_meta);
-    mock_discipline->AddOutputMeta(y_meta);
-    mock_discipline->AddPartialsMeta(partial_meta);
+    mock_discipline->var_meta().push_back(x_meta);
+    mock_discipline->var_meta().push_back(y_meta);
+    mock_discipline->partials_meta().push_back(partial_meta);
 
     // Mock ComputePartials to throw
     EXPECT_CALL(*mock_discipline, ComputePartials(_, _))
