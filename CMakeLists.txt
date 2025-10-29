@@ -157,26 +157,9 @@ if (BUILD_TESTS)
     find_package(GTest REQUIRED)
     include(GoogleTest)
 
-    # Ensure gmock target is available
-    # Some GTest installations don't export GTest::gmock, so we create an alias
+    # Verify that GTest::gmock target is available
     if(NOT TARGET GTest::gmock)
-        if(TARGET gmock)
-            add_library(GTest::gmock ALIAS gmock)
-        else()
-            # Fallback: try to find gmock library manually
-            find_library(GMOCK_LIBRARY NAMES gmock)
-            find_path(GMOCK_INCLUDE_DIR gmock/gmock.h)
-            if(GMOCK_LIBRARY AND GMOCK_INCLUDE_DIR)
-                add_library(gmock UNKNOWN IMPORTED)
-                set_target_properties(gmock PROPERTIES
-                    IMPORTED_LOCATION "${GMOCK_LIBRARY}"
-                    INTERFACE_INCLUDE_DIRECTORIES "${GMOCK_INCLUDE_DIR}"
-                )
-                add_library(GTest::gmock ALIAS gmock)
-            else()
-                message(FATAL_ERROR "Could not find gmock library")
-            endif()
-        endif()
+        message(FATAL_ERROR "GTest::gmock target not found. Please install googletest with gmock support.")
     endif()
 
     add_subdirectory(test)
