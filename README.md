@@ -204,7 +204,7 @@ information you may find at these locations.
 
 
 ## Citation
-If you use this code for academic work, please cite the following paper:
+If you use this code for academic work (e.g., for a paper), please cite the following paper:
 
 Lupp, C.A., Xu, A. "Creating a Universal Communication 
 Standard to Enable Heterogeneous Multidisciplinary Design Optimization." 
