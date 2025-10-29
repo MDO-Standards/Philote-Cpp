@@ -86,8 +86,54 @@ if(ENABLE_COVERAGE)
 endif()
 
 # Find gRPC and its dependencies
-find_package(Protobuf CONFIG REQUIRED)
-find_package(gRPC CONFIG REQUIRED)
+# Try CONFIG first, fall back to pkg-config for system packages
+find_package(Protobuf CONFIG QUIET)
+if(NOT Protobuf_FOUND)
+    # Use MODULE mode for system installations
+    find_package(Protobuf REQUIRED)
+
+    # Create compatibility targets if they don't exist
+    if(NOT TARGET protobuf::libprotobuf AND TARGET protobuf::protobuf)
+        add_library(protobuf::libprotobuf ALIAS protobuf::protobuf)
+    elseif(NOT TARGET protobuf::libprotobuf)
+        add_library(protobuf::libprotobuf INTERFACE IMPORTED)
+        set_target_properties(protobuf::libprotobuf PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIRS}"
+            INTERFACE_LINK_LIBRARIES "${Protobuf_LIBRARIES}"
+        )
+    endif()
+
+    # Ensure protoc executable target exists
+    if(NOT TARGET protobuf::protoc)
+        add_executable(protobuf::protoc IMPORTED)
+        set_target_properties(protobuf::protoc PROPERTIES
+            IMPORTED_LOCATION "${Protobuf_PROTOC_EXECUTABLE}"
+        )
+    endif()
+endif()
+
+find_package(gRPC CONFIG QUIET)
+if(NOT gRPC_FOUND)
+    # Use pkg-config as fallback for system installations
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GRPC REQUIRED grpc++)
+    pkg_check_modules(GRPC_UNSECURE REQUIRED grpc)
+
+    # Create imported targets for consistency
+    if(NOT TARGET gRPC::grpc++)
+        add_library(gRPC::grpc++ INTERFACE IMPORTED)
+        set_target_properties(gRPC::grpc++ PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${GRPC_INCLUDE_DIRS}"
+            INTERFACE_LINK_LIBRARIES "${GRPC_LINK_LIBRARIES}"
+        )
+    endif()
+
+    # Find grpc_cpp_plugin
+    find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin)
+    if(NOT GRPC_CPP_PLUGIN)
+        message(FATAL_ERROR "grpc_cpp_plugin not found")
+    endif()
+endif()
 
 # add include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
