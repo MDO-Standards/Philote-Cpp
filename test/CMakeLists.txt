@@ -30,10 +30,10 @@
 #===============================================================================
 
 # Test helpers library
+# Note: Coverage is NOT enabled for test helpers as they are test-only utilities
 add_library(PhiloteTestHelpers test_helpers.cpp)
 target_link_libraries(PhiloteTestHelpers PUBLIC PhiloteCpp GTest::gtest GTest::gmock)
 target_include_directories(PhiloteTestHelpers PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-enable_coverage(PhiloteTestHelpers)
 
 # array tests
 add_executable(VariableTests variable_tests.cpp)

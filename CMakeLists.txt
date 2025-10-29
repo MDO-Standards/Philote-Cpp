@@ -197,6 +197,7 @@ if(ENABLE_COVERAGE AND BUILD_TESTS)
         '/usr/include/*'
         '*/test/*'
         '*/tests/*'
+        '*/test_helpers.*'
         '*/gtest/*'
         '*/gmock/*'
         '*/generated/*'
