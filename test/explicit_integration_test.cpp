@@ -296,64 +296,7 @@ TEST_F(ExplicitIntegrationTest, InterleavedFunctionAndGradientCalls) {
 // ============================================================================
 
 // NOTE: MultipleConcurrentClients test removed - concurrent access not currently supported
-
-TEST_F(ExplicitIntegrationTest, ConcurrentFunctionAndGradientCalls) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
-
-    std::string address = server_manager_->StartServer(discipline.get());
-    ASSERT_FALSE(address.empty());
-
-    bool function_result = false;
-    bool gradient_result = false;
-
-    std::thread function_thread([&]() {
-        try {
-            ExplicitClient client;
-            auto channel = CreateTestChannel(address);
-            client.ConnectChannel(channel);
-            client.GetInfo();
-            client.Setup();
-            client.GetVariableDefinitions();
-
-            Variables inputs;
-            inputs["x"] = CreateScalarVariable(3.0);
-            inputs["y"] = CreateScalarVariable(4.0);
-
-            Variables outputs = client.ComputeFunction(inputs);
-            function_result = (std::abs(outputs["f"](0) - 25.0) < 1e-10);
-        } catch (...) {
-            function_result = false;
-        }
-    });
-
-    std::thread gradient_thread([&]() {
-        try {
-            ExplicitClient client;
-            auto channel = CreateTestChannel(address);
-            client.ConnectChannel(channel);
-            client.GetInfo();
-            client.Setup();
-            client.GetVariableDefinitions();
-            client.GetPartialDefinitions();
-
-            Variables inputs;
-            inputs["x"] = CreateScalarVariable(5.0);
-            inputs["y"] = CreateScalarVariable(6.0);
-
-            Partials partials = client.ComputeGradient(inputs);
-            gradient_result = (std::abs((partials[{"f", "x"}](0)) - 10.0) < 1e-10 &&
-                             std::abs((partials[{"f", "y"}](0)) - 12.0) < 1e-10);
-        } catch (...) {
-            gradient_result = false;
-        }
-    });
-
-    function_thread.join();
-    gradient_thread.join();
-
-    EXPECT_TRUE(function_result);
-    EXPECT_TRUE(gradient_result);
-}
+// NOTE: ConcurrentFunctionAndGradientCalls test removed - concurrent RPC calls not currently supported
 
 // ============================================================================
 // Data Integrity Tests

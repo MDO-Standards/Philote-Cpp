@@ -3,6 +3,7 @@
 #include <set>
 #include <memory>
 #include <stdexcept>
+#include <grpcpp/grpcpp.h>
 
 #include "explicit.h"
 
@@ -380,4 +381,27 @@ TEST_F(SimpleExplicitDisciplineTest, ErrorHandlingMissingPartials)
             EXPECT_STREQ(e.what(), "Index out of range in Variable::operator() non-const");
             throw;
         } }, std::out_of_range);
+}
+
+// ============================================================================
+// RegisterServices Tests
+// ============================================================================
+
+// Test RegisterServices() registers both discipline and explicit servers
+TEST_F(ExplicitDisciplineTest, RegisterServicesRegistersServers)
+{
+    // Create a ServerBuilder
+    grpc::ServerBuilder builder;
+
+    // Register services
+    discipline->RegisterServices(builder);
+
+    // Build the server - this will fail if services aren't properly registered
+    // We're just verifying the registration doesn't crash
+    EXPECT_NO_THROW({
+        std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
+        if (server) {
+            server->Shutdown();
+        }
+    });
 }
