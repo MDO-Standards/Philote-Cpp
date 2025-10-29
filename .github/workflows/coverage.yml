@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 jobs:
   coverage:
@@ -50,13 +50,38 @@ jobs:
     - name: Generate coverage report
       run: |
         cd build
-        make coverage-xml
+        # Clean previous coverage data
+        find . -name "*.gcda" -delete
+        lcov --zerocounters --directory .
+
+        # Run tests to generate coverage data
+        ctest --output-on-failure
+
+        # Capture coverage data
+        lcov --capture --directory . --output-file coverage.info
+
+        # Filter out unwanted files from coverage
+        lcov --remove coverage.info \
+          '/usr/include/*' \
+          '*/test/*' \
+          '*/tests/*' \
+          '*/gtest/*' \
+          '*/gmock/*' \
+          '*/generated/*' \
+          '*/cmake-build-*/*' \
+          '*/build/*' \
+          '*/cmake/*' \
+          '*/examples/*' \
+          --output-file coverage_filtered.info
+
+        # Print summary
+        lcov --summary coverage_filtered.info
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
         directory: build
-        files: '*.gcov'
+        files: coverage_filtered.info
         flags: unittests
         fail_ci_if_error: true
         verbose: true
