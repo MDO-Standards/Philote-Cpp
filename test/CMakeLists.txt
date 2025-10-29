@@ -85,6 +85,7 @@ gtest_discover_tests(ExplicitDisciplineTests)
 add_executable(ExplicitDisciplineServerTests explicit_discipline_server_test.cpp)
 target_link_libraries(ExplicitDisciplineServerTests
     PhiloteCpp
+    PhiloteTestHelpers
     GTest::gtest_main
     GTest::gmock
 )
@@ -98,6 +99,7 @@ gtest_discover_tests(ExplicitDisciplineServerTests)
 add_executable(ExplicitClientTests explicit_client_test.cpp)
 target_link_libraries(ExplicitClientTests
     PhiloteCpp
+    PhiloteTestHelpers
     GTest::gtest_main
     GTest::gmock
 )

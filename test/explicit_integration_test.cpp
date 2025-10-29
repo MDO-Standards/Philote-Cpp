@@ -81,7 +81,7 @@ TEST_F(ExplicitIntegrationTest, ParaboloidFunctionComputation) {
     // Verify results
     ASSERT_EQ(outputs.size(), 1);
     ASSERT_TRUE(outputs.count("f") > 0);
-    EXPECT_DOUBLE_EQ(outputs["f"].data()[0], 25.0);
+    EXPECT_DOUBLE_EQ(outputs["f"](0), 25.0);
 }
 
 TEST_F(ExplicitIntegrationTest, ParaboloidGradientComputation) {
@@ -109,8 +109,8 @@ TEST_F(ExplicitIntegrationTest, ParaboloidGradientComputation) {
 
     // Verify results
     ASSERT_EQ(partials.size(), 2);
-    EXPECT_DOUBLE_EQ(partials[{"f", "x"}].data()[0], 6.0);
-    EXPECT_DOUBLE_EQ(partials[{"f", "y"}].data()[0], 8.0);
+    EXPECT_DOUBLE_EQ((partials[{"f", "x"}](0)), 6.0);
+    EXPECT_DOUBLE_EQ((partials[{"f", "y"}](0)), 8.0);
 }
 
 TEST_F(ExplicitIntegrationTest, MultiOutputDiscipline) {
@@ -136,9 +136,9 @@ TEST_F(ExplicitIntegrationTest, MultiOutputDiscipline) {
     Variables outputs = client.ComputeFunction(inputs);
 
     ASSERT_EQ(outputs.size(), 3);
-    EXPECT_DOUBLE_EQ(outputs["sum"].data()[0], 8.0);
-    EXPECT_DOUBLE_EQ(outputs["product"].data()[0], 15.0);
-    EXPECT_DOUBLE_EQ(outputs["difference"].data()[0], 2.0);
+    EXPECT_DOUBLE_EQ(outputs["sum"](0), 8.0);
+    EXPECT_DOUBLE_EQ(outputs["product"](0), 15.0);
+    EXPECT_DOUBLE_EQ(outputs["difference"](0), 2.0);
 }
 
 TEST_F(ExplicitIntegrationTest, MultiOutputGradients) {
@@ -166,16 +166,16 @@ TEST_F(ExplicitIntegrationTest, MultiOutputGradients) {
     ASSERT_EQ(partials.size(), 6);
 
     // d(sum)/dx = 1, d(sum)/dy = 1
-    EXPECT_DOUBLE_EQ(partials[{"sum", "x"}].data()[0], 1.0);
-    EXPECT_DOUBLE_EQ(partials[{"sum", "y"}].data()[0], 1.0);
+    EXPECT_DOUBLE_EQ((partials[{"sum", "x"}](0)), 1.0);
+    EXPECT_DOUBLE_EQ((partials[{"sum", "y"}](0)), 1.0);
 
     // d(product)/dx = y = 3, d(product)/dy = x = 5
-    EXPECT_DOUBLE_EQ(partials[{"product", "x"}].data()[0], 3.0);
-    EXPECT_DOUBLE_EQ(partials[{"product", "y"}].data()[0], 5.0);
+    EXPECT_DOUBLE_EQ((partials[{"product", "x"}](0)), 3.0);
+    EXPECT_DOUBLE_EQ((partials[{"product", "y"}](0)), 5.0);
 
     // d(difference)/dx = 1, d(difference)/dy = -1
-    EXPECT_DOUBLE_EQ(partials[{"difference", "x"}].data()[0], 1.0);
-    EXPECT_DOUBLE_EQ(partials[{"difference", "y"}].data()[0], -1.0);
+    EXPECT_DOUBLE_EQ((partials[{"difference", "x"}](0)), 1.0);
+    EXPECT_DOUBLE_EQ((partials[{"difference", "y"}](0)), -1.0);
 }
 
 TEST_F(ExplicitIntegrationTest, VectorizedDiscipline) {
@@ -197,10 +197,9 @@ TEST_F(ExplicitIntegrationTest, VectorizedDiscipline) {
     Variables inputs;
     inputs["A"] = CreateMatrixVariable(3, 2, 0.0);
     // Set A = [[1, 2], [3, 4], [5, 6]]
-    double* A_data = const_cast<double*>(inputs["A"].data());
-    A_data[0] = 1.0; A_data[1] = 2.0;
-    A_data[2] = 3.0; A_data[3] = 4.0;
-    A_data[4] = 5.0; A_data[5] = 6.0;
+    inputs["A"](0) = 1.0; inputs["A"](1) = 2.0;
+    inputs["A"](2) = 3.0; inputs["A"](3) = 4.0;
+    inputs["A"](4) = 5.0; inputs["A"](5) = 6.0;
 
     inputs["x"] = CreateVectorVariable({1.0, 2.0});
     inputs["b"] = CreateVectorVariable({1.0, 1.0, 1.0});
@@ -213,10 +212,10 @@ TEST_F(ExplicitIntegrationTest, VectorizedDiscipline) {
 
     ASSERT_EQ(outputs.size(), 1);
     ASSERT_TRUE(outputs.count("z") > 0);
-    ASSERT_EQ(outputs["z"].shape()[0], 3);
-    EXPECT_DOUBLE_EQ(outputs["z"].data()[0], 6.0);
-    EXPECT_DOUBLE_EQ(outputs["z"].data()[1], 12.0);
-    EXPECT_DOUBLE_EQ(outputs["z"].data()[2], 18.0);
+    ASSERT_EQ(outputs["z"].Shape()[0], 3);
+    EXPECT_DOUBLE_EQ(outputs["z"](0), 6.0);
+    EXPECT_DOUBLE_EQ(outputs["z"](1), 12.0);
+    EXPECT_DOUBLE_EQ(outputs["z"](2), 18.0);
 }
 
 // ============================================================================
@@ -247,7 +246,7 @@ TEST_F(ExplicitIntegrationTest, MultipleSequentialFunctionCalls) {
 
         ASSERT_EQ(outputs.size(), 1);
         // f = x^2 + y^2 = i^2 + i^2 = 2*i^2
-        EXPECT_DOUBLE_EQ(outputs["f"].data()[0], 2.0 * i * i);
+        EXPECT_DOUBLE_EQ(outputs["f"](0), 2.0 * i * i);
     }
 }
 
@@ -272,24 +271,24 @@ TEST_F(ExplicitIntegrationTest, InterleavedFunctionAndGradientCalls) {
 
     // Call function
     Variables outputs1 = client.ComputeFunction(inputs);
-    EXPECT_DOUBLE_EQ(outputs1["f"].data()[0], 13.0);  // 4 + 9
+    EXPECT_DOUBLE_EQ(outputs1["f"](0), 13.0);  // 4 + 9
 
     // Call gradient
     Partials partials1 = client.ComputeGradient(inputs);
-    EXPECT_DOUBLE_EQ(partials1[{"f", "x"}].data()[0], 4.0);  // 2*2
-    EXPECT_DOUBLE_EQ(partials1[{"f", "y"}].data()[0], 6.0);  // 2*3
+    EXPECT_DOUBLE_EQ(partials1[{"f", "x"}](0)), 4.0);  // 2*2
+    EXPECT_DOUBLE_EQ(partials1[{"f", "y"}](0)), 6.0);  // 2*3
 
     // Change inputs and call function again
     inputs["x"] = CreateScalarVariable(1.0);
     inputs["y"] = CreateScalarVariable(1.0);
 
     Variables outputs2 = client.ComputeFunction(inputs);
-    EXPECT_DOUBLE_EQ(outputs2["f"].data()[0], 2.0);  // 1 + 1
+    EXPECT_DOUBLE_EQ(outputs2["f"](0), 2.0);  // 1 + 1
 
     // Call gradient again
     Partials partials2 = client.ComputeGradient(inputs);
-    EXPECT_DOUBLE_EQ(partials2[{"f", "x"}].data()[0], 2.0);
-    EXPECT_DOUBLE_EQ(partials2[{"f", "y"}].data()[0], 2.0);
+    EXPECT_DOUBLE_EQ(partials2[{"f", "x"}](0)), 2.0);
+    EXPECT_DOUBLE_EQ(partials2[{"f", "y"}](0)), 2.0);
 }
 
 // ============================================================================
@@ -325,7 +324,7 @@ TEST_F(ExplicitIntegrationTest, MultipleConcurrentClients) {
                 Variables outputs = client.ComputeFunction(inputs);
 
                 double expected = 2.0 * (i + 1) * (i + 1);
-                if (std::abs(outputs["f"].data()[0] - expected) < 1e-10) {
+                if (std::abs(outputs["f"](0) - expected) < 1e-10) {
                     results[i] = true;
                 }
             } catch (...) {
@@ -368,7 +367,7 @@ TEST_F(ExplicitIntegrationTest, ConcurrentFunctionAndGradientCalls) {
             inputs["y"] = CreateScalarVariable(4.0);
 
             Variables outputs = client.ComputeFunction(inputs);
-            function_result = (std::abs(outputs["f"].data()[0] - 25.0) < 1e-10);
+            function_result = (std::abs(outputs["f"](0) - 25.0) < 1e-10);
         } catch (...) {
             function_result = false;
         }
@@ -389,8 +388,8 @@ TEST_F(ExplicitIntegrationTest, ConcurrentFunctionAndGradientCalls) {
             inputs["y"] = CreateScalarVariable(6.0);
 
             Partials partials = client.ComputeGradient(inputs);
-            gradient_result = (std::abs(partials[{"f", "x"}].data()[0] - 10.0) < 1e-10 &&
-                             std::abs(partials[{"f", "y"}].data()[0] - 12.0) < 1e-10);
+            gradient_result = (std::abs((partials[{"f", "x"}](0)) - 10.0) < 1e-10 &&
+                             std::abs((partials[{"f", "y"}](0)) - 12.0) < 1e-10);
         } catch (...) {
             gradient_result = false;
         }
@@ -464,7 +463,7 @@ TEST_F(ExplicitIntegrationTest, NegativeAndZeroValues) {
     inputs1["y"] = CreateScalarVariable(-4.0);
 
     Variables outputs1 = client.ComputeFunction(inputs1);
-    EXPECT_DOUBLE_EQ(outputs1["f"].data()[0], 25.0);  // (-3)^2 + (-4)^2 = 25
+    EXPECT_DOUBLE_EQ(outputs1["f"](0), 25.0);  // (-3)^2 + (-4)^2 = 25
 
     // Test with zero values
     Variables inputs2;
@@ -472,7 +471,7 @@ TEST_F(ExplicitIntegrationTest, NegativeAndZeroValues) {
     inputs2["y"] = CreateScalarVariable(0.0);
 
     Variables outputs2 = client.ComputeFunction(inputs2);
-    EXPECT_DOUBLE_EQ(outputs2["f"].data()[0], 0.0);
+    EXPECT_DOUBLE_EQ(outputs2["f"](0), 0.0);
 
     // Test with mixed signs
     Variables inputs3;
@@ -480,5 +479,5 @@ TEST_F(ExplicitIntegrationTest, NegativeAndZeroValues) {
     inputs3["y"] = CreateScalarVariable(2.0);
 
     Variables outputs3 = client.ComputeFunction(inputs3);
-    EXPECT_DOUBLE_EQ(outputs3["f"].data()[0], 8.0);  // 4 + 4 = 8
+    EXPECT_DOUBLE_EQ(outputs3["f"](0), 8.0);  // 4 + 4 = 8
 }

@@ -43,6 +43,7 @@ public:
     MOCK_METHOD(void, WaitForInitialMetadata, (), (override));
     MOCK_METHOD(bool, WritesDone, (), (override));
     MOCK_METHOD(grpc::Status, Finish, (), (override));
+    MOCK_METHOD(bool, NextMessageSize, (uint32_t*), (override));
 };
 
 // ============================================================================
@@ -79,20 +80,20 @@ protected:
         y_meta.add_shape(1);
         vars.push_back(y_meta);
 
-        client_->SetVariableMetaAll(vars);
+        client_->SetVariableMeta(vars);
     }
 
     // Helper to set up partials metadata
     void SetupSimplePartialsMetadata() {
-        std::vector<VariableMetaData> partials;
+        std::vector<PartialsMetaData> partials;
 
-        VariableMetaData partial_meta;
+        PartialsMetaData partial_meta;
         partial_meta.set_name("y");
         partial_meta.set_subname("x");
         partial_meta.add_shape(1);
         partials.push_back(partial_meta);
 
-        client_->SetPartialsMeta(partials);
+        client_->SetPartialsMetaData(partials);
     }
 
     MockExplicitServiceStub* mock_explicit_stub_;
@@ -166,7 +167,7 @@ TEST_F(ExplicitClientTest, ComputeFunctionSimpleScalar) {
     // Verify
     ASSERT_EQ(outputs.size(), 1);
     ASSERT_TRUE(outputs.count("y") > 0);
-    EXPECT_DOUBLE_EQ(outputs["y"].data()[0], 42.0);
+    EXPECT_DOUBLE_EQ(outputs["y"](0), 42.0);
 }
 
 TEST_F(ExplicitClientTest, ComputeFunctionMultipleInputsOutputs) {
@@ -194,7 +195,7 @@ TEST_F(ExplicitClientTest, ComputeFunctionMultipleInputsOutputs) {
     vars.push_back(y_meta);
     vars.push_back(sum_meta);
     vars.push_back(prod_meta);
-    client_->SetVariableMetaAll(vars);
+    client_->SetVariableMeta(vars);
 
     auto mock_stream = new MockReaderWriter<Array, Array>();
 
@@ -233,8 +234,8 @@ TEST_F(ExplicitClientTest, ComputeFunctionMultipleInputsOutputs) {
     Variables outputs = client_->ComputeFunction(inputs);
 
     ASSERT_EQ(outputs.size(), 2);
-    EXPECT_DOUBLE_EQ(outputs["sum"].data()[0], 8.0);
-    EXPECT_DOUBLE_EQ(outputs["product"].data()[0], 15.0);
+    EXPECT_DOUBLE_EQ(outputs["sum"](0), 8.0);
+    EXPECT_DOUBLE_EQ(outputs["product"](0), 15.0);
 }
 
 TEST_F(ExplicitClientTest, ComputeFunctionVectorData) {
@@ -252,7 +253,7 @@ TEST_F(ExplicitClientTest, ComputeFunctionVectorData) {
 
     vars.push_back(x_meta);
     vars.push_back(y_meta);
-    client_->SetVariableMetaAll(vars);
+    client_->SetVariableMeta(vars);
 
     auto mock_stream = new MockReaderWriter<Array, Array>();
 
@@ -284,10 +285,10 @@ TEST_F(ExplicitClientTest, ComputeFunctionVectorData) {
     Variables outputs = client_->ComputeFunction(inputs);
 
     ASSERT_EQ(outputs.size(), 1);
-    ASSERT_EQ(outputs["y"].shape()[0], 3);
-    EXPECT_DOUBLE_EQ(outputs["y"].data()[0], 1.0);
-    EXPECT_DOUBLE_EQ(outputs["y"].data()[1], 2.0);
-    EXPECT_DOUBLE_EQ(outputs["y"].data()[2], 3.0);
+    ASSERT_EQ(outputs["y"].Shape()[0], 3);
+    EXPECT_DOUBLE_EQ(outputs["y"](0), 1.0);
+    EXPECT_DOUBLE_EQ(outputs["y"](1), 2.0);
+    EXPECT_DOUBLE_EQ(outputs["y"](2), 3.0);
 }
 
 TEST_F(ExplicitClientTest, ComputeFunctionChunkedStreaming) {
@@ -371,7 +372,7 @@ TEST_F(ExplicitClientTest, ComputeGradientSimple) {
     ASSERT_EQ(partials.size(), 1);
     auto key = std::make_pair(std::string("y"), std::string("x"));
     ASSERT_TRUE(partials.count(key) > 0);
-    EXPECT_DOUBLE_EQ(partials[key].data()[0], 2.0);
+    EXPECT_DOUBLE_EQ(partials[key](0), 2.0);
 }
 
 TEST_F(ExplicitClientTest, ComputeGradientMultiplePartials) {
@@ -394,12 +395,12 @@ TEST_F(ExplicitClientTest, ComputeGradientMultiplePartials) {
     vars.push_back(x_meta);
     vars.push_back(y_meta);
     vars.push_back(f_meta);
-    client_->SetVariableMetaAll(vars);
+    client_->SetVariableMeta(vars);
 
     // Setup partials df/dx and df/dy
-    std::vector<VariableMetaData> partials_meta;
+    std::vector<PartialsMetaData> partials_meta;
 
-    VariableMetaData df_dx, df_dy;
+    PartialsMetaData df_dx, df_dy;
     df_dx.set_name("f");
     df_dx.set_subname("x");
     df_dx.add_shape(1);
@@ -410,7 +411,7 @@ TEST_F(ExplicitClientTest, ComputeGradientMultiplePartials) {
 
     partials_meta.push_back(df_dx);
     partials_meta.push_back(df_dy);
-    client_->SetPartialsMeta(partials_meta);
+    client_->SetPartialsMetaData(partials_meta);
 
     auto mock_stream = new MockReaderWriter<Array, Array>();
 
@@ -451,8 +452,8 @@ TEST_F(ExplicitClientTest, ComputeGradientMultiplePartials) {
     Partials partials = client_->ComputeGradient(inputs);
 
     ASSERT_EQ(partials.size(), 2);
-    EXPECT_DOUBLE_EQ(partials[{"f", "x"}].data()[0], 6.0);
-    EXPECT_DOUBLE_EQ(partials[{"f", "y"}].data()[0], 8.0);
+    EXPECT_DOUBLE_EQ((partials[{"f", "x"}](0)), 6.0);
+    EXPECT_DOUBLE_EQ((partials[{"f", "y"}](0)), 8.0);
 }
 
 TEST_F(ExplicitClientTest, ComputeGradientChunkedStreaming) {

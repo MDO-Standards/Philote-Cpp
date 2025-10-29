@@ -186,7 +186,7 @@ TEST_F(ExplicitErrorScenariosTest, ExtraUnknownVariable) {
         Variables outputs = client.ComputeFunction(inputs);
         // Should still compute correctly, ignoring unknown_var
         if (outputs.count("f")) {
-            EXPECT_DOUBLE_EQ(outputs["f"].data()[0], 25.0);
+            EXPECT_DOUBLE_EQ(outputs["f"](0), 25.0);
         }
     });
 }
@@ -270,7 +270,7 @@ TEST_F(ExplicitErrorScenariosTest, VeryLargeValues) {
 
     // f = x^2 + y^2 = 2e200
     ASSERT_EQ(outputs.size(), 1);
-    EXPECT_GT(outputs["f"].data()[0], 1.0e199);
+    EXPECT_GT(outputs["f"](0), 1.0e199);
 }
 
 TEST_F(ExplicitErrorScenariosTest, VerySmallValues) {
@@ -296,8 +296,8 @@ TEST_F(ExplicitErrorScenariosTest, VerySmallValues) {
 
     // f = x^2 + y^2 ≈ 2e-200
     ASSERT_EQ(outputs.size(), 1);
-    EXPECT_GT(outputs["f"].data()[0], 0.0);
-    EXPECT_LT(outputs["f"].data()[0], 1.0e-199);
+    EXPECT_GT(outputs["f"](0), 0.0);
+    EXPECT_LT(outputs["f"](0), 1.0e-199);
 }
 
 TEST_F(ExplicitErrorScenariosTest, InfinityValues) {
@@ -323,7 +323,7 @@ TEST_F(ExplicitErrorScenariosTest, InfinityValues) {
 
     // Result should be infinity
     ASSERT_EQ(outputs.size(), 1);
-    EXPECT_TRUE(std::isinf(outputs["f"].data()[0]));
+    EXPECT_TRUE(std::isinf(outputs["f"](0)));
 }
 
 TEST_F(ExplicitErrorScenariosTest, NaNValues) {
@@ -349,7 +349,7 @@ TEST_F(ExplicitErrorScenariosTest, NaNValues) {
 
     // Result should be NaN
     ASSERT_EQ(outputs.size(), 1);
-    EXPECT_TRUE(std::isnan(outputs["f"].data()[0]));
+    EXPECT_TRUE(std::isnan(outputs["f"](0)));
 }
 
 // ============================================================================
@@ -376,7 +376,7 @@ TEST_F(ExplicitErrorScenariosTest, ServerStopDuringOperation) {
     inputs["y"] = CreateScalarVariable(4.0);
 
     Variables outputs1 = client.ComputeFunction(inputs);
-    EXPECT_DOUBLE_EQ(outputs1["f"].data()[0], 25.0);
+    EXPECT_DOUBLE_EQ(outputs1["f"](0), 25.0);
 
     // Stop the server
     server_manager_->StopServer();
@@ -422,7 +422,7 @@ TEST_F(ExplicitErrorScenariosTest, MultipleServerStartStop) {
     inputs["y"] = CreateScalarVariable(2.0);
 
     Variables outputs = client.ComputeFunction(inputs);
-    EXPECT_DOUBLE_EQ(outputs["f"].data()[0], 8.0);
+    EXPECT_DOUBLE_EQ(outputs["f"](0), 8.0);
 }
 
 // ============================================================================
@@ -451,7 +451,7 @@ TEST_F(ExplicitErrorScenariosTest, ZeroLengthVector) {
     inputs["y"] = CreateScalarVariable(1.0);
 
     Variables outputs = client.ComputeFunction(inputs);
-    EXPECT_DOUBLE_EQ(outputs["f"].data()[0], 2.0);
+    EXPECT_DOUBLE_EQ(outputs["f"](0), 2.0);
 }
 
 // ============================================================================
@@ -481,7 +481,7 @@ TEST_F(ExplicitErrorScenariosTest, RapidSuccessiveCalls) {
 
         Variables outputs = client.ComputeFunction(inputs);
         ASSERT_EQ(outputs.size(), 1);
-        EXPECT_DOUBLE_EQ(outputs["f"].data()[0], 2.0);
+        EXPECT_DOUBLE_EQ(outputs["f"](0), 2.0);
     }
 }
 
@@ -509,7 +509,7 @@ TEST_F(ExplicitErrorScenariosTest, LargeNumberOfVariables) {
 
     // Should handle all outputs correctly
     ASSERT_EQ(outputs.size(), 3);
-    EXPECT_DOUBLE_EQ(outputs["sum"].data()[0], 5.0);
-    EXPECT_DOUBLE_EQ(outputs["product"].data()[0], 6.0);
-    EXPECT_DOUBLE_EQ(outputs["difference"].data()[0], -1.0);
+    EXPECT_DOUBLE_EQ(outputs["sum"](0), 5.0);
+    EXPECT_DOUBLE_EQ(outputs["product"](0), 6.0);
+    EXPECT_DOUBLE_EQ(outputs["difference"](0), -1.0);
 }
