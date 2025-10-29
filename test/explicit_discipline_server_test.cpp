@@ -25,6 +25,19 @@ public:
 class MockExplicitDiscipline : public ExplicitDiscipline
 {
 public:
+    void Setup() override
+    {
+        // Register variables during Setup
+        AddInput("x", {2}, "unit");
+        AddOutput("y", {2}, "unit");
+    }
+
+    void SetupPartials() override
+    {
+        // Register partials during SetupPartials
+        DeclarePartials("y", "x");
+    }
+
     void Compute(const Variables &inputs, Variables &outputs) override
     {
         // Simple computation: y = 2*x
@@ -56,18 +69,7 @@ protected:
         server = std::make_unique<ExplicitServer>();
         discipline = std::make_unique<MockExplicitDiscipline>();
 
-        // Add input variable
-        std::vector<int64_t> input_shape = {2}; // 2-element vector
-        discipline->AddInput("x", input_shape, "unit");
-
-        // Add output variable
-        std::vector<int64_t> output_shape = {2}; // 2-element vector
-        discipline->AddOutput("y", output_shape, "unit");
-
-        // Declare partials
-        std::vector<int64_t> partials_shape = {2, 2}; // 2x2 matrix
-        discipline->DeclarePartials("y", "x");
-
+        // Setup() and SetupPartials() will register variables
         discipline->Setup();
         discipline->SetupPartials();
         server->LinkPointers(discipline.get());
