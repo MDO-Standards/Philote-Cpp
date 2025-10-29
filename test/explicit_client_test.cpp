@@ -142,8 +142,11 @@ TEST_F(ExplicitClientTest, ComputeFunctionSimpleScalar) {
     // Mock reading output 'y'
     EXPECT_CALL(*mock_stream, Read(_))
         .WillOnce(Invoke([](Array* result) {
+            result->Clear();
             result->set_name("y");
             result->set_subname("");
+            result->set_start(0);
+            result->set_end(0);
             result->add_data(42.0);
             return true;
         }))
@@ -210,12 +213,18 @@ TEST_F(ExplicitClientTest, ComputeFunctionMultipleInputsOutputs) {
     // Mock reading 2 outputs
     EXPECT_CALL(*mock_stream, Read(_))
         .WillOnce(Invoke([](Array* result) {
+            result->Clear();
             result->set_name("sum");
+            result->set_start(0);
+            result->set_end(0);
             result->add_data(8.0);
             return true;
         }))
         .WillOnce(Invoke([](Array* result) {
+            result->Clear();
             result->set_name("product");
+            result->set_start(0);
+            result->set_end(0);
             result->add_data(15.0);
             return true;
         }))
@@ -265,7 +274,10 @@ TEST_F(ExplicitClientTest, ComputeFunctionVectorData) {
 
     EXPECT_CALL(*mock_stream, Read(_))
         .WillOnce(Invoke([](Array* result) {
+            result->Clear();
             result->set_name("y");
+            result->set_start(0);
+            result->set_end(2);  // 3 elements: end = size - 1
             result->add_data(1.0);
             result->add_data(2.0);
             result->add_data(3.0);
@@ -292,7 +304,21 @@ TEST_F(ExplicitClientTest, ComputeFunctionVectorData) {
 }
 
 TEST_F(ExplicitClientTest, ComputeFunctionChunkedStreaming) {
-    SetupSimpleDisciplineMetadata();
+    // Setup metadata for chunked test: y has shape {2} to receive 2 chunks
+    std::vector<VariableMetaData> vars;
+
+    VariableMetaData x_meta, y_meta;
+    x_meta.set_name("x");
+    x_meta.set_type(kInput);
+    x_meta.add_shape(1);
+
+    y_meta.set_name("y");
+    y_meta.set_type(kOutput);
+    y_meta.add_shape(2);  // Size 2 to accommodate 2 chunks
+
+    vars.push_back(x_meta);
+    vars.push_back(y_meta);
+    client_->SetVariableMeta(vars);
 
     auto mock_stream = new MockReaderWriter<Array, Array>();
 
@@ -305,12 +331,18 @@ TEST_F(ExplicitClientTest, ComputeFunctionChunkedStreaming) {
     // Simulate chunked response (2 chunks for single variable)
     EXPECT_CALL(*mock_stream, Read(_))
         .WillOnce(Invoke([](Array* result) {
+            result->Clear();
             result->set_name("y");
+            result->set_start(0);
+            result->set_end(0);  // First chunk: element 0
             result->add_data(10.0);
             return true;
         }))
         .WillOnce(Invoke([](Array* result) {
+            result->Clear();
             result->set_name("y");
+            result->set_start(1);
+            result->set_end(1);  // Second chunk: element 1
             result->add_data(20.0);
             return true;
         }))
@@ -329,6 +361,9 @@ TEST_F(ExplicitClientTest, ComputeFunctionChunkedStreaming) {
 
     // Should have assembled chunks
     ASSERT_EQ(outputs.size(), 1);
+    ASSERT_EQ(outputs["y"].Shape()[0], 2);
+    EXPECT_DOUBLE_EQ(outputs["y"](0), 10.0);
+    EXPECT_DOUBLE_EQ(outputs["y"](1), 20.0);
 }
 
 // ============================================================================
@@ -351,8 +386,11 @@ TEST_F(ExplicitClientTest, ComputeGradientSimple) {
     // Mock reading partial dy/dx
     EXPECT_CALL(*mock_stream, Read(_))
         .WillOnce(Invoke([](Array* result) {
+            result->Clear();
             result->set_name("y");
             result->set_subname("x");
+            result->set_start(0);
+            result->set_end(0);
             result->add_data(2.0);
             return true;
         }))
@@ -426,14 +464,20 @@ TEST_F(ExplicitClientTest, ComputeGradientMultiplePartials) {
     // Mock reading 2 partials
     EXPECT_CALL(*mock_stream, Read(_))
         .WillOnce(Invoke([](Array* result) {
+            result->Clear();
             result->set_name("f");
             result->set_subname("x");
+            result->set_start(0);
+            result->set_end(0);
             result->add_data(6.0);
             return true;
         }))
         .WillOnce(Invoke([](Array* result) {
+            result->Clear();
             result->set_name("f");
             result->set_subname("y");
+            result->set_start(0);
+            result->set_end(0);
             result->add_data(8.0);
             return true;
         }))
@@ -457,8 +501,32 @@ TEST_F(ExplicitClientTest, ComputeGradientMultiplePartials) {
 }
 
 TEST_F(ExplicitClientTest, ComputeGradientChunkedStreaming) {
-    SetupSimpleDisciplineMetadata();
-    SetupSimplePartialsMetadata();
+    // Setup metadata for chunked test
+    std::vector<VariableMetaData> vars;
+
+    VariableMetaData x_meta, y_meta;
+    x_meta.set_name("x");
+    x_meta.set_type(kInput);
+    x_meta.add_shape(1);
+
+    y_meta.set_name("y");
+    y_meta.set_type(kOutput);
+    y_meta.add_shape(1);
+
+    vars.push_back(x_meta);
+    vars.push_back(y_meta);
+    client_->SetVariableMeta(vars);
+
+    // Partials metadata: dy/dx has shape {2} to receive 2 chunks
+    std::vector<PartialsMetaData> partials_meta;
+
+    PartialsMetaData partial_meta;
+    partial_meta.set_name("y");
+    partial_meta.set_subname("x");
+    partial_meta.add_shape(2);  // Size 2 to accommodate 2 chunks
+
+    partials_meta.push_back(partial_meta);
+    client_->SetPartialsMetaData(partials_meta);
 
     auto mock_stream = new MockReaderWriter<Array, Array>();
 
@@ -471,14 +539,20 @@ TEST_F(ExplicitClientTest, ComputeGradientChunkedStreaming) {
     // Simulate chunked partial response
     EXPECT_CALL(*mock_stream, Read(_))
         .WillOnce(Invoke([](Array* result) {
+            result->Clear();
             result->set_name("y");
             result->set_subname("x");
+            result->set_start(0);
+            result->set_end(0);  // First chunk: element 0
             result->add_data(1.5);
             return true;
         }))
         .WillOnce(Invoke([](Array* result) {
+            result->Clear();
             result->set_name("y");
             result->set_subname("x");
+            result->set_start(1);
+            result->set_end(1);  // Second chunk: element 1
             result->add_data(2.5);
             return true;
         }))
@@ -496,6 +570,11 @@ TEST_F(ExplicitClientTest, ComputeGradientChunkedStreaming) {
     Partials partials = client_->ComputeGradient(inputs);
 
     ASSERT_EQ(partials.size(), 1);
+    auto key = std::make_pair(std::string("y"), std::string("x"));
+    ASSERT_TRUE(partials.count(key) > 0);
+    ASSERT_EQ(partials[key].Shape()[0], 2);
+    EXPECT_DOUBLE_EQ(partials[key](0), 1.5);
+    EXPECT_DOUBLE_EQ(partials[key](1), 2.5);
 }
 
 // ============================================================================
