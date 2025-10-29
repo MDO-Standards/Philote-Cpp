@@ -21,6 +21,19 @@ Learn the basics of Philote-Cpp including key concepts, building instructions, a
 - Building and running Philote-Cpp
 - Quick start guide
 
+### Installation and Integration
+@ref installation
+
+Complete guide to installing Philote-Cpp and integrating it into your projects.
+
+**Topics covered:**
+- Installing dependencies
+- Building and installing the library
+- Using CMake to link against Philote-Cpp
+- Including headers in your code
+- Example project structure
+- Troubleshooting common issues
+
 ### Working with Variables
 @ref variables
 
