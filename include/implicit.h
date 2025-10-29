@@ -114,6 +114,137 @@ namespace philote
      * RegisterServers member function. The discipline developer should not have
      * to interact further with these services.
      *
+     * Implicit disciplines define residuals R(x,y) that must be solved to find
+     * outputs. They are suitable for analyses involving systems of equations,
+     * iterative solvers, or problems where outputs cannot be computed directly.
+     *
+     * @par Example: Quadratic Equation Solver
+     * @code
+     * #include <implicit.h>
+     * #include <cmath>
+     *
+     * class Quadratic : public philote::ImplicitDiscipline {
+     * private:
+     *     void Setup() override {
+     *         // Coefficients as inputs
+     *         AddInput("a", {1}, "m");
+     *         AddInput("b", {1}, "m");
+     *         AddInput("c", {1}, "m");
+     *
+     *         // Solution as output
+     *         AddOutput("x", {1}, "m**2");
+     *     }
+     *
+     *     void SetupPartials() override {
+     *         DeclarePartials("x", "a");
+     *         DeclarePartials("x", "b");
+     *         DeclarePartials("x", "c");
+     *         DeclarePartials("x", "x");  // Jacobian w.r.t. outputs
+     *     }
+     *
+     *     void ComputeResiduals(const philote::Variables &inputs,
+     *                          const philote::Variables &outputs,
+     *                          philote::Variables &residuals) override {
+     *         double a = inputs.at("a")(0);
+     *         double b = inputs.at("b")(0);
+     *         double c = inputs.at("c")(0);
+     *         double x = outputs.at("x")(0);
+     *
+     *         // Residual: R = ax² + bx + c = 0
+     *         residuals.at("x")(0) = a * std::pow(x, 2) + b * x + c;
+     *     }
+     *
+     *     void SolveResiduals(const philote::Variables &inputs,
+     *                        philote::Variables &outputs) override {
+     *         double a = inputs.at("a")(0);
+     *         double b = inputs.at("b")(0);
+     *         double c = inputs.at("c")(0);
+     *
+     *         // Quadratic formula: x = (-b + √(b² - 4ac)) / 2a
+     *         outputs.at("x")(0) = (-b + std::sqrt(std::pow(b, 2) - 4*a*c)) / (2*a);
+     *     }
+     *
+     *     void ComputeResidualGradients(const philote::Variables &inputs,
+     *                                  const philote::Variables &outputs,
+     *                                  philote::Partials &partials) override {
+     *         double a = inputs.at("a")(0);
+     *         double b = inputs.at("b")(0);
+     *         double x = outputs.at("x")(0);
+     *
+     *         // ∂R/∂a, ∂R/∂b, ∂R/∂c, ∂R/∂x
+     *         partials[{"x", "a"}](0) = std::pow(x, 2);
+     *         partials[{"x", "b"}](0) = x;
+     *         partials[{"x", "c"}](0) = 1.0;
+     *         partials[{"x", "x"}](0) = 2*a*x + b;
+     *     }
+     * };
+     * @endcode
+     *
+     * @par Example: Simple Implicit Equation
+     * @code
+     * // Solve: x² - y = 0 for y
+     * class SimpleImplicit : public philote::ImplicitDiscipline {
+     * private:
+     *     void Setup() override {
+     *         AddInput("x", {1}, "m");
+     *         AddOutput("y", {1}, "m**2");
+     *     }
+     *
+     *     void SetupPartials() override {
+     *         DeclarePartials("y", "x");
+     *         DeclarePartials("y", "y");
+     *     }
+     *
+     *     void ComputeResiduals(const philote::Variables &inputs,
+     *                          const philote::Variables &outputs,
+     *                          philote::Variables &residuals) override {
+     *         double x = inputs.at("x")(0);
+     *         double y = outputs.at("y")(0);
+     *         residuals.at("y")(0) = std::pow(x, 2) - y;
+     *     }
+     *
+     *     void SolveResiduals(const philote::Variables &inputs,
+     *                        philote::Variables &outputs) override {
+     *         double x = inputs.at("x")(0);
+     *         outputs.at("y")(0) = std::pow(x, 2);
+     *     }
+     *
+     *     void ComputeResidualGradients(const philote::Variables &inputs,
+     *                                  const philote::Variables &outputs,
+     *                                  philote::Partials &partials) override {
+     *         double x = inputs.at("x")(0);
+     *         partials[{"y", "x"}](0) = 2.0 * x;
+     *         partials[{"y", "y"}](0) = -1.0;
+     *     }
+     * };
+     * @endcode
+     *
+     * @par Example: Starting an Implicit Server
+     * @code
+     * #include <grpcpp/grpcpp.h>
+     *
+     * int main() {
+     *     std::string address("localhost:50051");
+     *     Quadratic discipline;
+     *
+     *     grpc::ServerBuilder builder;
+     *     builder.AddListeningPort(address, grpc::InsecureServerCredentials());
+     *     discipline.RegisterServices(builder);
+     *
+     *     std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
+     *     std::cout << "Server listening on " << address << std::endl;
+     *     server->Wait();
+     *
+     *     return 0;
+     * }
+     * @endcode
+     *
+     * @note For implicit disciplines, you must implement both ComputeResiduals()
+     *       and SolveResiduals(). ComputeResiduals evaluates R(x,y), while
+     *       SolveResiduals finds y such that R(x,y) = 0.
+     *
+     * @see philote::ImplicitClient
+     * @see philote::ExplicitDiscipline
      */
     class ImplicitDiscipline : public Discipline
     {
@@ -198,6 +329,131 @@ namespace philote
      *
      * This class may be inherited from or used by MDO framework developers.
      * However, it is a fully functional Philote MDO client.
+     *
+     * The ImplicitClient connects to a remote ImplicitDiscipline server via gRPC
+     * and provides methods to compute residuals, solve for outputs, and evaluate
+     * residual gradients.
+     *
+     * @par Example: Basic Client Usage
+     * @code
+     * #include <implicit.h>
+     * #include <grpcpp/grpcpp.h>
+     *
+     * int main() {
+     *     philote::ImplicitClient client;
+     *
+     *     // Connect to server
+     *     auto channel = grpc::CreateChannel("localhost:50051",
+     *                                       grpc::InsecureChannelCredentials());
+     *     client.ConnectChannel(channel);
+     *
+     *     // Initialize client
+     *     client.GetInfo();
+     *     client.Setup();
+     *     client.GetVariableDefinitions();
+     *
+     *     // Prepare inputs
+     *     philote::Variables inputs;
+     *     inputs["a"] = philote::Variable(philote::kInput, {1});
+     *     inputs["b"] = philote::Variable(philote::kInput, {1});
+     *     inputs["c"] = philote::Variable(philote::kInput, {1});
+     *     inputs.at("a")(0) = 1.0;
+     *     inputs.at("b")(0) = -5.0;
+     *     inputs.at("c")(0) = 6.0;
+     *
+     *     // Solve for outputs
+     *     philote::Variables outputs = client.SolveResiduals(inputs);
+     *     std::cout << "Solution: x = " << outputs.at("x")(0) << std::endl;
+     *
+     *     return 0;
+     * }
+     * @endcode
+     *
+     * @par Example: Computing Residuals
+     * @code
+     * // After setting up client and inputs...
+     *
+     * // Prepare both inputs and outputs
+     * philote::Variables vars;
+     * vars["a"] = philote::Variable(philote::kInput, {1});
+     * vars["b"] = philote::Variable(philote::kInput, {1});
+     * vars["c"] = philote::Variable(philote::kInput, {1});
+     * vars["x"] = philote::Variable(philote::kOutput, {1});
+     *
+     * vars.at("a")(0) = 1.0;
+     * vars.at("b")(0) = -5.0;
+     * vars.at("c")(0) = 6.0;
+     * vars.at("x")(0) = 2.0;  // Guess
+     *
+     * // Compute residual
+     * philote::Variables residuals = client.ComputeResiduals(vars);
+     * std::cout << "R(x=2) = " << residuals.at("x")(0) << std::endl;
+     * @endcode
+     *
+     * @par Example: Computing Residual Gradients
+     * @code
+     * // Get partial definitions
+     * client.GetPartialDefinitions();
+     *
+     * // Compute residual gradients
+     * philote::Partials gradients = client.ComputeResidualGradients(vars);
+     *
+     * // Access gradient values
+     * double dR_da = gradients[{"x", "a"}](0);
+     * double dR_db = gradients[{"x", "b"}](0);
+     * double dR_dc = gradients[{"x", "c"}](0);
+     * double dR_dx = gradients[{"x", "x"}](0);
+     *
+     * std::cout << "∂R/∂a = " << dR_da << std::endl;
+     * std::cout << "∂R/∂b = " << dR_db << std::endl;
+     * std::cout << "∂R/∂c = " << dR_dc << std::endl;
+     * std::cout << "∂R/∂x = " << dR_dx << std::endl;
+     * @endcode
+     *
+     * @par Example: Complete Implicit Client Workflow
+     * @code
+     * philote::ImplicitClient client;
+     * auto channel = grpc::CreateChannel("localhost:50051",
+     *                                   grpc::InsecureChannelCredentials());
+     * client.ConnectChannel(channel);
+     *
+     * // Step 1: Get discipline information
+     * client.GetInfo();
+     *
+     * // Step 2: Setup the discipline
+     * client.Setup();
+     *
+     * // Step 3: Get variable definitions
+     * client.GetVariableDefinitions();
+     *
+     * // Step 4: Prepare inputs
+     * philote::Variables inputs;
+     * inputs["a"] = philote::Variable(philote::kInput, {1});
+     * inputs["a"](0) = 1.0;
+     * // ... set other inputs
+     *
+     * // Step 5: Solve for outputs
+     * philote::Variables outputs = client.SolveResiduals(inputs);
+     *
+     * // Step 6 (optional): Verify solution by computing residuals
+     * philote::Variables combined = inputs;
+     * for (const auto& [name, var] : outputs) {
+     *     combined[name] = var;
+     * }
+     * philote::Variables residuals = client.ComputeResiduals(combined);
+     * // residuals should be near zero
+     *
+     * // Step 7 (optional): Compute gradients
+     * client.GetPartialDefinitions();
+     * philote::Partials partials = client.ComputeResidualGradients(combined);
+     * @endcode
+     *
+     * @note For implicit disciplines, variables passed to ComputeResiduals()
+     *       must include both inputs and outputs. SolveResiduals() only requires
+     *       inputs and returns the solved outputs.
+     *
+     * @see philote::ImplicitDiscipline
+     * @see philote::ExplicitClient
      */
     class ImplicitClient : public BaseDisciplineClient
     {
