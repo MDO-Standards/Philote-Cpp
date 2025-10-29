@@ -32,20 +32,21 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: eWaterCycle/setup-grpc@v5
-        with:
-          grpc-version: 1.51.1
-
-      - name: Install GTest
-        run: sudo apt-get install libgtest-dev
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgrpc++-dev \
+            libprotobuf-dev \
+            protobuf-compiler-grpc \
+            libgtest-dev
 
       - name: PhiloteCpp Build
         run: |
           mkdir build
           cd build
           cmake .. -DCMAKE_C_COMPILER=${{ matrix.compiler.c }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cpp }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_TESTS=TRUE
-          make GrpcGenerated
-          make
+          make -j$(nproc)
           make test
         working-directory: ${{github.workspace}}
 
