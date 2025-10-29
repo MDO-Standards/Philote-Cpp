@@ -7,85 +7,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- Fixed typo in public API: `DisiplinePointerNull()` renamed to `DisciplinePointerNull()` (Breaking change)
-- Fixed typo in documentation comment for `ExplicitDiscipline` destructor
-- Added proper error handling in `implicit_server.cpp` for invalid variable types
-- Removed debug `std::cout` statements from `discipline_server.cpp`
-- Fixed missing return statements in exception handlers for `Setup()` and `SetupPartials()`
+### Added
+- Comprehensive unit test suite using Google Test and Google Mock
+  - Unit tests for discipline server, explicit discipline server, and implicit discipline server
+  - Unit tests for discipline client and explicit client
+  - Unit tests for variable handling, stream options, and set options
+- Code coverage support in CMake build system
+- CMake package configuration to support using Philote-Cpp as a subproject or installed library
+- Installation support for headers and proto files
+- Nullptr checks in discipline server to prevent crashes
+- Documentation scaffolding using hdoc
+- Philote logo added to README
+
+### Changed
+- Reorganized project structure: moved headers to dedicated `include/` directory
+- Split discipline header into separate components for better modularity
+- Updated library API for parity with Python package
+- Improved gRPC stub generation and dependency management
 - Updated copyright year to 2022-2025 in source files
-
-## [0.5.2] - Prior Release
-
-Readme changes only to make documentation discoverable.
+- Cleaned up headers and removed unused code
+- CI now builds gRPC targets first before building the rest of the project
 
 ### Fixed
-- Added link to documentation to project readme
-- Renamed project title in readme (was old placeholder)
+- Fixed error handling paths in implicit server for cases without errors
+- Fixed getinfo bug that affected discipline metadata retrieval
+- Fixed compiler warnings across the codebase
+- Fixed duplicate library linker warnings (multiple instances)
+- Fixed CMake verbatim directive that caused issues for some users
+- Fixed example includes to properly reference headers in new include/ directory
+- Fixed gRPC plugin symlink issues in CI
+- Minor fix to protoc generation
 
-## [0.5.1] - Prior Release
-
-This version only fixes missing public release information in preparation for
-making the project public.
-
-### Fixed
-- Added public release information
-
-## [0.5.0] - Prior Release
-
-This version revises the implicit discipline API, cleans up unused data fields
-and expands/revises the documentation.
+## [0.3.0] - 2023-11-09
 
 ### Added
-- Revised documentation
-- Revised implicit discipline API
+- Flag to optionally build examples (`BUILD_EXAMPLES` CMake option)
+- Citation section added to README
+- Public Affairs (PA) clearance number added to banners
+
+### Changed
+- README file renamed to markdown format
+- Modified source file banners with PA number
+- Generated headers modified to support using Philote-Cpp as a subproject
 
 ### Fixed
-- Cleaned up protobuf message fields to remove unused definitions
+- Fixed metadata bug in client
+- Commented out unfinished mock test to avoid build issues
 
-## [0.4.0] - Prior Release
-
-This version restructures the Philote MDO standard. A hierarchy was developed to avoid code duplication:
-
-- Base discipline service. This service is responsible for all common API calls such as the Setup call.
-- Explicit discipline service. This service implements API calls that are unique to explicit disciplines.
-- Implicit discipline service. This service implements API calls that are unique to implicit disciplines.
-
-It should be noted that the base service is required to implement both explicit and implicit disciplines, as the common API calls are needed setup the discipline.
-
-This release also contains several changes to the messages used by the service.
-
-## [0.3.0] - Prior Release
-
-This version changes function names and will therefore certainly break backwards
-compatibility.
-
-### Fixed
-- Renamed the Compute RPC function to Functions to deconflict the C++ bindings
-- Renamed the ComputePartials RPC function to Gradient to deconflict the C++ bindings
-
-## [0.2.0] - Prior Release
-
-This release introduces a number of bug fixes and features needed to implement
-clients and servers. While 0.1 was released, this is actually the first
-functional version of Philote.
+## [0.2.0] - 2023-10-03
 
 ### Added
-- Reorganized data representations
-- Added functions for defining partials on the remote server
+- **Implicit discipline support** - full implementation of implicit disciplines
+  - Implicit discipline client with `SolveResiduals()` and partials support
+  - Implicit discipline server implementation
+  - Implicit quadratic example demonstrating residual-based disciplines
+- Rosenbrock function example (explicit discipline)
+  - Both function evaluation and gradients
+  - Client-server communication example
+- Set options RPC for configuring disciplines at runtime
+- Unit testing framework activated on CI
+- Variable segment and chunk handling with comprehensive tests
+
+### Changed
+- Cleaned up for loops in both explicit and implicit disciplines
+- Added const references where appropriate for better performance
+- Updated implicit discipline metadata handling
+- Improved CI configuration with full test matrix
+- Updated CMake version requirements for CI
 
 ### Fixed
-- Fixed protobuf files that weren't compiling
+- Fixed variable sending and chunking issues
+- Fixed client array chunk/send functionality
+- Fixed assign chunk operations
+- Fixed residual gradients function
+- Fixed solve residuals call
+- Fixed implicit declare partials
+- Fixed segment function
+- Fixed call to deprecated protobuf field
+- Fixed various warnings in the codebase
+- Corrected variable tests and segment tests
+- Changed empty check implementation
 
-## [0.1.0] - Prior Release
+## [0.1.0] - 2023-08-22
 
-Initial draft version of Philote.
+### Added
+- Initial implementation of Philote-Cpp C++ bindings
+- Explicit discipline support
+  - Discipline client for connecting to remote disciplines
+  - Discipline server for hosting disciplines
+  - Explicit discipline base classes
+- Variable class for data transmission
+- Partials (gradients) support
+- Compute partials functionality
+- Basic examples demonstrating usage
+- gRPC-based communication infrastructure
+- CMake build system
+- CI/CD pipeline with GitHub Actions
+- Apache 2.0 license
 
-[Unreleased]: https://github.com/chrislupp/Philote-Cpp/compare/v0.5.2...HEAD
-[0.5.2]: https://github.com/chrislupp/Philote-Cpp/compare/v0.5.1...v0.5.2
-[0.5.1]: https://github.com/chrislupp/Philote-Cpp/compare/v0.5.0...v0.5.1
-[0.5.0]: https://github.com/chrislupp/Philote-Cpp/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/chrislupp/Philote-Cpp/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/chrislupp/Philote-Cpp/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/chrislupp/Philote-Cpp/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/chrislupp/Philote-Cpp/releases/tag/v0.1.0
+[Unreleased]: https://github.com/MDO-Standards/Philote-Cpp/compare/v0.3.0...develop
+[0.3.0]: https://github.com/MDO-Standards/Philote-Cpp/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/MDO-Standards/Philote-Cpp/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/MDO-Standards/Philote-Cpp/releases/tag/v0.1.0
