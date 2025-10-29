@@ -35,6 +35,7 @@ cmake_minimum_required (VERSION 3.23)
 
 project(PhiloteCpp
     VERSION 0.4.0
+    LANGUAGES CXX
 )
 
 # Include GNUInstallDirs for standard installation directory variables
@@ -59,9 +60,6 @@ set(
 
 # add cmake scripts
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
-# set the C++ standard
-set(CMAKE_CXX_STANDARD 17)
 
 # Coverage configuration
 if(ENABLE_COVERAGE)

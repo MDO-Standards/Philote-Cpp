@@ -49,5 +49,6 @@ target_include_directories(PhiloteCpp
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/philote>
 )
+target_compile_features(PhiloteCpp PUBLIC cxx_std_17)
 target_link_libraries(PhiloteCpp PUBLIC protobuf::libprotobuf gRPC::grpc++)
 
