@@ -16,13 +16,12 @@ jobs:
         matrix:
           os: [ubuntu-24.04]
           compiler: [
-            {c: gcc-9, cpp: g++-9},
-            {c: gcc-10, cpp: g++-10},
-            {c: gcc-11, cpp: g++-11},
             {c: gcc-12, cpp: g++-12},
-#            {c: clang-12, cpp: clang++-12},
-            {c: clang-13, cpp: clang++-13},
-            {c: clang-14, cpp: clang++-14}
+            {c: gcc-13, cpp: g++-13},
+            {c: gcc-14, cpp: g++-14},
+            {c: clang-16, cpp: clang++-16},
+            {c: clang-17, cpp: clang++-17},
+            {c: clang-18, cpp: clang++-18}
             ]
           build_type: [Release, Debug]
             
