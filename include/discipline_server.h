@@ -69,7 +69,7 @@ namespace philote
          *
          * @return true if the pointer is null, otherwise false.
          */
-        bool DisiplinePointerNull();
+        bool DisciplinePointerNull();
 
         /**
          * @brief Links all pointers needed by the discipline base class

@@ -51,7 +51,7 @@ DisciplineServer::~DisciplineServer()
     UnlinkPointers();
 }
 
-bool DisciplineServer::DisiplinePointerNull()
+bool DisciplineServer::DisciplinePointerNull()
 {
     if (discipline_ == nullptr)
         return true;

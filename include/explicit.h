@@ -121,7 +121,7 @@ namespace philote
         ExplicitDiscipline();
 
         /**
-         *  @brief Destroy the Explicit Disipline object
+         *  @brief Destroy the Explicit Discipline object
          */
         ~ExplicitDiscipline();
 

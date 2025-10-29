@@ -55,15 +55,15 @@ protected:
 TEST_F(DisciplineServerTest, ConstructorAndPointerManagement)
 {
     // Test initial state
-    EXPECT_FALSE(server->DisiplinePointerNull());
+    EXPECT_FALSE(server->DisciplinePointerNull());
 
     // Test unlinking pointers
     server->UnlinkPointers();
-    EXPECT_TRUE(server->DisiplinePointerNull());
+    EXPECT_TRUE(server->DisciplinePointerNull());
 
     // Test relinking pointers
     server->LinkPointers(mock_discipline.get());
-    EXPECT_FALSE(server->DisiplinePointerNull());
+    EXPECT_FALSE(server->DisciplinePointerNull());
 }
 
 // Test GetInfo RPC
