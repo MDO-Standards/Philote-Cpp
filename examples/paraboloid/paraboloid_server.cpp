@@ -103,11 +103,14 @@ private:
         double x = inputs.at("x")(0);
         double y = inputs.at("y")(0);
 
-        // Traditional approach using std::map with pair keys
+        // Approach 1: Traditional std::map with pair keys using std::make_pair
         jac[make_pair("f_xy", "x")](0) = 2.0 * x - 6.0 + y;
         jac[make_pair("f_xy", "y")](0) = 2.0 * y + 8.0 + x;
-        
-        // Alternative: PairDict can be used for cleaner syntax in user code
+
+        // Approach 2: Alternative cleaner syntax using PartialsPairDict
+        // This provides the same functionality with more readable syntax
+        // To use this approach, uncomment the following lines:
+        //
         // philote::PartialsPairDict pair_jac;
         // pair_jac("f_xy", "x")(0) = 2.0 * x - 6.0 + y;
         // pair_jac("f_xy", "y")(0) = 2.0 * y + 8.0 + x;
