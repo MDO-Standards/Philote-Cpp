@@ -1,7 +1,7 @@
 #===============================================================================
 #    Philote C++ Bindings
 #
-#    Copyright 2022-2024 Christopher A. Lupp
+#    Copyright 2022-2025 Christopher A. Lupp
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -34,3 +34,4 @@ add_library(Discipline OBJECT
     discipline_client.cpp
 )
 target_link_libraries(Discipline PRIVATE protobuf::libprotobuf gRPC::grpc++)
+add_dependencies(Discipline GrpcGenerated)

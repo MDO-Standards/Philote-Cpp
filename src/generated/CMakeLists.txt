@@ -1,5 +1,3 @@
-
-
 # generate gRPC stubs
 #--------------------
 

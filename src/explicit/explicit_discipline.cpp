@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2024 Christopher A. Lupp
+    Copyright 2022-2025 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -59,9 +59,91 @@ void ExplicitDiscipline::RegisterServices(ServerBuilder &builder)
 void ExplicitDiscipline::Compute(const Variables &inputs,
                                  philote::Variables &outputs)
 {
+    if (inputs.empty())
+    {
+        throw std::invalid_argument("No input variables provided");
+    }
+
+    if (outputs.empty())
+    {
+        throw std::invalid_argument("No output variables provided");
+    }
+
+    // Validate that all required inputs are present
+    for (const auto &var : var_meta())
+    {
+        if (var.type() == kInput && inputs.find(var.name()) == inputs.end())
+        {
+            throw std::runtime_error("Missing required input variable: " + var.name());
+        }
+    }
+
+    // Validate that all required outputs are present
+    for (const auto &var : var_meta())
+    {
+        if (var.type() == kOutput && outputs.find(var.name()) == outputs.end())
+        {
+            throw std::runtime_error("Missing required output variable: " + var.name());
+        }
+    }
+
+    // Default implementation: copy input to output
+    for (const auto &out : outputs)
+    {
+        const std::string &name = out.first;
+        if (inputs.find(name) != inputs.end())
+        {
+            const auto &input = inputs.at(name);
+            auto &output = outputs[name];
+
+            // Copy input data to output
+            for (size_t i = 0; i < input.Size(); ++i)
+            {
+                output(i) = input(i);
+            }
+        }
+    }
 }
 
 void ExplicitDiscipline::ComputePartials(const Variables &inputs,
                                          Partials &partials)
 {
+    if (inputs.empty())
+    {
+        throw std::invalid_argument("No input variables provided");
+    }
+
+    if (partials.empty())
+    {
+        throw std::invalid_argument("No partial variables provided");
+    }
+
+    // Validate that all required inputs are present
+    for (const auto &var : var_meta())
+    {
+        if (var.type() == kInput && inputs.find(var.name()) == inputs.end())
+        {
+            throw std::runtime_error("Missing required input variable: " + var.name());
+        }
+    }
+
+    // Validate that all required partials are present
+    for (const auto &par : partials_meta())
+    {
+        auto key = std::make_pair(par.name(), par.subname());
+        if (partials.find(key) == partials.end())
+        {
+            throw std::runtime_error("Missing required partial: " + par.name() + "/" + par.subname());
+        }
+    }
+
+    // Default implementation: set all partials to 1.0
+    for (auto &par : partials)
+    {
+        auto &partial = par.second;
+        for (size_t i = 0; i < partial.Size(); ++i)
+        {
+            partial(i) = 1.0;
+        }
+    }
 }

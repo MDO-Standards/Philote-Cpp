@@ -1,0 +1,62 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          lcov \
+          libgrpc++-dev \
+          libprotobuf-dev \
+          protobuf-compiler-grpc
+
+    - name: Build and install GoogleTest
+      run: |
+        git clone https://github.com/google/googletest.git -b v1.14.0
+        cd googletest
+        mkdir build && cd build
+        cmake .. -DCMAKE_INSTALL_PREFIX=/usr
+        make -j$(nproc)
+        sudo make install
+        cd ../..
+        rm -rf googletest
+    
+    - name: Configure with coverage
+      run: |
+        mkdir build && cd build
+        cmake .. -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
+    
+    - name: Build
+      run: |
+        cd build
+        make -j$(nproc)
+    
+    - name: Generate coverage report
+      run: |
+        cd build
+        make coverage-xml
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        directory: build
+        files: '*.gcov'
+        flags: unittests
+        fail_ci_if_error: true
+        verbose: true

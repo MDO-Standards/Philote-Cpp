@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2024 Christopher A. Lupp
+    Copyright 2022-2025 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -36,8 +36,10 @@
 
 #include <discipline.h>
 #include <variable.h>
+#include "discipline_client.h"
 
 #include <disciplines.grpc.pb.h>
+#include "discipline_server.h"
 
 namespace philote
 {
@@ -81,8 +83,8 @@ namespace philote
          * @return grpc::Status
          */
         grpc::Status ComputeFunction(grpc::ServerContext *context,
-                                     grpc::ServerReaderWriter<::philote::Array,
-                                                              ::philote::Array> *stream);
+                                     grpc::ServerReaderWriterInterface<::philote::Array,
+                                                                       ::philote::Array> *stream);
 
         /**
          * @brief RPC that computes initiates gradient evaluation
@@ -92,8 +94,8 @@ namespace philote
          * @return grpc::Status
          */
         grpc::Status ComputeGradient(grpc::ServerContext *context,
-                                     grpc::ServerReaderWriter<::philote::Array,
-                                                              ::philote::Array> *stream);
+                                     grpc::ServerReaderWriterInterface<::philote::Array,
+                                                                       ::philote::Array> *stream);
 
     private:
         //! Pointer to the implementation of the explicit discipline
@@ -119,7 +121,7 @@ namespace philote
         ExplicitDiscipline();
 
         /**
-         *  @brief Destroy the Explicit Disipline object
+         *  @brief Destroy the Explicit Discipline object
          */
         ~ExplicitDiscipline();
 
@@ -158,6 +160,8 @@ namespace philote
     private:
         //! Explicit discipline server
         philote::ExplicitServer explicit_;
+        //! Discipline server
+        philote::DisciplineServer discipline_server_;
     };
 
     /**
@@ -166,7 +170,7 @@ namespace philote
      * This class may be inherited from or used by MDO framework developers.
      * However, it is a fully functional Philote MDO client.
      */
-    class ExplicitClient : public DisciplineClient
+    class ExplicitClient : public ::philote::DisciplineClient
     {
     public:
         //! Constructor
@@ -201,8 +205,18 @@ namespace philote
          */
         Partials ComputeGradient(const Variables &inputs);
 
-    private:
+        /**
+         * @brief Set the stub (for testing purposes)
+         *
+         * @param stub
+         */
+        void SetStub(std::unique_ptr<ExplicitService::StubInterface> stub)
+        {
+            stub_ = std::move(stub);
+        }
+
+    protected:
         //! explicit service stub
-        std::unique_ptr<ExplicitService::Stub> stub_;
+        std::unique_ptr<ExplicitService::StubInterface> stub_;
     };
 }

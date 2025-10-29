@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2024 Christopher A. Lupp
+    Copyright 2022-2025 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@
     therein. The DoD does not exercise any editorial, security, or other
     control over the information you may find at these locations.
 */
-#include <vector>
+#include "discipline_server.h"
 #include "discipline.h"
 
 using std::string;
@@ -51,6 +51,14 @@ DisciplineServer::~DisciplineServer()
     UnlinkPointers();
 }
 
+bool DisciplineServer::DisciplinePointerNull()
+{
+    if (discipline_ == nullptr)
+        return true;
+    else
+        return false;
+}
+
 void DisciplineServer::LinkPointers(philote::Discipline *discipline)
 {
     discipline_ = discipline;
@@ -63,9 +71,9 @@ void DisciplineServer::UnlinkPointers()
 
 grpc::Status DisciplineServer::GetInfo(ServerContext *context,
                                        Empty *request,
-                                       const DisciplineProperties *response)
+                                       DisciplineProperties *response)
 {
-    response = &discipline_->properties();
+    *response = discipline_->properties();
 
     return Status::OK;
 }
@@ -85,7 +93,7 @@ grpc::Status DisciplineServer::SetOptions(ServerContext *context,
 {
     const Struct &options = request->options();
 
-    discipline_->Initialize(options);
+    discipline_->SetOptions(options);
 
     return Status::OK;
 }
@@ -94,6 +102,8 @@ Status DisciplineServer::GetVariableDefinitions(ServerContext *context,
                                                 const Empty *request,
                                                 ServerWriter<VariableMetaData> *writer)
 {
+    if (!writer)
+        return Status::OK;
     for (const VariableMetaData &var : discipline_->var_meta())
         writer->Write(var);
 
@@ -104,6 +114,8 @@ Status DisciplineServer::GetPartialDefinitions(ServerContext *context,
                                                const Empty *request,
                                                ServerWriter<PartialsMetaData> *writer)
 {
+    if (!writer)
+        return Status::OK;
     for (const PartialsMetaData &partial : discipline_->partials_meta())
         writer->Write(partial);
 
@@ -122,8 +134,56 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
     }
 
     // run the developer-defined setup functions
-    discipline_->Setup();
-    discipline_->SetupPartials();
+    try
+    {
+        discipline_->Setup();
+    }
+    catch (const std::exception &e)
+    {
+        return Status(grpc::INTERNAL, "Internal server error during Setup call: exception.");
+    }
+    catch (...)
+    {
+        return Status(grpc::INTERNAL, "Internal server error during Setup call.");
+    }
+
+    try
+    {
+        discipline_->SetupPartials();
+    }
+    catch (const std::exception &e)
+    {
+        return Status(grpc::INTERNAL, "Internal server error during SetupPartials call: exception.");
+    }
+    catch (...)
+    {
+        return Status(grpc::INTERNAL, "Internal server error during SetupPartials call.");
+    }
+
+    return Status::OK;
+}
+
+::grpc::Status philote::DisciplineServer::GetAvailableOptions(::grpc::ServerContext *context,
+                                                              const ::google::protobuf::Empty *request,
+                                                              ::philote::OptionsList *response)
+{
+    // Populate the options list from the discipline's available options
+    for (const auto &option : discipline_->options_list())
+    {
+        response->add_options(option.first);
+
+        // Map string type names to DataType enum
+        if (option.second == "bool")
+            response->add_type(philote::DataType::kBool);
+        else if (option.second == "int")
+            response->add_type(philote::DataType::kInt);
+        else if (option.second == "double" || option.second == "float")
+            response->add_type(philote::DataType::kDouble);
+        else if (option.second == "string")
+            response->add_type(philote::DataType::kString);
+        else
+            response->add_type(philote::DataType::kString); // Default to string for unknown types
+    }
 
     return Status::OK;
 }

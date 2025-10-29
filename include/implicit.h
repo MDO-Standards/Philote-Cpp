@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2024 Christopher A. Lupp
+    Copyright 2022-2025 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@
 #pragma once
 
 #include <disciplines.grpc.pb.h>
+#include "discipline_server.h"
 
 #include <discipline.h>
 
@@ -188,6 +189,8 @@ namespace philote
     private:
         //! Implicit discipline server
         philote::ImplicitServer implicit_;
+        //! Discipline server
+        philote::DisciplineServer discipline_server_;
     };
 
     /**
@@ -196,7 +199,7 @@ namespace philote
      * This class may be inherited from or used by MDO framework developers.
      * However, it is a fully functional Philote MDO client.
      */
-    class ImplicitClient : public DisciplineClient
+    class ImplicitClient : public BaseDisciplineClient
     {
     public:
         //! Constructor

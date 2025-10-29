@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2024 Christopher A. Lupp
+    Copyright 2022-2025 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -132,14 +132,14 @@ namespace philote
          */
         double &operator()(const size_t &i);
 
-		/**
+        /**
          * @brief Create a Chunk of the variable
          *
          * @param start
          * @param end
          * @return philote::Array
          */
-		philote::Array CreateChunk(const size_t &start, const size_t &end) const;
+        philote::Array CreateChunk(const size_t &start, const size_t &end) const;
 
         /**
          * @brief Sends the variable from the client to the server
@@ -152,13 +152,23 @@ namespace philote
                   const size_t &chunk_size) const;
 
         /**
-         * @brief Sends the variable from the server to the client
+         * @brief Sends the variable from the server to the client using the interface
          *
          * @param stream
          */
         void Send(std::string name,
                   std::string subname,
-                  grpc::ServerReaderWriter<::philote::Array, ::philote::Array> *stream,
+                  grpc::ServerReaderWriterInterface<::philote::Array, ::philote::Array> *stream,
+                  const size_t &chunk_size) const;
+
+        /**
+         * @brief Sends the variable from the client to the server using the interface
+         *
+         * @param stream
+         */
+        void Send(std::string name,
+                  std::string subname,
+                  grpc::ClientReaderWriterInterface<::philote::Array, ::philote::Array> *stream,
                   const size_t &chunk_size) const;
 
         /**
@@ -183,6 +193,105 @@ namespace philote
         std::vector<int64_t> discrete_data_;
     };
 
+    /**
+     * @brief Dictionary for storing values with respect to two keys
+     *
+     * Provides a cleaner interface for accessing values using two string keys,
+     * similar to Philote-Python's PairDict class. This is particularly useful for
+     * storing Jacobian/partial derivative values.
+     *
+     * @tparam T The value type to store
+     */
+    template<typename T>
+    class PairDict
+    {
+    public:
+        /**
+         * @brief Default constructor
+         */
+        PairDict() = default;
+
+        /**
+         * @brief Access/modify value using two keys
+         *
+         * @param key1 First key
+         * @param key2 Second key
+         * @return Reference to the value
+         */
+        T& operator()(const std::string& key1, const std::string& key2)
+        {
+            return data_[std::make_pair(key1, key2)];
+        }
+
+        /**
+         * @brief Access value using two keys (const version)
+         *
+         * @param key1 First key
+         * @param key2 Second key
+         * @return Const reference to the value
+         */
+        const T& operator()(const std::string& key1, const std::string& key2) const
+        {
+            return data_.at(std::make_pair(key1, key2));
+        }
+
+        /**
+         * @brief Check if a key pair exists
+         *
+         * @param key1 First key
+         * @param key2 Second key
+         * @return true if the key pair exists
+         */
+        bool contains(const std::string& key1, const std::string& key2) const
+        {
+            return data_.find(std::make_pair(key1, key2)) != data_.end();
+        }
+
+        /**
+         * @brief Get the size of the dictionary
+         *
+         * @return Number of key-value pairs
+         */
+        size_t size() const
+        {
+            return data_.size();
+        }
+
+        /**
+         * @brief Check if the dictionary is empty
+         *
+         * @return true if empty
+         */
+        bool empty() const
+        {
+            return data_.empty();
+        }
+
+        /**
+         * @brief Clear all entries
+         */
+        void clear()
+        {
+            data_.clear();
+        }
+
+        /**
+         * @brief Get iterator to beginning
+         */
+        auto begin() { return data_.begin(); }
+        auto begin() const { return data_.begin(); }
+
+        /**
+         * @brief Get iterator to end
+         */
+        auto end() { return data_.end(); }
+        auto end() const { return data_.end(); }
+
+    private:
+        std::map<std::pair<std::string, std::string>, T> data_;
+    };
+
     typedef std::map<std::string, philote::Variable> Variables;
     typedef std::map<std::pair<std::string, std::string>, philote::Variable> Partials;
+    typedef PairDict<philote::Variable> PartialsPairDict;
 }
