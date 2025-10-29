@@ -130,8 +130,14 @@ if(NOT gRPC_FOUND)
             INTERFACE_LINK_LIBRARIES "${GRPC_LINK_LIBRARIES}"
         )
     endif()
+endif()
 
-    # Find grpc_cpp_plugin
+# Find grpc_cpp_plugin (needed for proto generation)
+# First check if gRPC CONFIG provided the target
+if(TARGET gRPC::grpc_cpp_plugin)
+    get_target_property(GRPC_CPP_PLUGIN gRPC::grpc_cpp_plugin LOCATION)
+else()
+    # Fall back to find_program
     find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin)
     if(NOT GRPC_CPP_PLUGIN)
         message(FATAL_ERROR "grpc_cpp_plugin not found")

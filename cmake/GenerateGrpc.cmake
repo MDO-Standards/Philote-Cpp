@@ -37,7 +37,7 @@ add_custom_command(
         --proto_path=${PROTO_DIR}
         --grpc_out=generate_mock_code=true:${GENERATED_DIR}
         --cpp_out=${GENERATED_DIR}
-        --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
+        --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
         ${PROTO_FILES}
     DEPENDS ${PROTO_FILES_DEPEND}
     COMMENT "Generating C++ stubs from protobuf files"
