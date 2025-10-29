@@ -103,13 +103,12 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
     for (const VariableMetaData &var : GetVariableMetaAll())
     {
         const string name = var.name();
-        const string subname = var.name();
 
         if (var.type() == kInput)
         {
             // Only send if the input was actually provided
             if (inputs.count(name) > 0)
-                inputs.at(name).Send(name, subname, stream.get(), GetStreamOptions().num_double());
+                inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
         }
     }
 
