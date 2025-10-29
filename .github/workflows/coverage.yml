@@ -12,12 +12,21 @@ jobs:
     
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: recursive
     
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential cmake lcov
-        # Install gRPC and other dependencies here
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          lcov \
+          libgrpc++-dev \
+          libprotobuf-dev \
+          protobuf-compiler-grpc \
+          libgtest-dev \
+          google-mock
     
     - name: Configure with coverage
       run: |

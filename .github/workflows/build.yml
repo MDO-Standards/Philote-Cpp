@@ -38,7 +38,8 @@ jobs:
             libgrpc++-dev \
             libprotobuf-dev \
             protobuf-compiler-grpc \
-            libgtest-dev
+            libgtest-dev \
+            google-mock
 
       - name: PhiloteCpp Build
         run: |
