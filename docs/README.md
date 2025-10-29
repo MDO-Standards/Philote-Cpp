@@ -14,6 +14,8 @@ The documentation is organized into topic-specific pages:
 - **implicit_disciplines.md** - Creating implicit disciplines
 - **client_usage.md** - Client connection and usage patterns
 - **best_practices.md** - Best practices, limitations, and troubleshooting
+- **coding_style.md** - Coding standards and style guidelines
+- **release_process.md** - Release process and version management
 
 ## Building Documentation Locally
 
