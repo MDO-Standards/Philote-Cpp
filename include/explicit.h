@@ -131,6 +131,121 @@ namespace philote
      * RegisterServers member function. The discipline developer should not have
      * to interact further with these services.
      *
+     * Explicit disciplines compute direct function evaluations (f(x) = y) and
+     * optionally their gradients. They are suitable for analyses where outputs
+     * can be computed directly from inputs without solving implicit equations.
+     *
+     * @par Example: Simple Explicit Discipline
+     * @code
+     * #include <explicit.h>
+     *
+     * class SimpleFunction : public philote::ExplicitDiscipline {
+     * private:
+     *     void Setup() override {
+     *         AddInput("x", {1}, "m");
+     *         AddOutput("y", {1}, "m");
+     *     }
+     *
+     *     void SetupPartials() override {
+     *         DeclarePartials("y", "x");
+     *     }
+     *
+     *     void Compute(const philote::Variables &inputs,
+     *                  philote::Variables &outputs) override {
+     *         double x = inputs.at("x")(0);
+     *         outputs.at("y")(0) = 2.0 * x + 1.0;
+     *     }
+     *
+     *     void ComputePartials(const philote::Variables &inputs,
+     *                         philote::Partials &partials) override {
+     *         partials[{"y", "x"}](0) = 2.0;
+     *     }
+     * };
+     * @endcode
+     *
+     * @par Example: Multi-Input/Output Discipline
+     * @code
+     * class Paraboloid : public philote::ExplicitDiscipline {
+     * private:
+     *     void Setup() override {
+     *         AddInput("x", {1}, "m");
+     *         AddInput("y", {1}, "m");
+     *         AddOutput("f_xy", {1}, "m**2");
+     *     }
+     *
+     *     void SetupPartials() override {
+     *         DeclarePartials("f_xy", "x");
+     *         DeclarePartials("f_xy", "y");
+     *     }
+     *
+     *     void Compute(const philote::Variables &inputs,
+     *                  philote::Variables &outputs) override {
+     *         double x = inputs.at("x")(0);
+     *         double y = inputs.at("y")(0);
+     *         outputs.at("f_xy")(0) = std::pow(x - 3.0, 2.0) + x * y +
+     *                                 std::pow(y + 4.0, 2.0) - 3.0;
+     *     }
+     *
+     *     void ComputePartials(const philote::Variables &inputs,
+     *                         philote::Partials &partials) override {
+     *         double x = inputs.at("x")(0);
+     *         double y = inputs.at("y")(0);
+     *         partials[{"f_xy", "x"}](0) = 2.0 * x - 6.0 + y;
+     *         partials[{"f_xy", "y"}](0) = 2.0 * y + 8.0 + x;
+     *     }
+     * };
+     * @endcode
+     *
+     * @par Example: Discipline with Options
+     * @code
+     * class ConfigurableDiscipline : public philote::ExplicitDiscipline {
+     * private:
+     *     double scale_factor_ = 1.0;
+     *
+     *     void Initialize() override {
+     *         ExplicitDiscipline::Initialize();
+     *         AddOption("scale_factor", "float");
+     *     }
+     *
+     *     void Configure() override {
+     *         // Options are set before Configure is called
+     *         // Access via discipline properties if needed
+     *     }
+     *
+     *     void Setup() override {
+     *         AddInput("x", {1}, "m");
+     *         AddOutput("y", {1}, "m");
+     *     }
+     *
+     *     void Compute(const philote::Variables &inputs,
+     *                  philote::Variables &outputs) override {
+     *         outputs.at("y")(0) = scale_factor_ * inputs.at("x")(0);
+     *     }
+     * };
+     * @endcode
+     *
+     * @par Example: Starting a Server
+     * @code
+     * #include <grpcpp/grpcpp.h>
+     *
+     * int main() {
+     *     std::string address("localhost:50051");
+     *     Paraboloid discipline;
+     *
+     *     grpc::ServerBuilder builder;
+     *     builder.AddListeningPort(address, grpc::InsecureServerCredentials());
+     *     discipline.RegisterServices(builder);
+     *
+     *     std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
+     *     std::cout << "Server listening on " << address << std::endl;
+     *     server->Wait();
+     *
+     *     return 0;
+     * }
+     * @endcode
+     *
+     * @see philote::ExplicitClient
+     * @see philote::ImplicitDiscipline
      */
     class ExplicitDiscipline : public Discipline
     {
@@ -189,6 +304,97 @@ namespace philote
      *
      * This class may be inherited from or used by MDO framework developers.
      * However, it is a fully functional Philote MDO client.
+     *
+     * The ExplicitClient connects to a remote ExplicitDiscipline server via gRPC
+     * and provides methods to perform function and gradient evaluations.
+     *
+     * @par Example: Basic Client Usage
+     * @code
+     * #include <explicit.h>
+     * #include <grpcpp/grpcpp.h>
+     *
+     * int main() {
+     *     philote::ExplicitClient client;
+     *
+     *     // Connect to server
+     *     auto channel = grpc::CreateChannel("localhost:50051",
+     *                                       grpc::InsecureChannelCredentials());
+     *     client.ConnectChannel(channel);
+     *
+     *     // Initialize client
+     *     client.GetInfo();
+     *     client.Setup();
+     *     client.GetVariableDefinitions();
+     *
+     *     // Prepare inputs
+     *     philote::Variables inputs;
+     *     inputs["x"] = philote::Variable(philote::kInput, {1});
+     *     inputs["y"] = philote::Variable(philote::kInput, {1});
+     *     inputs.at("x")(0) = 5.0;
+     *     inputs.at("y")(0) = -2.0;
+     *
+     *     // Compute function
+     *     philote::Variables outputs = client.ComputeFunction(inputs);
+     *     std::cout << "f(5, -2) = " << outputs.at("f_xy")(0) << std::endl;
+     *
+     *     return 0;
+     * }
+     * @endcode
+     *
+     * @par Example: Computing Gradients
+     * @code
+     * // After setting up client and inputs as above...
+     *
+     * // Get partial definitions
+     * client.GetPartialDefinitions();
+     *
+     * // Compute gradients
+     * philote::Partials gradients = client.ComputeGradient(inputs);
+     *
+     * // Access gradient values
+     * double df_dx = gradients[{"f_xy", "x"}](0);
+     * double df_dy = gradients[{"f_xy", "y"}](0);
+     *
+     * std::cout << "∂f/∂x = " << df_dx << std::endl;
+     * std::cout << "∂f/∂y = " << df_dy << std::endl;
+     * @endcode
+     *
+     * @par Example: Complete Client-Server Workflow
+     * @code
+     * philote::ExplicitClient client;
+     * auto channel = grpc::CreateChannel("localhost:50051",
+     *                                   grpc::InsecureChannelCredentials());
+     * client.ConnectChannel(channel);
+     *
+     * // Step 1: Get discipline information
+     * client.GetInfo();
+     *
+     * // Step 2: Setup the discipline
+     * client.Setup();
+     *
+     * // Step 3: Get variable definitions
+     * client.GetVariableDefinitions();
+     * std::vector<std::string> var_names = client.GetVariableNames();
+     *
+     * // Step 4: Get partial definitions (if computing gradients)
+     * client.GetPartialDefinitions();
+     *
+     * // Step 5: Prepare inputs and compute
+     * philote::Variables inputs;
+     * for (const auto& name : var_names) {
+     *     auto meta = client.GetVariableMeta(name);
+     *     if (meta.type() == philote::kInput) {
+     *         inputs[name] = philote::Variable(meta);
+     *         inputs[name](0) = 1.0;  // Set your values
+     *     }
+     * }
+     *
+     * philote::Variables outputs = client.ComputeFunction(inputs);
+     * philote::Partials partials = client.ComputeGradient(inputs);
+     * @endcode
+     *
+     * @see philote::ExplicitDiscipline
+     * @see philote::ImplicitClient
      */
     class ExplicitClient : public ::philote::DisciplineClient
     {
