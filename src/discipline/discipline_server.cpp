@@ -140,12 +140,11 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
     }
     catch (const std::exception &e)
     {
-        std::cout << "Setup failed" << e.what() << std::endl;
         return Status(grpc::INTERNAL, "Internal server error during Setup call: exception.");
     }
     catch (...)
     {
-        std::cout << "Internal server error during Setup call." << std::endl;
+        return Status(grpc::INTERNAL, "Internal server error during Setup call.");
     }
 
     try
@@ -154,12 +153,11 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
     }
     catch (const std::exception &e)
     {
-        std::cout << "Setup failed" << e.what() << std::endl;
         return Status(grpc::INTERNAL, "Internal server error during SetupPartials call: exception.");
     }
     catch (...)
     {
-        std::cout << "Internal server error during SetupPartials call." << std::endl;
+        return Status(grpc::INTERNAL, "Internal server error during SetupPartials call.");
     }
 
     return Status::OK;

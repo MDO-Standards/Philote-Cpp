@@ -101,7 +101,8 @@ grpc::Status ImplicitServer::ComputeResiduals(grpc::ServerContext *context,
             outputs[name].AssignChunk(array);
         else
         {
-            // error message
+            return Status(grpc::INVALID_ARGUMENT,
+                         "Invalid variable type received for variable: " + name);
         }
     }
 
@@ -155,7 +156,8 @@ grpc::Status ImplicitServer::SolveResiduals(grpc::ServerContext *context,
         }
         else
         {
-            // error message
+            return Status(grpc::INVALID_ARGUMENT,
+                         "Expected input variable but received different type for: " + name);
         }
     }
 
@@ -218,7 +220,8 @@ grpc::Status ImplicitServer::ComputeResidualGradients(grpc::ServerContext *conte
             outputs[name].AssignChunk(array);
         else
         {
-            // error message
+            return Status(grpc::INVALID_ARGUMENT,
+                         "Invalid variable type received for variable: " + name);
         }
     }
 
