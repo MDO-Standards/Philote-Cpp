@@ -107,9 +107,9 @@ information you may find at these locations.
 ## Citation
 If you use this code for academic work, please cite the following paper:
 
-Lupp, C.A., Xu, A., Carrere, A.L. "Creating a Universal Communication 
+Lupp, C.A., Xu, A. "Creating a Universal Communication 
 Standard to Enable Heterogeneous Multidisciplinary Design Optimization." 
 AIAA SCITECH 2024 Forum. American Institute of Aeronautics and Astronautics. 
-Orlando, FL, (forthcoming).
+Orlando, FL.
 
 

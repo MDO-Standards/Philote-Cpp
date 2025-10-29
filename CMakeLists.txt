@@ -68,7 +68,7 @@ set(
 )
 
 # add cmake scripts
-LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Coverage configuration
 if(ENABLE_COVERAGE)
