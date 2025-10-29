@@ -134,7 +134,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionUnlinkedPointers) {
     // Don't link any discipline
     EXPECT_CALL(*stream, Read(_)).Times(0);
 
-    grpc::Status status = server_->ComputeFunction(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeFunctionForTesting(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
@@ -168,7 +168,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionVariableNotFound) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeFunction(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeFunctionForTesting(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -191,7 +191,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionInvalidVariableType) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeFunction(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeFunctionForTesting(context_.get(), stream.get());
 
     // Should fail either at variable not found or invalid type
     EXPECT_FALSE(status.ok());
@@ -241,7 +241,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionSimpleScalar) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeFunction(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeFunctionForTesting(context_.get(), stream.get());
 
     if (!status.ok()) {
         std::cerr << "DEBUG: Error: " << status.error_message() << " (code: " << status.error_code() << ")\n";
@@ -292,7 +292,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionMultiOutput) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeFunction(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeFunctionForTesting(context_.get(), stream.get());
 
     EXPECT_TRUE(status.ok());
 }
@@ -359,7 +359,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionVectorData) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeFunction(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeFunctionForTesting(context_.get(), stream.get());
 
     EXPECT_TRUE(status.ok());
 }
@@ -397,7 +397,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionComputeThrows) {
         }))
         .WillOnce(Return(false));
 
-    grpc::Status status = server_->ComputeFunction(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeFunctionForTesting(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INTERNAL);
@@ -413,7 +413,7 @@ TEST_F(ExplicitServerTest, ComputeGradientUnlinkedPointers) {
 
     EXPECT_CALL(*stream, Read(_)).Times(0);
 
-    grpc::Status status = server_->ComputeGradient(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeGradientForTesting(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
@@ -445,7 +445,7 @@ TEST_F(ExplicitServerTest, ComputeGradientVariableNotFound) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeGradient(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeGradientForTesting(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -491,7 +491,7 @@ TEST_F(ExplicitServerTest, ComputeGradientSimpleScalar) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeGradient(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeGradientForTesting(context_.get(), stream.get());
 
     EXPECT_TRUE(status.ok());
 }
@@ -546,7 +546,7 @@ TEST_F(ExplicitServerTest, ComputeGradientMultiplePartials) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeGradient(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeGradientForTesting(context_.get(), stream.get());
 
     EXPECT_TRUE(status.ok());
 }
@@ -589,7 +589,7 @@ TEST_F(ExplicitServerTest, ComputeGradientComputePartialsThrows) {
         }))
         .WillOnce(Return(false));
 
-    grpc::Status status = server_->ComputeGradient(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeGradientForTesting(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INTERNAL);
