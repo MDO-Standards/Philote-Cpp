@@ -21,6 +21,32 @@ public:
     MOCK_METHOD(bool, NextMessageSize, (uint32_t *), (override));
 };
 
+// Mock discipline for server tests with actual compute implementations
+class MockExplicitDiscipline : public ExplicitDiscipline
+{
+public:
+    void Compute(const Variables &inputs, Variables &outputs) override
+    {
+        // Simple computation: y = 2*x
+        const auto& x = inputs.at("x");
+        auto& y = outputs.at("y");
+        for (size_t i = 0; i < y.Size(); ++i)
+        {
+            y(i) = 2.0 * x(i);
+        }
+    }
+
+    void ComputePartials(const Variables &inputs, Partials &partials) override
+    {
+        // Simple partials: dy/dx = 2
+        auto& partial = partials[std::make_pair("y", "x")];
+        for (size_t i = 0; i < partial.Size(); ++i)
+        {
+            partial(i) = 2.0;
+        }
+    }
+};
+
 // Test fixture for ExplicitServer
 class ExplicitServerTest : public ::testing::Test
 {
@@ -28,7 +54,7 @@ protected:
     void SetUp() override
     {
         server = std::make_unique<ExplicitServer>();
-        discipline = std::make_unique<ExplicitDiscipline>();
+        discipline = std::make_unique<MockExplicitDiscipline>();
 
         // Add input variable
         std::vector<int64_t> input_shape = {2}; // 2-element vector

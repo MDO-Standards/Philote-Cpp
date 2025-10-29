@@ -350,13 +350,8 @@ TEST_F(SimpleExplicitDisciplineTest, ErrorHandlingMissingVariables)
     Variables outputs;
     outputs["y"] = Variable(kOutput, {2});
 
-    EXPECT_THROW({
-        try {
-            discipline->Compute(inputs, outputs);
-        } catch (const std::out_of_range& e) {
-            EXPECT_STREQ(e.what(), "map::at:  key not found");
-            throw;
-        } }, std::out_of_range);
+    // Just verify the exception is thrown, don't check compiler-specific message
+    EXPECT_THROW(discipline->Compute(inputs, outputs), std::out_of_range);
 }
 
 // Test error handling for wrong shapes
