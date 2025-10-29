@@ -76,12 +76,8 @@ jobs:
 
         # Print summary
         lcov --summary coverage_filtered.info
-    
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
       with:
-        directory: build
-        files: coverage_filtered.info
-        flags: unittests
-        fail_ci_if_error: true
-        verbose: true
+        token: ${{ secrets.CODECOV_TOKEN }}
