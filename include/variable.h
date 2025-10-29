@@ -42,6 +42,39 @@ namespace philote
     /**
      * @brief A class for storing continuous and discrete variables
      *
+     * The Variable class provides a container for multi-dimensional arrays used
+     * in Philote disciplines. Variables can represent inputs, outputs, or residuals
+     * and support operations like segmentation, streaming over gRPC, and element access.
+     *
+     * @par Example: Creating and Using Variables
+     * @code
+     * // Create a variable with shape
+     * philote::Variable pressure(philote::kInput, {10, 10});
+     *
+     * // Set values
+     * for (size_t i = 0; i < 100; ++i) {
+     *     pressure(i) = 101325.0 + i * 10.0;
+     * }
+     *
+     * // Get shape information
+     * std::vector<size_t> shape = pressure.Shape();  // Returns {10, 10}
+     * size_t total = pressure.Size();                // Returns 100
+     *
+     * // Access individual elements
+     * double val = pressure(0);  // Get first element
+     * @endcode
+     *
+     * @par Example: Creating from Metadata
+     * @code
+     * philote::VariableMetaData meta;
+     * meta.set_name("temperature");
+     * meta.add_shape(5);
+     * meta.set_units("K");
+     * meta.set_type(philote::kOutput);
+     *
+     * philote::Variable temp(meta);
+     * temp(0) = 300.0;
+     * @endcode
      */
     class Variable
     {
@@ -87,6 +120,15 @@ namespace philote
          * @param start starting index of the segment
          * @param end ending index of the segment
          * @param data data to be assigned to the segment
+         *
+         * @par Example
+         * @code
+         * philote::Variable vec(philote::kOutput, {100});
+         *
+         * // Set a segment from indices 10 to 14 (inclusive)
+         * std::vector<double> data = {1.0, 2.0, 3.0, 4.0, 5.0};
+         * vec.Segment(10, 15, data);
+         * @endcode
          */
         void Segment(const size_t &start, const size_t &end,
                      const std::vector<double> &data);
@@ -201,6 +243,35 @@ namespace philote
      * storing Jacobian/partial derivative values.
      *
      * @tparam T The value type to store
+     *
+     * @par Example: Using PairDict for Gradients
+     * @code
+     * philote::PairDict<philote::Variable> gradients;
+     *
+     * // Create gradient variables
+     * gradients("f", "x") = philote::Variable(philote::kOutput, {1});
+     * gradients("f", "y") = philote::Variable(philote::kOutput, {1});
+     *
+     * // Set gradient values
+     * gradients("f", "x")(0) = 2.5;
+     * gradients("f", "y")(0) = 3.7;
+     *
+     * // Check if a gradient exists
+     * if (gradients.contains("f", "x")) {
+     *     double df_dx = gradients("f", "x")(0);
+     * }
+     * @endcode
+     *
+     * @par Example: Traditional Partials vs PairDict
+     * @code
+     * // Traditional approach with std::map
+     * philote::Partials partials;
+     * partials[std::make_pair("output", "input")](0) = 1.5;
+     *
+     * // Cleaner PairDict approach
+     * philote::PartialsPairDict pair_partials;
+     * pair_partials("output", "input")(0) = 1.5;
+     * @endcode
      */
     template<typename T>
     class PairDict
