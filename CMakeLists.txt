@@ -64,26 +64,17 @@ LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 # Coverage configuration
 if(ENABLE_COVERAGE)
     message("Enabling code coverage...")
-    
+
     # Check if we have the required tools
     find_program(GCOV_PATH gcov)
     find_program(LCOV_PATH lcov)
     find_program(GENHTML_PATH genhtml)
-    
+
     if(NOT GCOV_PATH)
         message(FATAL_ERROR "gcov not found! Install gcov and try again.")
     endif()
-    
-    # Set coverage flags
-    set(COVERAGE_COMPILER_FLAGS "-g -O0 --coverage -fprofile-arcs -ftest-coverage")
-    set(COVERAGE_LINKER_FLAGS "--coverage")
-    
-    # Apply flags to all targets
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COVERAGE_COMPILER_FLAGS}")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${COVERAGE_COMPILER_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${COVERAGE_LINKER_FLAGS}")
-    
-    message("Coverage flags: ${COVERAGE_COMPILER_FLAGS}")
+
+    message("Coverage will be applied to library targets")
 endif()
 
 # Find gRPC and its dependencies
