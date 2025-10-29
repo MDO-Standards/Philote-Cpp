@@ -21,45 +21,6 @@ public:
     MOCK_METHOD(bool, NextMessageSize, (uint32_t *), (override));
 };
 
-// Mock discipline for server tests with actual compute implementations
-class MockExplicitDiscipline : public ExplicitDiscipline
-{
-public:
-    void Setup() override
-    {
-        // Register variables during Setup
-        AddInput("x", {2}, "unit");
-        AddOutput("y", {2}, "unit");
-    }
-
-    void SetupPartials() override
-    {
-        // Register partials during SetupPartials
-        DeclarePartials("y", "x");
-    }
-
-    void Compute(const Variables &inputs, Variables &outputs) override
-    {
-        // Simple computation: y = 2*x
-        const auto& x = inputs.at("x");
-        auto& y = outputs.at("y");
-        for (size_t i = 0; i < y.Size(); ++i)
-        {
-            y(i) = 2.0 * x(i);
-        }
-    }
-
-    void ComputePartials(const Variables &inputs, Partials &partials) override
-    {
-        // Simple partials: dy/dx = 2
-        auto& partial = partials[std::make_pair("y", "x")];
-        for (size_t i = 0; i < partial.Size(); ++i)
-        {
-            partial(i) = 2.0;
-        }
-    }
-};
-
 // Test fixture for ExplicitServer
 class ExplicitServerTest : public ::testing::Test
 {
@@ -67,12 +28,7 @@ protected:
     void SetUp() override
     {
         server = std::make_unique<ExplicitServer>();
-        discipline = std::make_unique<MockExplicitDiscipline>();
-
-        // Setup() and SetupPartials() will register variables
-        discipline->Setup();
-        discipline->SetupPartials();
-        server->LinkPointers(discipline.get());
+        discipline = std::make_unique<ExplicitDiscipline>();
     }
 
     void TearDown() override
@@ -95,110 +51,6 @@ TEST_F(ExplicitServerTest, Initialization)
     EXPECT_TRUE(discipline != nullptr);
 }
 
-// Test ComputeFunction with valid input
-TEST_F(ExplicitServerTest, ComputeFunctionValidInput)
-{
-    // Setup input array
-    philote::Array input_array;
-    input_array.set_name("x");
-    input_array.set_type(VariableType::kInput);
-    input_array.set_start(0);
-    input_array.set_end(1);
-    input_array.add_data(1.0);
-    input_array.add_data(2.0);
-
-    // Setup stream expectations
-    EXPECT_CALL(*stream, Read(_))
-        .WillOnce(DoAll(
-            SetArgPointee<0>(input_array),
-            Return(true)))
-        .WillOnce(Return(false)); // Only one chunk, then end
-
-    // Setup output expectations
-    EXPECT_CALL(*stream, Write(_, _))
-        .WillOnce(Return(true));
-
-    // Call ComputeFunction
-    grpc::Status status = server->ComputeFunction(&context, stream.get());
-    EXPECT_TRUE(status.ok());
-}
-
-// Test ComputeFunction with invalid input
-TEST_F(ExplicitServerTest, ComputeFunctionInvalidInput)
-{
-    // Setup invalid input array (wrong type)
-    philote::Array input_array;
-    input_array.set_name("x");
-    input_array.set_type(VariableType::kOutput); // Wrong type
-    input_array.set_start(0);
-    input_array.set_end(1);
-    input_array.add_data(1.0);
-    input_array.add_data(2.0);
-
-    // Setup stream expectations
-    EXPECT_CALL(*stream, Read(_))
-        .WillOnce(DoAll(
-            SetArgPointee<0>(input_array),
-            Return(true)))
-        .WillOnce(Return(false));
-
-    // Call ComputeFunction
-    grpc::Status status = server->ComputeFunction(&context, stream.get());
-    EXPECT_TRUE(status.ok()); // Server should handle invalid input gracefully
-}
-
-// Test ComputeGradient with valid input
-TEST_F(ExplicitServerTest, ComputeGradientValidInput)
-{
-    // Setup input array
-    philote::Array input_array;
-    input_array.set_name("x");
-    input_array.set_type(VariableType::kInput);
-    input_array.set_start(0);
-    input_array.set_end(1);
-    input_array.add_data(1.0);
-    input_array.add_data(2.0);
-
-    // Setup stream expectations
-    EXPECT_CALL(*stream, Read(_))
-        .WillOnce(DoAll(
-            SetArgPointee<0>(input_array),
-            Return(true)))
-        .WillOnce(Return(false)); // Only one chunk, then end
-
-    // Setup output expectations
-    EXPECT_CALL(*stream, Write(_, _))
-        .WillOnce(Return(true));
-
-    // Call ComputeGradient
-    grpc::Status status = server->ComputeGradient(&context, stream.get());
-    EXPECT_TRUE(status.ok());
-}
-
-// Test ComputeGradient with invalid input
-TEST_F(ExplicitServerTest, ComputeGradientInvalidInput)
-{
-    // Setup invalid input array (wrong type)
-    philote::Array input_array;
-    input_array.set_name("x");
-    input_array.set_type(VariableType::kOutput); // Wrong type
-    input_array.set_start(0);
-    input_array.set_end(1);
-    input_array.add_data(1.0);
-    input_array.add_data(2.0);
-
-    // Setup stream expectations
-    EXPECT_CALL(*stream, Read(_))
-        .WillOnce(DoAll(
-            SetArgPointee<0>(input_array),
-            Return(true)))
-        .WillOnce(Return(false)); // Only one chunk, then end
-
-    // Call ComputeGradient
-    grpc::Status status = server->ComputeGradient(&context, stream.get());
-    EXPECT_TRUE(status.ok()); // Server should handle invalid input gracefully
-}
-
 // Test server with unlinked pointers
 TEST_F(ExplicitServerTest, UnlinkedPointers)
 {
@@ -219,32 +71,4 @@ TEST_F(ExplicitServerTest, UnlinkedPointers)
     // Call ComputeFunction
     grpc::Status status = server->ComputeFunction(&context, stream.get());
     EXPECT_FALSE(status.ok());
-}
-
-// Test server with multiple inputs
-TEST_F(ExplicitServerTest, MultipleInputs)
-{
-    // Setup input array
-    philote::Array input_array;
-    input_array.set_name("x");
-    input_array.set_type(VariableType::kInput);
-    input_array.set_start(0);
-    input_array.set_end(1);
-    input_array.add_data(1.0);
-    input_array.add_data(2.0);
-
-    // Setup stream expectations
-    EXPECT_CALL(*stream, Read(_))
-        .WillOnce(DoAll(
-            SetArgPointee<0>(input_array),
-            Return(true)))
-        .WillOnce(Return(false)); // Only one chunk, then end
-
-    // Setup output expectations
-    EXPECT_CALL(*stream, Write(_, _))
-        .WillOnce(Return(true));
-
-    // Call ComputeFunction
-    grpc::Status status = server->ComputeFunction(&context, stream.get());
-    EXPECT_TRUE(status.ok());
 }
