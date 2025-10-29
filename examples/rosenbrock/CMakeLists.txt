@@ -29,15 +29,7 @@
 #    control over the information you may find at these locations.
 #===============================================================================
 add_executable(ExampleRosenbrockServer rosenbrock_server.cpp)
-target_link_libraries(ExampleRosenbrockServer
-                      PhiloteCpp
-                      protobuf::libprotobuf
-                      gRPC::grpc++
-)
+target_link_libraries(ExampleRosenbrockServer PRIVATE PhiloteCpp)
 
 add_executable(ExampleRosenbrockClient rosenbrock_client.cpp)
-target_link_libraries(ExampleRosenbrockClient
-                      PhiloteCpp
-                      protobuf::libprotobuf
-                      gRPC::grpc++
-)
+target_link_libraries(ExampleRosenbrockClient PRIVATE PhiloteCpp)
