@@ -83,7 +83,7 @@ protected:
         array.set_name(name);
         array.set_type(VariableType::kInput);
         array.set_start(0);
-        array.set_end(data.size());
+        array.set_end(data.empty() ? 0 : data.size() - 1);  // end is inclusive, so size-1
         for (double val : data) {
             array.add_data(val);
         }
@@ -158,15 +158,15 @@ TEST_F(ExplicitServerTest, ComputeFunctionVariableNotFound) {
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
-    // Mock receiving an unknown variable
+    // Mock receiving an unknown variable - server should fail immediately
     EXPECT_CALL(*stream, Read(_))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
             array->set_name("unknown_variable");
             array->set_type(VariableType::kInput);
             array->add_data(1.0);
             return true;
-        }))
-        .WillOnce(Return(false));
+        }));
 
     grpc::Status status = server_->ComputeFunction(context_.get(), stream.get());
 
@@ -181,15 +181,15 @@ TEST_F(ExplicitServerTest, ComputeFunctionInvalidVariableType) {
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
-    // Mock receiving an output variable as input (invalid)
+    // Mock receiving an output variable as input (invalid) - server should fail immediately
     EXPECT_CALL(*stream, Read(_))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
             array->set_name("f");  // This is an output in ParaboloidDiscipline
             array->set_type(VariableType::kOutput);  // Wrong type
             array->add_data(1.0);
             return true;
-        }))
-        .WillOnce(Return(false));
+        }));
 
     grpc::Status status = server_->ComputeFunction(context_.get(), stream.get());
 
@@ -211,18 +211,22 @@ TEST_F(ExplicitServerTest, ComputeFunctionSimpleScalar) {
     // Mock receiving inputs (x=3.0, y=4.0)
     EXPECT_CALL(*stream, Read(_))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
+            array->Clear();  // Clear any previous data
             array->set_name("x");
             array->set_type(VariableType::kInput);
             array->set_start(0);
-            array->set_end(1);
+            array->set_end(0);  // For single element, end=0
             array->add_data(3.0);
             return true;
         }))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
+            array->Clear();  // Clear any previous data
             array->set_name("y");
             array->set_type(VariableType::kInput);
             array->set_start(0);
-            array->set_end(1);
+            array->set_end(0);  // For single element, end=0
             array->add_data(4.0);
             return true;
         }))
@@ -239,6 +243,9 @@ TEST_F(ExplicitServerTest, ComputeFunctionSimpleScalar) {
 
     grpc::Status status = server_->ComputeFunction(context_.get(), stream.get());
 
+    if (!status.ok()) {
+        std::cerr << "DEBUG: Error: " << status.error_message() << " (code: " << status.error_code() << ")\n";
+    }
     EXPECT_TRUE(status.ok());
 }
 
@@ -256,12 +263,14 @@ TEST_F(ExplicitServerTest, ComputeFunctionMultiOutput) {
     // Mock receiving inputs (x=5.0, y=3.0)
     EXPECT_CALL(*stream, Read(_))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
             array->set_name("x");
             array->set_type(VariableType::kInput);
             array->add_data(5.0);
             return true;
         }))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
             array->set_name("y");
             array->set_type(VariableType::kInput);
             array->add_data(3.0);
@@ -302,8 +311,11 @@ TEST_F(ExplicitServerTest, ComputeFunctionVectorData) {
     // Mock receiving vector/matrix inputs
     EXPECT_CALL(*stream, Read(_))
         .WillOnce(Invoke([](philote::Array* array) {
-            array->set_name("A");  // 2x3 matrix
+            array->Clear();  // Clear any previous data
+            array->set_name("A");  // 2x3 matrix = 6 elements
             array->set_type(VariableType::kInput);
+            array->set_start(0);
+            array->set_end(5);  // 6 elements: end = size - 1 = 5
             array->add_data(1.0);
             array->add_data(2.0);
             array->add_data(3.0);
@@ -313,30 +325,36 @@ TEST_F(ExplicitServerTest, ComputeFunctionVectorData) {
             return true;
         }))
         .WillOnce(Invoke([](philote::Array* array) {
-            array->set_name("x");  // 3-vector
+            array->Clear();  // Clear any previous data
+            array->set_name("x");  // 3-vector = 3 elements
             array->set_type(VariableType::kInput);
+            array->set_start(0);
+            array->set_end(2);  // 3 elements: end = size - 1 = 2
             array->add_data(1.0);
             array->add_data(1.0);
             array->add_data(1.0);
             return true;
         }))
         .WillOnce(Invoke([](philote::Array* array) {
-            array->set_name("b");  // 2-vector
+            array->Clear();  // Clear any previous data
+            array->set_name("b");  // 2-vector = 2 elements
             array->set_type(VariableType::kInput);
+            array->set_start(0);
+            array->set_end(1);  // 2 elements: end = size - 1 = 1
             array->add_data(1.0);
             array->add_data(1.0);
             return true;
         }))
         .WillOnce(Return(false));
 
-    // Mock sending output z = A*x + b
+    // Mock sending output z = A*x + b (sent in one chunk with default chunk_size=1000)
     EXPECT_CALL(*stream, Write(_, _))
         .WillOnce(Invoke([](const philote::Array& array, grpc::WriteOptions) {
             EXPECT_EQ(array.name(), "z");
             EXPECT_EQ(array.data_size(), 2);
             // z[0] = 1*1 + 2*1 + 3*1 + 1 = 7
-            // z[1] = 4*1 + 5*1 + 6*1 + 1 = 16
             EXPECT_DOUBLE_EQ(array.data(0), 7.0);
+            // z[1] = 4*1 + 5*1 + 6*1 + 1 = 16
             EXPECT_DOUBLE_EQ(array.data(1), 16.0);
             return true;
         }));
@@ -371,6 +389,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionComputeThrows) {
 
     EXPECT_CALL(*stream, Read(_))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
             array->set_name("x");
             array->set_type(VariableType::kInput);
             array->add_data(1.0);
@@ -416,14 +435,15 @@ TEST_F(ExplicitServerTest, ComputeGradientVariableNotFound) {
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
+    // Mock receiving an invalid variable - server should fail immediately
     EXPECT_CALL(*stream, Read(_))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
             array->set_name("invalid_var");
             array->set_type(VariableType::kInput);
             array->add_data(1.0);
             return true;
-        }))
-        .WillOnce(Return(false));
+        }));
 
     grpc::Status status = server_->ComputeGradient(context_.get(), stream.get());
 
@@ -444,12 +464,14 @@ TEST_F(ExplicitServerTest, ComputeGradientSimpleScalar) {
     // Mock receiving inputs (x=3.0, y=4.0)
     EXPECT_CALL(*stream, Read(_))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
             array->set_name("x");
             array->set_type(VariableType::kInput);
             array->add_data(3.0);
             return true;
         }))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
             array->set_name("y");
             array->set_type(VariableType::kInput);
             array->add_data(4.0);
@@ -488,11 +510,13 @@ TEST_F(ExplicitServerTest, ComputeGradientMultiplePartials) {
     // Mock receiving inputs (x=5.0, y=3.0)
     EXPECT_CALL(*stream, Read(_))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
             array->set_name("x");
             array->add_data(5.0);
             return true;
         }))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
             array->set_name("y");
             array->add_data(3.0);
             return true;
@@ -558,6 +582,7 @@ TEST_F(ExplicitServerTest, ComputeGradientComputePartialsThrows) {
 
     EXPECT_CALL(*stream, Read(_))
         .WillOnce(Invoke([](philote::Array* array) {
+            array->Clear();  // Clear any previous data
             array->set_name("x");
             array->add_data(1.0);
             return true;
