@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Unit tests for discipline server, explicit discipline server, and implicit discipline server
   - Unit tests for discipline client and explicit client
   - Unit tests for variable handling, stream options, and set options
+- **Extensive test coverage for explicit disciplines, clients, and servers** (~2,600 lines)
+  - Reusable test helpers library with test discipline implementations (Paraboloid, MultiOutput, Vectorized, Error disciplines)
+  - Comprehensive unit tests with mocks for ExplicitClient (36→524 lines) and ExplicitServer (74→587 lines)
+  - End-to-end integration tests with real gRPC communication over localhost (450+ lines)
+  - Error scenario and stress tests covering boundary conditions, concurrent clients, and failure modes (400+ lines)
+  - TestServerManager utility for automatic server lifecycle management in integration tests
+  - Variable creation helpers, assertion utilities, and data generators for test reusability
 - Code coverage support in CMake build system
 - CMake package configuration to support using Philote-Cpp as a subproject or installed library
 - Installation support for headers and proto files
@@ -43,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed example includes to properly reference headers in new include/ directory
 - Fixed gRPC plugin symlink issues in CI
 - Minor fix to protoc generation
+- **Fixed Variable API usage throughout test suite**
+  - Corrected element access from `.data()[i]` to `(i)` operator
+  - Corrected shape access from `.shape()` to `.Shape()`
+  - Fixed client metadata methods naming (`SetVariableMeta`, `SetPartialsMetaData`)
+  - Added missing mock interface methods for complete gRPC stream testing
 
 ## [0.3.0] - 2023-11-09
 
