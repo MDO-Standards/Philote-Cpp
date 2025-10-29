@@ -72,7 +72,7 @@ target_link_libraries(ExplicitDisciplineTests
 target_include_directories(ExplicitDisciplineTests PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src/explicit
-    ${CMAKE_SOURCE_DIR}/src/generated
+    ${CMAKE_BINARY_DIR}/src/generated
     ${Protobuf_INCLUDE_DIRS}
     ${gRPC_INCLUDE_DIRS}
 )
@@ -89,7 +89,7 @@ target_link_libraries(ExplicitDisciplineServerTests
 target_include_directories(ExplicitDisciplineServerTests PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src/explicit
-    ${CMAKE_SOURCE_DIR}/src/generated
+    ${CMAKE_BINARY_DIR}/src/generated
     ${Protobuf_INCLUDE_DIRS}
     ${gRPC_INCLUDE_DIRS}
 )
@@ -106,7 +106,7 @@ target_link_libraries(ExplicitClientTests
 target_include_directories(ExplicitClientTests PRIVATE
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/src/explicit
-    ${CMAKE_SOURCE_DIR}/src/generated
+    ${CMAKE_BINARY_DIR}/src/generated
     ${Protobuf_INCLUDE_DIRS}
     ${gRPC_INCLUDE_DIRS}
 )

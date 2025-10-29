@@ -137,7 +137,7 @@ endif()
 
 # add include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/src/generated)
+include_directories(${CMAKE_BINARY_DIR}/src/generated)
 
 
 # add subdirectories
@@ -196,7 +196,7 @@ if(ENABLE_COVERAGE AND BUILD_TESTS)
         '*/tests/*'
         '*/gtest/*'
         '*/gmock/*'
-        '*/src/generated/*'
+        '*/generated/*'
         '*/cmake-build-*/*'
         '*/build/*'
         '*/cmake/*'

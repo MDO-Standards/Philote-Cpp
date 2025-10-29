@@ -2,7 +2,11 @@
 #--------------------
 
 # Set the path to the directory where you want to generate the C++ headers
-set(GENERATED_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+# Generated files go in the build directory, not the source directory
+set(GENERATED_DIR ${CMAKE_BINARY_DIR}/src/generated)
+
+# Create the generated directory if it doesn't exist
+file(MAKE_DIRECTORY ${GENERATED_DIR})
 
 # Set the path to the directory containing the .proto files
 set(PROTO_DIR ${CMAKE_SOURCE_DIR}/proto)
@@ -18,11 +22,11 @@ set(PROTO_FILES_DEPEND "")
 foreach(elem ${PROTO_FILES})
     string(REPLACE ".proto" "" file_no_ext ${elem})
     list(APPEND PROTO_FILES_DEPEND ${CMAKE_SOURCE_DIR}/proto/${elem})
-    list(APPEND PROTO_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/${file_no_ext}.pb.h)
-    list(APPEND GRPC_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/${file_no_ext}.grpc.pb.h)
-    list(APPEND GRPC_MOCK_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/${file_no_ext}_mock.grpc.pb.h)
-    list(APPEND PROTO_SRC ${CMAKE_CURRENT_SOURCE_DIR}/${file_no_ext}.pb.cc)
-    list(APPEND GRPC_SRC ${CMAKE_CURRENT_SOURCE_DIR}/${file_no_ext}.grpc.pb.cc)
+    list(APPEND PROTO_HEADERS ${GENERATED_DIR}/${file_no_ext}.pb.h)
+    list(APPEND GRPC_HEADERS ${GENERATED_DIR}/${file_no_ext}.grpc.pb.h)
+    list(APPEND GRPC_MOCK_HEADERS ${GENERATED_DIR}/${file_no_ext}_mock.grpc.pb.h)
+    list(APPEND PROTO_SRC ${GENERATED_DIR}/${file_no_ext}.pb.cc)
+    list(APPEND GRPC_SRC ${GENERATED_DIR}/${file_no_ext}.grpc.pb.cc)
 endforeach()
 
 # Add a custom command to generate the C++ headers and sources from the .proto files
