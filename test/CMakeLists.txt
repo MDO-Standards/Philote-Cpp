@@ -29,6 +29,12 @@
 #    control over the information you may find at these locations.
 #===============================================================================
 
+# Test helpers library
+add_library(PhiloteTestHelpers test_helpers.cpp)
+target_link_libraries(PhiloteTestHelpers PUBLIC PhiloteCpp GTest::gtest GTest::gmock)
+target_include_directories(PhiloteTestHelpers PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+enable_coverage(PhiloteTestHelpers)
+
 # array tests
 add_executable(VariableTests variable_tests.cpp)
 target_link_libraries(VariableTests PhiloteCpp GTest::gtest_main GTest::gmock)
@@ -100,6 +106,34 @@ target_include_directories(ExplicitClientTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/explicit
 )
 gtest_discover_tests(ExplicitClientTests)
+
+# explicit integration tests
+add_executable(ExplicitIntegrationTests explicit_integration_test.cpp)
+target_link_libraries(ExplicitIntegrationTests
+    PhiloteCpp
+    PhiloteTestHelpers
+    GTest::gtest_main
+    GTest::gmock
+)
+enable_coverage(ExplicitIntegrationTests)
+target_include_directories(ExplicitIntegrationTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/explicit
+)
+gtest_discover_tests(ExplicitIntegrationTests)
+
+# explicit error scenarios tests
+add_executable(ExplicitErrorScenariosTests explicit_error_scenarios_test.cpp)
+target_link_libraries(ExplicitErrorScenariosTests
+    PhiloteCpp
+    PhiloteTestHelpers
+    GTest::gtest_main
+    GTest::gmock
+)
+enable_coverage(ExplicitErrorScenariosTests)
+target_include_directories(ExplicitErrorScenariosTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/explicit
+)
+gtest_discover_tests(ExplicitErrorScenariosTests)
 
 # Set test discovery timeout
 set(GTEST_DISCOVER_TESTS_DISCOVERY_TIMEOUT 60)
