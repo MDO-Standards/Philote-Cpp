@@ -139,19 +139,25 @@ TEST_F(DisciplineServerTest, GetAvailableOptions)
 {
     grpc::ServerContext context;
     google::protobuf::Empty request;
-    StreamOptions response;
+    OptionsList response;
 
     // Set up mock discipline options
     auto &options = mock_discipline->options_list();
-    options["option1"] = "double";
-    options["option2"] = "double"; // Changed to double since num_int is not available
+    options["scale_factor"] = "double";
+    options["max_iter"] = "int";
+    options["verbose"] = "bool";
 
     // Call GetAvailableOptions
     grpc::Status status = server->GetAvailableOptions(&context, &request, &response);
 
     // Verify response
     EXPECT_TRUE(status.ok());
-    EXPECT_EQ(response.num_double(), 1000); // Default value from implementation
+    EXPECT_EQ(response.options_size(), 3);
+    EXPECT_EQ(response.type_size(), 3);
+
+    // Verify the options are returned (order may vary since map iteration order is not guaranteed)
+    std::vector<std::string> returned_options(response.options().begin(), response.options().end());
+    EXPECT_THAT(returned_options, testing::UnorderedElementsAre("scale_factor", "max_iter", "verbose"));
 }
 
 // Test GetVariableDefinitions RPC

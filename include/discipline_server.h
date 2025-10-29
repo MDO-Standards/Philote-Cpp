@@ -121,7 +121,7 @@ namespace philote
 
         ::grpc::Status GetAvailableOptions(::grpc::ServerContext *context,
                                            const ::google::protobuf::Empty *request,
-                                           ::philote::StreamOptions *response) override;
+                                           ::philote::OptionsList *response) override;
 
         /**
          * @brief RPC to define the discipline variables on the client side

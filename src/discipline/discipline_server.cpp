@@ -165,11 +165,25 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
 
 ::grpc::Status philote::DisciplineServer::GetAvailableOptions(::grpc::ServerContext *context,
                                                               const ::google::protobuf::Empty *request,
-                                                              ::philote::StreamOptions *response)
+                                                              ::philote::OptionsList *response)
 {
-    // StreamOptions only contains num_double field
-    // Set a default value or get it from the discipline if available
-    response->set_num_double(1000); // Default value, adjust as needed
+    // Populate the options list from the discipline's available options
+    for (const auto &option : discipline_->options_list())
+    {
+        response->add_options(option.first);
+
+        // Map string type names to DataType enum
+        if (option.second == "bool")
+            response->add_type(philote::DataType::kBool);
+        else if (option.second == "int")
+            response->add_type(philote::DataType::kInt);
+        else if (option.second == "double" || option.second == "float")
+            response->add_type(philote::DataType::kDouble);
+        else if (option.second == "string")
+            response->add_type(philote::DataType::kString);
+        else
+            response->add_type(philote::DataType::kString); // Default to string for unknown types
+    }
 
     return Status::OK;
 }
