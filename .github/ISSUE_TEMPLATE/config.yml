@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/MDO-Standards/Philote-Cpp/discussions
+    about: For general questions, discussions, and community support
+  - name: Contributing Guide
+    url: https://github.com/MDO-Standards/Philote-Cpp/blob/main/CONTRIBUTING.md
+    about: Learn how to contribute to Philote-Cpp
+  - name: Documentation
+    url: https://github.com/MDO-Standards/Philote-Cpp/tree/main/docs
+    about: View the project documentation
