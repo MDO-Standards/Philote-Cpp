@@ -173,6 +173,22 @@ void Discipline::Configure()
 
 void Discipline::SetOptions(const google::protobuf::Struct &options_struct)
 {
+    // Base implementation simply calls Configure() after options should be set.
+    // Derived classes should override this method to extract option values from
+    // the protobuf Struct and store them in strongly-typed member variables.
+    //
+    // Example pattern for derived classes:
+    //   void MyDiscipline::SetOptions(const google::protobuf::Struct &options_struct) {
+    //       // Extract option values into member variables
+    //       auto it = options_struct.fields().find("my_option");
+    //       if (it != options_struct.fields().end()) {
+    //           my_option_ = it->second.number_value();  // or string_value(), bool_value()
+    //       }
+    //
+    //       // Call parent implementation to invoke Configure()
+    //       ExplicitDiscipline::SetOptions(options_struct);  // or ImplicitDiscipline
+    //   }
+    //
     // Call configure after options are set
     Configure();
 }
