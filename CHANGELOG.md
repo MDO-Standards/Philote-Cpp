@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reuse of test helpers library (TestServerManager, test disciplines, utilities)
 
 ### Fixed
+- **Fixed ImplicitDiscipline constructor missing discipline_server_ link** (closes #33)
+  - Added discipline_server_.LinkPointers(this) call in constructor
+  - Added discipline_server_.UnlinkPointers() call in destructor
+  - Now properly links both base discipline server and implicit server, matching ExplicitDiscipline pattern
+  - Prevents segmentation faults when calling base discipline RPC methods on implicit disciplines
 - **Added null pointer checks to DisciplineServer RPC methods** (closes #32)
   - All 7 RPC methods now check if discipline_ pointer is null before dereferencing
   - Methods return FAILED_PRECONDITION error instead of crashing when discipline not linked
