@@ -35,6 +35,8 @@ target_sources(
     FILE_SET public_headers
     TYPE HEADERS
     FILES
+        discipline_client.h
+        discipline_server.h
         discipline.h
         explicit.h
         implicit.h
