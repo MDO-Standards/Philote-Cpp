@@ -4,6 +4,7 @@ cmake-*/
 build/
 doxer.*
 
+.pullrequest/
 .temp_issues/
 
 docs/hdoc-output/
