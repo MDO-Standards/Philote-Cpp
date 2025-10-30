@@ -137,5 +137,74 @@ target_include_directories(ExplicitErrorScenariosTests PRIVATE
 )
 gtest_discover_tests(ExplicitErrorScenariosTests)
 
+# implicit discipline tests
+add_executable(ImplicitDisciplineTests implicit_discipline_test.cpp)
+target_link_libraries(ImplicitDisciplineTests
+    PhiloteCpp
+    GTest::gtest_main
+    GTest::gmock
+)
+enable_coverage(ImplicitDisciplineTests)
+target_include_directories(ImplicitDisciplineTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/implicit
+)
+gtest_discover_tests(ImplicitDisciplineTests)
+
+# implicit discipline server tests
+add_executable(ImplicitDisciplineServerTests implicit_discipline_server_test.cpp)
+target_link_libraries(ImplicitDisciplineServerTests
+    PhiloteCpp
+    PhiloteTestHelpers
+    GTest::gtest_main
+    GTest::gmock
+)
+enable_coverage(ImplicitDisciplineServerTests)
+target_include_directories(ImplicitDisciplineServerTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/implicit
+)
+gtest_discover_tests(ImplicitDisciplineServerTests)
+
+# implicit client tests
+add_executable(ImplicitClientTests implicit_client_test.cpp)
+target_link_libraries(ImplicitClientTests
+    PhiloteCpp
+    PhiloteTestHelpers
+    GTest::gtest_main
+    GTest::gmock
+)
+enable_coverage(ImplicitClientTests)
+target_include_directories(ImplicitClientTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/implicit
+)
+gtest_discover_tests(ImplicitClientTests)
+
+# implicit integration tests
+add_executable(ImplicitIntegrationTests implicit_integration_test.cpp)
+target_link_libraries(ImplicitIntegrationTests
+    PhiloteCpp
+    PhiloteTestHelpers
+    GTest::gtest_main
+    GTest::gmock
+)
+enable_coverage(ImplicitIntegrationTests)
+target_include_directories(ImplicitIntegrationTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/implicit
+)
+gtest_discover_tests(ImplicitIntegrationTests)
+
+# implicit error scenarios tests
+add_executable(ImplicitErrorScenariosTests implicit_error_scenarios_test.cpp)
+target_link_libraries(ImplicitErrorScenariosTests
+    PhiloteCpp
+    PhiloteTestHelpers
+    GTest::gtest_main
+    GTest::gmock
+)
+enable_coverage(ImplicitErrorScenariosTests)
+target_include_directories(ImplicitErrorScenariosTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/implicit
+)
+gtest_discover_tests(ImplicitErrorScenariosTests)
+
 # Set test discovery timeout
 set(GTEST_DISCOVER_TESTS_DISCOVERY_TIMEOUT 60)
