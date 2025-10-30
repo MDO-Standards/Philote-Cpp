@@ -68,6 +68,17 @@ target_include_directories(DisciplineClientTests PRIVATE
 )
 gtest_discover_tests(DisciplineClientTests)
 
+# client timeout tests
+add_executable(ClientTimeoutTests client_timeout_test.cpp)
+target_link_libraries(ClientTimeoutTests PhiloteCpp GTest::gtest_main GTest::gmock)
+enable_coverage(ClientTimeoutTests)
+target_include_directories(ClientTimeoutTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/discipline
+    ${CMAKE_SOURCE_DIR}/src/explicit
+    ${CMAKE_SOURCE_DIR}/src/implicit
+)
+gtest_discover_tests(ClientTimeoutTests)
+
 # explicit discipline tests
 add_executable(ExplicitDisciplineTests explicit_discipline_test.cpp)
 target_link_libraries(ExplicitDisciplineTests

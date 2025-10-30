@@ -50,6 +50,7 @@ void ImplicitClient::ConnectChannel(shared_ptr<ChannelInterface> channel)
 Variables ImplicitClient::ComputeResiduals(const Variables &vars)
 {
     ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
     std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
         stream(stub_->ComputeResiduals(&context));
 
@@ -82,6 +83,12 @@ Variables ImplicitClient::ComputeResiduals(const Variables &vars)
     grpc::Status status = stream->Finish();
     if (!status.ok())
     {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(GetRPCTimeout().count()) +
+                                   "ms: " + status.error_message());
+        }
         throw std::runtime_error("ComputeResiduals RPC failed: [" +
                                  std::to_string(status.error_code()) + "] " +
                                  status.error_message());
@@ -93,6 +100,7 @@ Variables ImplicitClient::ComputeResiduals(const Variables &vars)
 Variables ImplicitClient::SolveResiduals(const Variables &vars)
 {
     ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
     std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
         stream(stub_->SolveResiduals(&context));
 
@@ -129,6 +137,12 @@ Variables ImplicitClient::SolveResiduals(const Variables &vars)
     grpc::Status status = stream->Finish();
     if (!status.ok())
     {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(GetRPCTimeout().count()) +
+                                   "ms: " + status.error_message());
+        }
         throw std::runtime_error("SolveResiduals RPC failed: [" +
                                  std::to_string(status.error_code()) + "] " +
                                  status.error_message());
@@ -140,6 +154,7 @@ Variables ImplicitClient::SolveResiduals(const Variables &vars)
 Partials ImplicitClient::ComputeResidualGradients(const Variables &vars)
 {
     ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
     std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
         stream(stub_->ComputeResidualGradients(&context));
 
@@ -182,6 +197,12 @@ Partials ImplicitClient::ComputeResidualGradients(const Variables &vars)
     grpc::Status status = stream->Finish();
     if (!status.ok())
     {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(GetRPCTimeout().count()) +
+                                   "ms: " + status.error_message());
+        }
         throw std::runtime_error("ComputeResidualGradients RPC failed: [" +
                                  std::to_string(status.error_code()) + "] " +
                                  status.error_message());
