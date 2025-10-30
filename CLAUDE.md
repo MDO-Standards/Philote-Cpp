@@ -252,6 +252,105 @@ philote::Variables outputs = client.ComputeFunction(inputs);
 philote::Partials gradients = client.ComputeGradient(inputs);
 ```
 
+### Configuring Disciplines with Options
+
+Disciplines can define configurable options that clients can set at runtime. This involves overriding three lifecycle methods:
+
+1. **`Initialize()`** - Declare available options using `AddOption(name, type)`
+2. **`SetOptions()`** - Extract values from protobuf Struct and store in member variables
+3. **`Configure()`** - Optional post-processing after options are set
+
+**Pattern for Configurable Disciplines**:
+```cpp
+class ConfigurableDiscipline : public philote::ExplicitDiscipline {
+private:
+    // Strongly-typed member variables with default values
+    double scale_factor_ = 1.0;
+    int dimension_ = 2;
+    bool enable_feature_ = false;
+    std::string mode_ = "default";
+
+    // Declare available options
+    void Initialize() override {
+        ExplicitDiscipline::Initialize();
+        AddOption("scale_factor", "float");
+        AddOption("dimension", "int");
+        AddOption("enable_feature", "bool");
+        AddOption("mode", "string");
+    }
+
+    // Extract option values from protobuf Struct
+    void SetOptions(const google::protobuf::Struct &options_struct) override {
+        // Extract float/double values
+        auto it = options_struct.fields().find("scale_factor");
+        if (it != options_struct.fields().end()) {
+            scale_factor_ = it->second.number_value();
+        }
+
+        // Extract int values (cast from double)
+        it = options_struct.fields().find("dimension");
+        if (it != options_struct.fields().end()) {
+            dimension_ = static_cast<int>(it->second.number_value());
+        }
+
+        // Extract bool values
+        it = options_struct.fields().find("enable_feature");
+        if (it != options_struct.fields().end()) {
+            enable_feature_ = it->second.bool_value();
+        }
+
+        // Extract string values
+        it = options_struct.fields().find("mode");
+        if (it != options_struct.fields().end()) {
+            mode_ = it->second.string_value();
+        }
+
+        // IMPORTANT: Call parent to invoke Configure()
+        ExplicitDiscipline::SetOptions(options_struct);
+    }
+
+    // Optional: post-process options after they're set
+    void Configure() override {
+        // Validation, derived calculations, etc.
+        if (dimension_ < 1) {
+            throw std::runtime_error("dimension must be positive");
+        }
+    }
+
+    void Compute(const philote::Variables &inputs,
+                 philote::Variables &outputs) override {
+        // Use the configured option values
+        outputs.at("y")(0) = scale_factor_ * inputs.at("x")(0);
+    }
+};
+```
+
+**Client-side: Sending Options**:
+```cpp
+// Create protobuf Struct with option values
+google::protobuf::Struct options;
+(*options.mutable_fields())["scale_factor"].set_number_value(2.5);
+(*options.mutable_fields())["dimension"].set_number_value(3);
+(*options.mutable_fields())["enable_feature"].set_bool_value(true);
+(*options.mutable_fields())["mode"].set_string_value("advanced");
+
+// Package and send options
+philote::DisciplineOptions options_message;
+options_message.mutable_options()->CopyFrom(options);
+client.SendOptions(options_message);
+```
+
+**Protobuf Struct Value Types**:
+- `number_value()` / `set_number_value(double)` - For float, double, and int (cast required for int)
+- `bool_value()` / `set_bool_value(bool)` - For boolean values
+- `string_value()` / `set_string_value(string)` - For string values
+
+**Key Points**:
+- Options are optional - if not provided by client, default member values are used
+- Always check if option exists in struct before extracting (`find() != end()`)
+- Must call parent `SetOptions()` to invoke `Configure()`
+- See `examples/rosenbrock/rosenbrock_server.cpp` for a complete working example
+
 ## Code Style
 
 Follows Google C++ Style Guide with **4-space indentation** (not 2 spaces, not tabs).

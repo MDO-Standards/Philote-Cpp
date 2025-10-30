@@ -247,3 +247,191 @@ TEST_F(DisciplineTest, InitializeConfigureBehavior)
     EXPECT_TRUE(options.find("manual_option") != options.end());
     EXPECT_EQ(options["manual_option"], "string");
 }
+
+// Test discipline that overrides SetOptions to demonstrate proper pattern
+class ConfigurableDiscipline : public Discipline
+{
+public:
+    double scale_factor_ = 1.0;
+    int dimension_ = 2;
+    bool enable_feature_ = false;
+    std::string mode_ = "default";
+    bool configure_called_ = false;
+
+    void Initialize() override
+    {
+        Discipline::Initialize();
+        AddOption("scale_factor", "float");
+        AddOption("dimension", "int");
+        AddOption("enable_feature", "bool");
+        AddOption("mode", "string");
+    }
+
+    void SetOptions(const google::protobuf::Struct &options_struct) override
+    {
+        // Extract scale_factor
+        auto it = options_struct.fields().find("scale_factor");
+        if (it != options_struct.fields().end())
+        {
+            scale_factor_ = it->second.number_value();
+        }
+
+        // Extract dimension
+        it = options_struct.fields().find("dimension");
+        if (it != options_struct.fields().end())
+        {
+            dimension_ = static_cast<int>(it->second.number_value());
+        }
+
+        // Extract enable_feature
+        it = options_struct.fields().find("enable_feature");
+        if (it != options_struct.fields().end())
+        {
+            enable_feature_ = it->second.bool_value();
+        }
+
+        // Extract mode
+        it = options_struct.fields().find("mode");
+        if (it != options_struct.fields().end())
+        {
+            mode_ = it->second.string_value();
+        }
+
+        // Call parent implementation which invokes Configure()
+        Discipline::SetOptions(options_struct);
+    }
+
+    void Configure() override
+    {
+        configure_called_ = true;
+    }
+};
+
+// Test fixture for ConfigurableDiscipline
+class ConfigurableDisciplineTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        discipline = std::make_unique<ConfigurableDiscipline>();
+        discipline->Initialize();  // Must call Initialize() after construction
+    }
+
+    void TearDown() override
+    {
+        discipline.reset();
+    }
+
+    std::unique_ptr<ConfigurableDiscipline> discipline;
+};
+
+// Test that Initialize properly declares options
+TEST_F(ConfigurableDisciplineTest, InitializeDeclareOptions)
+{
+    const auto &options = discipline->options_list();
+    EXPECT_EQ(options.size(), 4);
+    EXPECT_EQ(options.at("scale_factor"), "float");
+    EXPECT_EQ(options.at("dimension"), "int");
+    EXPECT_EQ(options.at("enable_feature"), "bool");
+    EXPECT_EQ(options.at("mode"), "string");
+}
+
+// Test extracting float option value
+TEST_F(ConfigurableDisciplineTest, SetOptionsExtractsFloatValue)
+{
+    google::protobuf::Struct options_struct;
+    (*options_struct.mutable_fields())["scale_factor"].set_number_value(2.5);
+
+    EXPECT_DOUBLE_EQ(discipline->scale_factor_, 1.0);  // Default value
+    discipline->SetOptions(options_struct);
+    EXPECT_DOUBLE_EQ(discipline->scale_factor_, 2.5);  // Updated value
+}
+
+// Test extracting int option value
+TEST_F(ConfigurableDisciplineTest, SetOptionsExtractsIntValue)
+{
+    google::protobuf::Struct options_struct;
+    (*options_struct.mutable_fields())["dimension"].set_number_value(5);
+
+    EXPECT_EQ(discipline->dimension_, 2);  // Default value
+    discipline->SetOptions(options_struct);
+    EXPECT_EQ(discipline->dimension_, 5);  // Updated value
+}
+
+// Test extracting bool option value
+TEST_F(ConfigurableDisciplineTest, SetOptionsExtractsBoolValue)
+{
+    google::protobuf::Struct options_struct;
+    (*options_struct.mutable_fields())["enable_feature"].set_bool_value(true);
+
+    EXPECT_FALSE(discipline->enable_feature_);  // Default value
+    discipline->SetOptions(options_struct);
+    EXPECT_TRUE(discipline->enable_feature_);  // Updated value
+}
+
+// Test extracting string option value
+TEST_F(ConfigurableDisciplineTest, SetOptionsExtractsStringValue)
+{
+    google::protobuf::Struct options_struct;
+    (*options_struct.mutable_fields())["mode"].set_string_value("advanced");
+
+    EXPECT_EQ(discipline->mode_, "default");  // Default value
+    discipline->SetOptions(options_struct);
+    EXPECT_EQ(discipline->mode_, "advanced");  // Updated value
+}
+
+// Test extracting multiple option values at once
+TEST_F(ConfigurableDisciplineTest, SetOptionsExtractsMultipleValues)
+{
+    google::protobuf::Struct options_struct;
+    (*options_struct.mutable_fields())["scale_factor"].set_number_value(3.14);
+    (*options_struct.mutable_fields())["dimension"].set_number_value(10);
+    (*options_struct.mutable_fields())["enable_feature"].set_bool_value(true);
+    (*options_struct.mutable_fields())["mode"].set_string_value("turbo");
+
+    discipline->SetOptions(options_struct);
+
+    EXPECT_DOUBLE_EQ(discipline->scale_factor_, 3.14);
+    EXPECT_EQ(discipline->dimension_, 10);
+    EXPECT_TRUE(discipline->enable_feature_);
+    EXPECT_EQ(discipline->mode_, "turbo");
+}
+
+// Test that Configure is called after SetOptions
+TEST_F(ConfigurableDisciplineTest, SetOptionsCallsConfigure)
+{
+    google::protobuf::Struct options_struct;
+    EXPECT_FALSE(discipline->configure_called_);
+    discipline->SetOptions(options_struct);
+    EXPECT_TRUE(discipline->configure_called_);
+}
+
+// Test that missing options don't change default values
+TEST_F(ConfigurableDisciplineTest, SetOptionsMissingOptionsKeepDefaults)
+{
+    google::protobuf::Struct options_struct;
+    // Only set scale_factor, leave others unset
+    (*options_struct.mutable_fields())["scale_factor"].set_number_value(5.0);
+
+    discipline->SetOptions(options_struct);
+
+    EXPECT_DOUBLE_EQ(discipline->scale_factor_, 5.0);  // Updated
+    EXPECT_EQ(discipline->dimension_, 2);  // Default unchanged
+    EXPECT_FALSE(discipline->enable_feature_);  // Default unchanged
+    EXPECT_EQ(discipline->mode_, "default");  // Default unchanged
+}
+
+// Test with empty options struct
+TEST_F(ConfigurableDisciplineTest, SetOptionsEmptyStruct)
+{
+    google::protobuf::Struct options_struct;
+
+    discipline->SetOptions(options_struct);
+
+    // All values should remain at defaults
+    EXPECT_DOUBLE_EQ(discipline->scale_factor_, 1.0);
+    EXPECT_EQ(discipline->dimension_, 2);
+    EXPECT_FALSE(discipline->enable_feature_);
+    EXPECT_EQ(discipline->mode_, "default");
+    EXPECT_TRUE(discipline->configure_called_);
+}
