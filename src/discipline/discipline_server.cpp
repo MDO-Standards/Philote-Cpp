@@ -158,7 +158,7 @@ Status DisciplineServer::GetPartialDefinitions(ServerContext *context,
         {
             return grpc::Status(grpc::StatusCode::INTERNAL,
                               "Failed to write partial metadata for ('" +
-                              partial.of() + "', '" + partial.wrt() + "')");
+                              partial.name() + "', '" + partial.subname() + "')");
         }
     }
 
