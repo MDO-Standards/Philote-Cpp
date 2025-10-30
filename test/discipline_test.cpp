@@ -314,6 +314,7 @@ protected:
     void SetUp() override
     {
         discipline = std::make_unique<ConfigurableDiscipline>();
+        discipline->Initialize();  // Must call Initialize() after construction
     }
 
     void TearDown() override
