@@ -219,26 +219,29 @@ jobs:
             # Check if an [Unreleased] section exists
             if grep -q "## \[Unreleased\]" CHANGELOG.md; then
               # Insert new prerelease section after [Unreleased]
-              sed -i.bak "/## \[Unreleased\]/a\\
-\\
-## [$NEW_VERSION] - $CURRENT_DATE" CHANGELOG.md
+              awk -v ver="$NEW_VERSION" -v date="$CURRENT_DATE" '
+                /## \[Unreleased\]/ { print; print ""; print "## [" ver "] - " date; next }
+                { print }
+              ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
             else
               # No [Unreleased] section, add both
-              sed -i.bak "/## \[/i\\
-## [Unreleased]\\
-\\
-## [$NEW_VERSION] - $CURRENT_DATE\\
-" CHANGELOG.md
+              awk -v ver="$NEW_VERSION" -v date="$CURRENT_DATE" '
+                /^## \[/ && !inserted { print "## [Unreleased]"; print ""; print "## [" ver "] - " date; print ""; inserted=1 }
+                { print }
+              ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
             fi
           else
             # For stable releases: Replace [Unreleased] with version and add new [Unreleased]
-            sed -i.bak "s/## \[Unreleased\]/## [$NEW_VERSION] - $CURRENT_DATE/" CHANGELOG.md
+            awk -v ver="$NEW_VERSION" -v date="$CURRENT_DATE" '
+              /## \[Unreleased\]/ { print "## [" ver "] - " date; next }
+              { print }
+            ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
 
             # Add new [Unreleased] section at the top (after the main title)
-            sed -i.bak "/^## \[/i\\
-## [Unreleased]\\
-\\
-" CHANGELOG.md
+            awk '
+              /^## \[/ && !inserted { print "## [Unreleased]"; print ""; inserted=1 }
+              { print }
+            ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
           fi
 
           # Update version comparison links at bottom
@@ -254,26 +257,34 @@ jobs:
             # Add/update comparison link
             if grep -q "\[$NEW_VERSION\]:" CHANGELOG.md; then
               # Update existing link
-              sed -i.bak "s|\[$NEW_VERSION\]:.*|\[$NEW_VERSION\]: https://github.com/MDO-Standards/Philote-Cpp/compare/v${PREV_TAG}...v${NEW_VERSION}|" CHANGELOG.md
+              awk -v ver="$NEW_VERSION" -v prev="$PREV_TAG" '
+                $0 ~ "\\[" ver "\\]:" { print "[" ver "]: https://github.com/MDO-Standards/Philote-Cpp/compare/v" prev "...v" ver; next }
+                { print }
+              ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
             else
               # Add new link before [Unreleased] link
-              sed -i.bak "/\[Unreleased\]:/i\\
-[$NEW_VERSION]: https://github.com/MDO-Standards/Philote-Cpp/compare/v${PREV_TAG}...v${NEW_VERSION}" CHANGELOG.md
+              awk -v ver="$NEW_VERSION" -v prev="$PREV_TAG" '
+                /\[Unreleased\]:/ && !inserted { print "[" ver "]: https://github.com/MDO-Standards/Philote-Cpp/compare/v" prev "...v" ver; inserted=1 }
+                { print }
+              ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
             fi
           else
             # For stable release, update [Unreleased] link and add new version link
-            sed -i.bak "s|\[Unreleased\]:.*|\[Unreleased\]: https://github.com/MDO-Standards/Philote-Cpp/compare/v${NEW_VERSION}...develop|" CHANGELOG.md
+            awk -v ver="$NEW_VERSION" '
+              /\[Unreleased\]:/ { print "[Unreleased]: https://github.com/MDO-Standards/Philote-Cpp/compare/v" ver "...develop"; next }
+              { print }
+            ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
 
             # Find previous version for comparison link
             PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
             PREV_TAG=${PREV_TAG#v}  # Remove 'v' prefix
 
             # Add new version comparison link
-            sed -i.bak "/\[Unreleased\]:/a\\
-[$NEW_VERSION]: https://github.com/MDO-Standards/Philote-Cpp/compare/v${PREV_TAG}...v${NEW_VERSION}" CHANGELOG.md
+            awk -v ver="$NEW_VERSION" -v prev="$PREV_TAG" '
+              /\[Unreleased\]:/ { print; print "[" ver "]: https://github.com/MDO-Standards/Philote-Cpp/compare/v" prev "...v" ver; next }
+              { print }
+            ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
           fi
-
-          rm CHANGELOG.md.bak
           echo "Updated CHANGELOG.md"
 
       - name: Commit changes
