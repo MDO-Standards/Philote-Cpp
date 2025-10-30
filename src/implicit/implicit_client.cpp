@@ -43,28 +43,28 @@ using philote::Variables;
 
 void ImplicitClient::ConnectChannel(shared_ptr<ChannelInterface> channel)
 {
-    BaseDisciplineClient::ConnectChannel(channel);
+    DisciplineClient::ConnectChannel(channel);
     stub_ = ImplicitService::NewStub(channel);
 }
 
 Variables ImplicitClient::ComputeResiduals(const Variables &vars)
 {
     ClientContext context;
-    std::shared_ptr<ClientReaderWriter<Array, Array>>
+    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
         stream(stub_->ComputeResiduals(&context));
 
     // send/assign inputs and outputs, preallocate residuals
     Variables res;
-    for (const VariableMetaData &var : var_meta_)
+    for (const VariableMetaData &var : GetVariableMetaAll())
     {
         const string &name = var.name();
 
         if (var.type() == kInput)
-            vars.at(name).Send(name, "", stream.get(), stream_options_.num_double());
+            vars.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
 
         if (var.type() == kOutput)
         {
-            vars.at(name).Send(name, "", stream.get(), stream_options_.num_double());
+            vars.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
             res[name] = Variable(var);
         }
     }
@@ -87,21 +87,25 @@ Variables ImplicitClient::ComputeResiduals(const Variables &vars)
 Variables ImplicitClient::SolveResiduals(const Variables &vars)
 {
     ClientContext context;
-    std::shared_ptr<ClientReaderWriter<Array, Array>>
+    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
         stream(stub_->SolveResiduals(&context));
 
-    // send/assign inputs and outputs, preallocate residuals
+    // send inputs only (outputs are solved by the server)
     Variables out;
-    for (const VariableMetaData &var : var_meta_)
+    for (const VariableMetaData &var : GetVariableMetaAll())
     {
         const string &name = var.name();
 
         if (var.type() == kInput)
-            vars.at(name).Send(name, "", stream.get(), stream_options_.num_double());
+        {
+            // Only send if the input was actually provided
+            if (vars.count(name) > 0)
+                vars.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
+        }
 
         if (var.type() == kOutput)
         {
-            vars.at(name).Send(name, "", stream.get(), stream_options_.num_double());
+            // Preallocate output (do not send)
             out[name] = Variable(var);
         }
     }
@@ -124,21 +128,21 @@ Variables ImplicitClient::SolveResiduals(const Variables &vars)
 Partials ImplicitClient::ComputeResidualGradients(const Variables &vars)
 {
     ClientContext context;
-    std::shared_ptr<ClientReaderWriter<Array, Array>>
+    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
         stream(stub_->ComputeResidualGradients(&context));
 
     // send/assign inputs and outputs, preallocate residuals
     Variables out;
-    for (const VariableMetaData &var : var_meta_)
+    for (const VariableMetaData &var : GetVariableMetaAll())
     {
         const string &name = var.name();
 
         if (var.type() == kInput)
-            vars.at(name).Send(name, "", stream.get(), stream_options_.num_double());
+            vars.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
 
         if (var.type() == kOutput)
         {
-            vars.at(name).Send(name, "", stream.get(), stream_options_.num_double());
+            vars.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
             out[name] = Variable(var);
         }
     }
@@ -148,7 +152,7 @@ Partials ImplicitClient::ComputeResidualGradients(const Variables &vars)
 
     // preallocate partials
     Partials partials;
-    for (const auto &par : partials_meta_)
+    for (const auto &par : GetPartialsMetaConst())
     {
         partials[make_pair(par.name(), par.subname())] = Variable(par);
     }
