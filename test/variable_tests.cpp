@@ -32,14 +32,14 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include <variable.h>
 #include <disciplines.grpc.pb.h>
 
 using std::vector;
 using namespace philote;
-// using grpc::testing::MockServerReaderWriter;
-// using grpc::testing::MockClientReaderWriter;
+using ::testing::Return;
 
 /*
 	Test the constructor.
@@ -395,4 +395,140 @@ TEST(VariableTests, ConstOperatorOutOfBounds)
 	// Out-of-bounds access should throw
 	EXPECT_THROW(const_array(4), std::out_of_range);
 	EXPECT_THROW(const_array(100), std::out_of_range);
+}
+
+/*
+	Mock stream classes for testing Variable::Send() failure scenarios
+*/
+class MockClientReaderWriter : public grpc::ClientReaderWriter<philote::Array, philote::Array>
+{
+public:
+    MOCK_METHOD(bool, Write, (const philote::Array&, grpc::WriteOptions), (override));
+    MOCK_METHOD(bool, Read, (philote::Array*), (override));
+    MOCK_METHOD(bool, WritesDone, (), (override));
+    MOCK_METHOD(grpc::Status, Finish, (), (override));
+};
+
+class MockServerReaderWriterInterface : public grpc::ServerReaderWriterInterface<philote::Array, philote::Array>
+{
+public:
+    MOCK_METHOD(void, SendInitialMetadata, (), (override));
+    MOCK_METHOD(bool, Write, (const philote::Array&, grpc::WriteOptions), (override));
+    MOCK_METHOD(bool, Read, (philote::Array*), (override));
+};
+
+class MockClientReaderWriterInterface : public grpc::ClientReaderWriterInterface<philote::Array, philote::Array>
+{
+public:
+    MOCK_METHOD(bool, Write, (const philote::Array&, grpc::WriteOptions), (override));
+    MOCK_METHOD(bool, Read, (philote::Array*), (override));
+    MOCK_METHOD(bool, WritesDone, (), (override));
+    MOCK_METHOD(grpc::Status, Finish, (), (override));
+    MOCK_METHOD(void, WaitForInitialMetadata, (), (override));
+};
+
+/*
+	Test Variable::Send() with ClientReaderWriter stream failure
+*/
+TEST(VariableTests, SendClientReaderWriterFailure)
+{
+    // Create a variable with some data
+    Variable var(kInput, {4});
+    std::vector<double> data = {1.0, 2.0, 3.0, 4.0};
+    var.Segment(0, 3, data);
+
+    // Create mock stream that will fail on first Write()
+    MockClientReaderWriter mock_stream;
+    EXPECT_CALL(mock_stream, Write(::testing::_, ::testing::_))
+        .WillOnce(Return(false));
+
+    // Send should throw runtime_error when Write() fails
+    EXPECT_THROW({
+        var.Send("test_var", "", &mock_stream, 10);
+    }, std::runtime_error);
+}
+
+/*
+	Test Variable::Send() with ServerReaderWriterInterface stream failure
+*/
+TEST(VariableTests, SendServerReaderWriterFailure)
+{
+    // Create a variable with some data
+    Variable var(kOutput, {4});
+    std::vector<double> data = {1.0, 2.0, 3.0, 4.0};
+    var.Segment(0, 3, data);
+
+    // Create mock stream that will fail on first Write()
+    MockServerReaderWriterInterface mock_stream;
+    EXPECT_CALL(mock_stream, Write(::testing::_, ::testing::_))
+        .WillOnce(Return(false));
+
+    // Send should throw runtime_error when Write() fails
+    EXPECT_THROW({
+        var.Send("test_var", "", &mock_stream, 10);
+    }, std::runtime_error);
+}
+
+/*
+	Test Variable::Send() with ClientReaderWriterInterface stream failure
+*/
+TEST(VariableTests, SendClientReaderWriterInterfaceFailure)
+{
+    // Create a variable with some data
+    Variable var(kInput, {4});
+    std::vector<double> data = {1.0, 2.0, 3.0, 4.0};
+    var.Segment(0, 3, data);
+
+    // Create mock stream that will fail on first Write()
+    MockClientReaderWriterInterface mock_stream;
+    EXPECT_CALL(mock_stream, Write(::testing::_, ::testing::_))
+        .WillOnce(Return(false));
+
+    // Send should throw runtime_error when Write() fails
+    EXPECT_THROW({
+        var.Send("test_var", "", &mock_stream, 10);
+    }, std::runtime_error);
+}
+
+/*
+	Test Variable::Send() with mid-transmission failure (multiple chunks)
+*/
+TEST(VariableTests, SendMidTransmissionFailure)
+{
+    // Create a larger variable that requires multiple chunks
+    Variable var(kInput, {10});
+    std::vector<double> data = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+    var.Segment(0, 9, data);
+
+    // Create mock stream that succeeds once, then fails on second chunk
+    MockClientReaderWriter mock_stream;
+    EXPECT_CALL(mock_stream, Write(::testing::_, ::testing::_))
+        .WillOnce(Return(true))   // First chunk succeeds
+        .WillOnce(Return(false));  // Second chunk fails
+
+    // Send should throw runtime_error when Write() fails on second chunk
+    EXPECT_THROW({
+        var.Send("test_var", "", &mock_stream, 5);  // chunk_size=5, so 2 chunks
+    }, std::runtime_error);
+}
+
+/*
+	Test Variable::Send() with successful transmission (all chunks succeed)
+*/
+TEST(VariableTests, SendSuccessfulMultiChunk)
+{
+    // Create a variable that requires multiple chunks
+    Variable var(kInput, {10});
+    std::vector<double> data = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+    var.Segment(0, 9, data);
+
+    // Create mock stream that succeeds on all writes
+    MockClientReaderWriter mock_stream;
+    EXPECT_CALL(mock_stream, Write(::testing::_, ::testing::_))
+        .WillRepeatedly(Return(true));
+
+    // Send should not throw when all writes succeed
+    EXPECT_NO_THROW({
+        var.Send("test_var", "", &mock_stream, 5);  // chunk_size=5, so 2 chunks
+    });
 }
