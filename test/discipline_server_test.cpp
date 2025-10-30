@@ -214,3 +214,130 @@ TEST_F(DisciplineServerTest, Setup)
     // Verify response
     EXPECT_TRUE(status.ok());
 }
+
+// Test null pointer checks for all RPC methods
+TEST_F(DisciplineServerTest, GetInfoNullPointer)
+{
+    grpc::ServerContext context;
+    google::protobuf::Empty request;
+    DisciplineProperties response;
+
+    // Unlink discipline pointer
+    server->UnlinkPointers();
+
+    // Call GetInfo with null discipline
+    grpc::Status status = server->GetInfo(&context, &request, &response);
+
+    // Verify proper error handling
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
+    EXPECT_THAT(status.error_message(), HasSubstr("not linked"));
+}
+
+TEST_F(DisciplineServerTest, SetStreamOptionsNullPointer)
+{
+    grpc::ServerContext context;
+    StreamOptions request;
+    google::protobuf::Empty response;
+
+    request.set_num_double(10);
+
+    // Unlink discipline pointer
+    server->UnlinkPointers();
+
+    // Call SetStreamOptions with null discipline
+    grpc::Status status = server->SetStreamOptions(&context, &request, &response);
+
+    // Verify proper error handling
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
+    EXPECT_THAT(status.error_message(), HasSubstr("not linked"));
+}
+
+TEST_F(DisciplineServerTest, SetOptionsNullPointer)
+{
+    grpc::ServerContext context;
+    DisciplineOptions request;
+    google::protobuf::Empty response;
+
+    // Unlink discipline pointer
+    server->UnlinkPointers();
+
+    // Call SetOptions with null discipline
+    grpc::Status status = server->SetOptions(&context, &request, &response);
+
+    // Verify proper error handling
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
+    EXPECT_THAT(status.error_message(), HasSubstr("not linked"));
+}
+
+TEST_F(DisciplineServerTest, GetVariableDefinitionsNullPointer)
+{
+    grpc::ServerContext context;
+    google::protobuf::Empty request;
+
+    // Unlink discipline pointer
+    server->UnlinkPointers();
+
+    // Call GetVariableDefinitions with null discipline
+    grpc::Status status = server->GetVariableDefinitions(&context, &request, nullptr);
+
+    // Verify proper error handling
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
+    EXPECT_THAT(status.error_message(), HasSubstr("not linked"));
+}
+
+TEST_F(DisciplineServerTest, GetPartialDefinitionsNullPointer)
+{
+    grpc::ServerContext context;
+    google::protobuf::Empty request;
+
+    // Unlink discipline pointer
+    server->UnlinkPointers();
+
+    // Call GetPartialDefinitions with null discipline
+    grpc::Status status = server->GetPartialDefinitions(&context, &request, nullptr);
+
+    // Verify proper error handling
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
+    EXPECT_THAT(status.error_message(), HasSubstr("not linked"));
+}
+
+TEST_F(DisciplineServerTest, SetupNullPointer)
+{
+    grpc::ServerContext context;
+    google::protobuf::Empty request;
+    google::protobuf::Empty response;
+
+    // Unlink discipline pointer
+    server->UnlinkPointers();
+
+    // Call Setup with null discipline
+    grpc::Status status = server->Setup(&context, &request, &response);
+
+    // Verify proper error handling
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
+    EXPECT_THAT(status.error_message(), HasSubstr("not linked"));
+}
+
+TEST_F(DisciplineServerTest, GetAvailableOptionsNullPointer)
+{
+    grpc::ServerContext context;
+    google::protobuf::Empty request;
+    OptionsList response;
+
+    // Unlink discipline pointer
+    server->UnlinkPointers();
+
+    // Call GetAvailableOptions with null discipline
+    grpc::Status status = server->GetAvailableOptions(&context, &request, &response);
+
+    // Verify proper error handling
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
+    EXPECT_THAT(status.error_message(), HasSubstr("not linked"));
+}
