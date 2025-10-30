@@ -71,9 +71,12 @@ TEST_F(ImplicitIntegrationTest, SimpleImplicitResidualComputation) {
     client.GetPartialDefinitions();
 
     // Prepare inputs and outputs: x=3.0, y=9.0
+    // Create variables with correct types from metadata
     Variables vars;
-    vars["x"] = CreateScalarVariable(3.0);
-    vars["y"] = CreateScalarVariable(9.0);
+    vars["x"] = Variable(client.GetVariableMeta("x"));
+    vars["x"](0) = 3.0;
+    vars["y"] = Variable(client.GetVariableMeta("y"));
+    vars["y"](0) = 9.0;
 
     // Compute residuals: R = 3^2 - 9 = 0
     Variables residuals = client.ComputeResiduals(vars);
@@ -128,8 +131,12 @@ TEST_F(ImplicitIntegrationTest, SimpleImplicitGradientComputation) {
 
     // Prepare inputs and outputs: x=5.0, y=25.0
     Variables vars;
-    vars["x"] = CreateScalarVariable(5.0);
-    vars["y"] = CreateScalarVariable(25.0);
+    vars["x"] = Variable(client.GetVariableMeta("x"));
+
+    vars["x"](0) = 5.0;
+    vars["y"] = Variable(client.GetVariableMeta("y"));
+
+    vars["y"](0) = 25.0;
 
     // Compute gradients: dR/dx = 2x = 10, dR/dy = -1
     Partials partials = client.ComputeResidualGradients(vars);
@@ -182,10 +189,16 @@ TEST_F(ImplicitIntegrationTest, QuadraticGradients) {
     client.GetPartialDefinitions();
 
     Variables vars;
-    vars["a"] = CreateScalarVariable(1.0);
+    vars["a"] = Variable(client.GetVariableMeta("a"));
+
+    vars["a"](0) = 1.0;
     vars["b"] = CreateScalarVariable(-5.0);
-    vars["c"] = CreateScalarVariable(6.0);
-    vars["x"] = CreateScalarVariable(3.0);
+    vars["c"] = Variable(client.GetVariableMeta("c"));
+
+    vars["c"](0) = 6.0;
+    vars["x"] = Variable(client.GetVariableMeta("x"));
+
+    vars["x"](0) = 3.0;
 
     Partials partials = client.ComputeResidualGradients(vars);
 
@@ -244,10 +257,18 @@ TEST_F(ImplicitIntegrationTest, MultiResidualGradients) {
     client.GetPartialDefinitions();
 
     Variables vars;
-    vars["sum"] = CreateScalarVariable(8.0);
-    vars["product"] = CreateScalarVariable(15.0);
-    vars["x"] = CreateScalarVariable(5.0);
-    vars["y"] = CreateScalarVariable(3.0);
+    vars["sum"] = Variable(client.GetVariableMeta("sum"));
+
+    vars["sum"](0) = 8.0;
+    vars["product"] = Variable(client.GetVariableMeta("product"));
+
+    vars["product"](0) = 15.0;
+    vars["x"] = Variable(client.GetVariableMeta("x"));
+
+    vars["x"](0) = 5.0;
+    vars["y"] = Variable(client.GetVariableMeta("y"));
+
+    vars["y"](0) = 3.0;
 
     Partials partials = client.ComputeResidualGradients(vars);
 
@@ -404,8 +425,12 @@ TEST_F(ImplicitIntegrationTest, ResidualEvaluationWithWrongOutputs) {
     // Prepare inputs with wrong output guess: x=3.0, y=10.0
     // Correct would be y = 9.0
     Variables vars;
-    vars["x"] = CreateScalarVariable(3.0);
-    vars["y"] = CreateScalarVariable(10.0);
+    vars["x"] = Variable(client.GetVariableMeta("x"));
+
+    vars["x"](0) = 3.0;
+    vars["y"] = Variable(client.GetVariableMeta("y"));
+
+    vars["y"](0) = 10.0;
 
     // Compute residuals: R = 3^2 - 10 = -1
     Variables residuals = client.ComputeResiduals(vars);
@@ -519,9 +544,13 @@ TEST_F(ImplicitIntegrationTest, VerifySolutionSatisfiesResidual) {
 
     // Now verify the solution satisfies the residual
     Variables vars;
-    vars["a"] = CreateScalarVariable(2.0);
+    vars["a"] = Variable(client.GetVariableMeta("a"));
+
+    vars["a"](0) = 2.0;
     vars["b"] = CreateScalarVariable(-8.0);
-    vars["c"] = CreateScalarVariable(6.0);
+    vars["c"] = Variable(client.GetVariableMeta("c"));
+
+    vars["c"](0) = 6.0;
     vars["x"] = outputs["x"];  // Use the solved value
 
     Variables residuals = client.ComputeResiduals(vars);

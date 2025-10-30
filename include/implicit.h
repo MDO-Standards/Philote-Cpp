@@ -600,6 +600,14 @@ grpc::Status philote::ImplicitServer::ComputeResidualsImpl(grpc::ServerContext *
             return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
         }
 
+        // Validate that the message type matches the metadata type
+        if (array.type() != var->type())
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                         "Type mismatch for variable " + name + ": expected " +
+                         std::to_string(var->type()) + " but received " + std::to_string(array.type()));
+        }
+
         // obtain the inputs and outputs from the stream
         if (var->type() == VariableType::kInput)
         {
@@ -810,6 +818,14 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
         if (var == discipline->var_meta().end())
         {
             return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
+        }
+
+        // Validate that the message type matches the metadata type
+        if (array.type() != var->type())
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                         "Type mismatch for variable " + name + ": expected " +
+                         std::to_string(var->type()) + " but received " + std::to_string(array.type()));
         }
 
         // obtain the inputs and outputs from the stream

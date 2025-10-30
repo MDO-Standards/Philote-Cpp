@@ -150,6 +150,7 @@ Array Variable::CreateChunk(const size_t &start, const size_t &end) const
 
     out.set_start(start);
     out.set_end(end);
+    out.set_type(type_);  // Set the variable type
 
     // set the data
     const vector<double> segment = Segment(start, end);
