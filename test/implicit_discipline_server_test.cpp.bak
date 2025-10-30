@@ -148,7 +148,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsUnlinkedPointers) {
     // Don't link any discipline
     EXPECT_CALL(*stream, Read(_)).Times(0);
 
-    grpc::Status status = server_->ComputeResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeResiduals(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
@@ -159,7 +159,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsNullStream) {
     auto discipline = CreateSimpleDiscipline();
     server_->LinkPointers(discipline.get());
 
-    grpc::Status status = server_->ComputeResidualsForTesting(context_.get(), nullptr);
+    grpc::Status status = server_->ComputeResiduals(context_.get(), nullptr);
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -182,7 +182,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsVariableNotFound) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeResiduals(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -205,7 +205,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsInvalidVariableType) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeResiduals(context_.get(), stream.get());
 
     // Should fail at invalid type or not found
     EXPECT_FALSE(status.ok());
@@ -252,7 +252,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsComputeThrows) {
         }))
         .WillOnce(Return(false));
 
-    grpc::Status status = server_->ComputeResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeResiduals(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INTERNAL);
@@ -301,7 +301,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsSimpleScalar) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeResiduals(context_.get(), stream.get());
     EXPECT_TRUE(status.ok());
 }
 
@@ -362,7 +362,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsMultiOutput) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeResiduals(context_.get(), stream.get());
 
     EXPECT_TRUE(status.ok());
 }
@@ -438,7 +438,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsVectorData) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeResiduals(context_.get(), stream.get());
 
     EXPECT_TRUE(status.ok());
 }
@@ -452,7 +452,7 @@ TEST_F(ImplicitServerTest, SolveResidualsUnlinkedPointers) {
 
     EXPECT_CALL(*stream, Read(_)).Times(0);
 
-    grpc::Status status = server_->SolveResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->SolveResiduals(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
@@ -462,7 +462,7 @@ TEST_F(ImplicitServerTest, SolveResidualsNullStream) {
     auto discipline = CreateSimpleDiscipline();
     server_->LinkPointers(discipline.get());
 
-    grpc::Status status = server_->SolveResidualsForTesting(context_.get(), nullptr);
+    grpc::Status status = server_->SolveResiduals(context_.get(), nullptr);
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -483,7 +483,7 @@ TEST_F(ImplicitServerTest, SolveResidualsVariableNotFound) {
             return true;
         }));
 
-    grpc::Status status = server_->SolveResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->SolveResiduals(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -522,7 +522,7 @@ TEST_F(ImplicitServerTest, SolveResidualsSolveThrows) {
         }))
         .WillOnce(Return(false));
 
-    grpc::Status status = server_->SolveResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->SolveResiduals(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INTERNAL);
@@ -559,7 +559,7 @@ TEST_F(ImplicitServerTest, SolveResidualsSimpleScalar) {
             return true;
         }));
 
-    grpc::Status status = server_->SolveResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->SolveResiduals(context_.get(), stream.get());
     EXPECT_TRUE(status.ok());
 }
 
@@ -604,7 +604,7 @@ TEST_F(ImplicitServerTest, SolveResidualsMultiOutput) {
             return true;
         }));
 
-    grpc::Status status = server_->SolveResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->SolveResiduals(context_.get(), stream.get());
 
     EXPECT_TRUE(status.ok());
 }
@@ -671,7 +671,7 @@ TEST_F(ImplicitServerTest, SolveResidualsVectorData) {
             return true;
         }));
 
-    grpc::Status status = server_->SolveResidualsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->SolveResiduals(context_.get(), stream.get());
 
     EXPECT_TRUE(status.ok());
 }
@@ -685,7 +685,7 @@ TEST_F(ImplicitServerTest, ComputeResidualGradientsUnlinkedPointers) {
 
     EXPECT_CALL(*stream, Read(_)).Times(0);
 
-    grpc::Status status = server_->ComputeResidualGradientsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeResidualGradients(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
@@ -695,7 +695,7 @@ TEST_F(ImplicitServerTest, ComputeResidualGradientsNullStream) {
     auto discipline = CreateSimpleDiscipline();
     server_->LinkPointers(discipline.get());
 
-    grpc::Status status = server_->ComputeResidualGradientsForTesting(context_.get(), nullptr);
+    grpc::Status status = server_->ComputeResidualGradients(context_.get(), nullptr);
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -716,7 +716,7 @@ TEST_F(ImplicitServerTest, ComputeResidualGradientsVariableNotFound) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeResidualGradientsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeResidualGradients(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -771,7 +771,7 @@ TEST_F(ImplicitServerTest, ComputeResidualGradientsComputeThrows) {
         }))
         .WillOnce(Return(false));
 
-    grpc::Status status = server_->ComputeResidualGradientsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeResidualGradients(context_.get(), stream.get());
 
     EXPECT_FALSE(status.ok());
     EXPECT_EQ(status.error_code(), grpc::StatusCode::INTERNAL);
@@ -818,7 +818,7 @@ TEST_F(ImplicitServerTest, ComputeResidualGradientsSimpleScalar) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeResidualGradientsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeResidualGradients(context_.get(), stream.get());
 
     EXPECT_TRUE(status.ok());
 }
@@ -889,7 +889,7 @@ TEST_F(ImplicitServerTest, ComputeResidualGradientsMultiplePartials) {
             return true;
         }));
 
-    grpc::Status status = server_->ComputeResidualGradientsForTesting(context_.get(), stream.get());
+    grpc::Status status = server_->ComputeResidualGradients(context_.get(), stream.get());
 
     EXPECT_TRUE(status.ok());
 }

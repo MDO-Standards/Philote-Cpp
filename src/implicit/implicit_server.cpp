@@ -65,188 +65,19 @@ grpc::Status ImplicitServer::ComputeResiduals(grpc::ServerContext *context,
                                               grpc::ServerReaderWriter<::philote::Array,
                                                                        ::philote::Array> *stream)
 {
-    philote::Array array;
-
-    // preallocate the variables based on meta data
-    Variables inputs, outputs, residuals;
-    for (const auto &var : static_cast<philote::Discipline *>(implementation_)->var_meta())
-    {
-        string name = var.name();
-        if (var.type() == kInput)
-            inputs[name] = Variable(var);
-        if (var.type() == kOutput)
-        {
-            outputs[var.name()] = Variable(var);
-            residuals[var.name()] = Variable(var);
-        }
-    }
-
-    while (stream->Read(&array))
-    {
-        // get variables from the stream message
-        const string &name = array.name();
-        const auto &start = array.start();
-        const auto &end = array.end();
-
-        // get the variable corresponding to the current message
-        const auto &var = std::find_if(static_cast<philote::Discipline *>(implementation_)->var_meta().begin(),
-                                       static_cast<philote::Discipline *>(implementation_)->var_meta().end(),
-                                       [&name](const VariableMetaData &var)
-                                       { return var.name() == name; });
-
-        // obtain the inputs and discrete inputs from the stream
-        if (var->type() == VariableType::kInput)
-            inputs[name].AssignChunk(array);
-        else if (var->type() == VariableType::kOutput)
-            outputs[name].AssignChunk(array);
-        else
-        {
-            return Status(grpc::INVALID_ARGUMENT,
-                         "Invalid variable type received for variable: " + name);
-        }
-    }
-
-    // call the discipline developer-defined Compute function
-    implementation_->ComputeResiduals(inputs, outputs, residuals);
-
-    // iterate through residuals
-    for (const auto &res : residuals)
-    {
-        const string &name = res.first;
-
-        res.second.Send(name, "", stream, static_cast<philote::Discipline *>(implementation_)->stream_opts().num_double());
-    }
-
-    return Status::OK;
+    return ComputeResidualsImpl(context, stream);
 }
 
 grpc::Status ImplicitServer::SolveResiduals(grpc::ServerContext *context,
                                             grpc::ServerReaderWriter<::philote::Array,
                                                                      ::philote::Array> *stream)
 {
-    philote::Array array;
-
-    // preallocate the inputs based on meta data
-    Variables inputs;
-    for (const auto &var : static_cast<philote::Discipline *>(implementation_)->var_meta())
-    {
-        string name = var.name();
-        if (var.type() == kInput or var.type() == kOutput)
-            inputs[name] = Variable(var);
-    }
-
-    while (stream->Read(&array))
-    {
-        // get variables from the stream message
-        const string &name = array.name();
-        const auto &start = array.start();
-        const auto &end = array.end();
-
-        // get the variable corresponding to the current message
-        const auto &var = std::find_if(static_cast<philote::Discipline *>(implementation_)->var_meta().begin(),
-                                       static_cast<philote::Discipline *>(implementation_)->var_meta().end(),
-                                       [&name](const VariableMetaData &var)
-                                       { return var.name() == name; });
-
-        // obtain the inputs and discrete inputs from the stream
-        if (var->type() == VariableType::kInput)
-        {
-            // set the variable slice
-            inputs[name].AssignChunk(array);
-        }
-        else
-        {
-            return Status(grpc::INVALID_ARGUMENT,
-                         "Expected input variable but received different type for: " + name);
-        }
-    }
-
-    // preallocate outputs
-    Variables outputs;
-    for (const VariableMetaData &var : static_cast<philote::Discipline *>(implementation_)->var_meta())
-    {
-        if (var.type() == kOutput)
-            outputs[var.name()] = Variable(var);
-    }
-
-    // call the discipline developer-defined Compute function
-    implementation_->SolveResiduals(inputs, outputs);
-
-    // iterate through continuous outputs
-    for (const auto &var : outputs)
-    {
-        const string &name = var.first;
-
-        var.second.Send(name, "", stream, static_cast<philote::Discipline *>(implementation_)->stream_opts().num_double());
-    }
-
-    return Status::OK;
+    return SolveResidualsImpl(context, stream);
 }
 
 grpc::Status ImplicitServer::ComputeResidualGradients(grpc::ServerContext *context,
                                                       grpc::ServerReaderWriter<::philote::Array,
                                                                                ::philote::Array> *stream)
 {
-    philote::Array array;
-
-    // preallocate the inputs based on meta data
-    Variables inputs, outputs;
-    for (const auto &var : static_cast<philote::Discipline *>(implementation_)->var_meta())
-    {
-        const string &name = var.name();
-        if (var.type() == kInput)
-            inputs[name] = Variable(var);
-        if (var.type() == kOutput)
-            outputs[name] = Variable(var);
-    }
-
-    while (stream->Read(&array))
-    {
-        // get variables from the stream message
-        const string &name = array.name();
-        const auto &start = array.start();
-        const auto &end = array.end();
-
-        // get the variable corresponding to the current message
-        const auto &var = std::find_if(static_cast<philote::Discipline *>(implementation_)->var_meta().begin(),
-                                       static_cast<philote::Discipline *>(implementation_)->var_meta().end(),
-                                       [&name](const VariableMetaData &var)
-                                       { return var.name() == name; });
-
-        // obtain the inputs and discrete inputs from the stream
-        if (var->type() == VariableType::kInput)
-            inputs[name].AssignChunk(array);
-        else if (var->type() == VariableType::kOutput)
-            outputs[name].AssignChunk(array);
-        else
-        {
-            return Status(grpc::INVALID_ARGUMENT,
-                         "Invalid variable type received for variable: " + name);
-        }
-    }
-
-    // preallocate outputs
-    Partials partials;
-    for (const PartialsMetaData &par : static_cast<philote::Discipline *>(implementation_)->partials_meta())
-    {
-        vector<size_t> shape;
-        for (const int64_t &dim : par.shape())
-            shape.push_back(dim);
-
-        partials[make_pair(par.name(), par.subname())] = Variable(kOutput, shape);
-    }
-
-    // call the discipline developer-defined Compute function
-    implementation_->ComputeResidualGradients(inputs, outputs, partials);
-
-    // iterate through partials
-    for (const auto &par : partials)
-    {
-        const string &name = par.first.first;
-        const string &subname = par.first.second;
-
-        par.second.Send(name, subname, stream, static_cast<philote::Discipline *>(implementation_)->stream_opts().num_double());
-    }
-
-    return Status::OK;
+    return ComputeResidualGradientsImpl(context, stream);
 }
