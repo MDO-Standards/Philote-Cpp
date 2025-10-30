@@ -257,8 +257,15 @@ void philote::Variable::Send(std::string name,
 
 void Variable::AssignChunk(const Array &data)
 {
-    size_t start = data.start();
-    size_t end = data.end();
+    // Validate indices are non-negative before casting to size_t
+    // This prevents integer overflow attacks where negative values wrap to SIZE_MAX
+    if (data.start() < 0)
+        throw std::invalid_argument("Start index cannot be negative in Variable::AssignChunk");
+    if (data.end() < 0)
+        throw std::invalid_argument("End index cannot be negative in Variable::AssignChunk");
+
+    size_t start = static_cast<size_t>(data.start());
+    size_t end = static_cast<size_t>(data.end());
 
     if (start > end)
         throw std::invalid_argument("Start index greater than end index in Variable::AssignChunk");

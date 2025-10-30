@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Fixed integer overflow vulnerability in Variable::AssignChunk()** (closes #36)
+  - Added validation to check data.start() and data.end() are non-negative before casting to size_t
+  - Prevents integer overflow attacks where negative values wrap to SIZE_MAX
+  - Protects against memory corruption from malicious network input
+  - Added comprehensive security tests for negative indices and edge cases
+  - Mitigates denial of service and potential code execution vulnerabilities
 - **Fixed ImplicitDiscipline constructor missing discipline_server_ link** (closes #33)
   - Added discipline_server_.LinkPointers(this) call in constructor
   - Added discipline_server_.UnlinkPointers() call in destructor
