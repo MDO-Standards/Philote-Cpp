@@ -329,15 +329,38 @@ TEST(VariableTests, ChunkingEdgeCases)
 	EXPECT_THROW(array.CreateChunk(0, 5), std::out_of_range);
 	EXPECT_THROW(array.CreateChunk(3, 2), std::invalid_argument);
 
-	// Test invalid chunk assignment
+	// Test invalid chunk assignment - security tests for issue #36
 	Array invalid_chunk;
+
+	// Test negative start index (security vulnerability - prevents integer overflow)
 	invalid_chunk.set_start(-1);
 	invalid_chunk.set_end(2);
 	EXPECT_THROW(array.AssignChunk(invalid_chunk), std::invalid_argument);
 
+	// Test negative end index
+	invalid_chunk.set_start(0);
+	invalid_chunk.set_end(-1);
+	EXPECT_THROW(array.AssignChunk(invalid_chunk), std::invalid_argument);
+
+	// Test both negative
+	invalid_chunk.set_start(-5);
+	invalid_chunk.set_end(-2);
+	EXPECT_THROW(array.AssignChunk(invalid_chunk), std::invalid_argument);
+
+	// Test large negative values
+	invalid_chunk.set_start(-1000000);
+	invalid_chunk.set_end(2);
+	EXPECT_THROW(array.AssignChunk(invalid_chunk), std::invalid_argument);
+
+	// Test end index out of range
 	invalid_chunk.set_start(0);
 	invalid_chunk.set_end(5);
 	EXPECT_THROW(array.AssignChunk(invalid_chunk), std::out_of_range);
+
+	// Test start > end (with valid positive indices)
+	invalid_chunk.set_start(3);
+	invalid_chunk.set_end(1);
+	EXPECT_THROW(array.AssignChunk(invalid_chunk), std::invalid_argument);
 }
 
 /*
