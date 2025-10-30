@@ -34,7 +34,7 @@ cmake_minimum_required (VERSION 3.23)
 
 
 project(PhiloteCpp
-    VERSION 0.4.0
+    VERSION 0.3.0
     LANGUAGES CXX
 )
 
