@@ -32,14 +32,14 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include <variable.h>
 #include <disciplines.grpc.pb.h>
 
 using std::vector;
 using namespace philote;
-// using grpc::testing::MockServerReaderWriter;
-// using grpc::testing::MockClientReaderWriter;
+using ::testing::Return;
 
 /*
 	Test the constructor.
@@ -395,4 +395,151 @@ TEST(VariableTests, ConstOperatorOutOfBounds)
 	// Out-of-bounds access should throw
 	EXPECT_THROW(const_array(4), std::out_of_range);
 	EXPECT_THROW(const_array(100), std::out_of_range);
+}
+
+/*
+	Mock stream classes for testing Variable::Send() Write() failure handling
+*/
+
+// Mock ClientReaderWriterInterface that fails Write() calls
+template <typename W, typename R>
+class FailingClientReaderWriter : public grpc::ClientReaderWriterInterface<W, R>
+{
+private:
+    bool should_fail_;
+    int write_count_;
+    int fail_after_n_writes_;
+
+public:
+    explicit FailingClientReaderWriter(bool fail_immediately = true, int fail_after = 0)
+        : should_fail_(fail_immediately), write_count_(0), fail_after_n_writes_(fail_after) {}
+
+    bool Write(const W &msg, grpc::WriteOptions options) override
+    {
+        write_count_++;
+        if (should_fail_ && write_count_ > fail_after_n_writes_)
+        {
+            return false;
+        }
+        return true;
+    }
+
+    bool Read(R *msg) override { return false; }
+    bool WritesDone() override { return true; }
+    grpc::Status Finish() override { return grpc::Status::OK; }
+    void WaitForInitialMetadata() override {}
+    bool NextMessageSize(uint32_t *sz) override { return false; }
+};
+
+// Mock ServerReaderWriterInterface that fails Write() calls
+template <typename W, typename R>
+class FailingServerReaderWriter : public grpc::ServerReaderWriterInterface<W, R>
+{
+private:
+    bool should_fail_;
+
+public:
+    explicit FailingServerReaderWriter(bool fail_immediately = true)
+        : should_fail_(fail_immediately) {}
+
+    void SendInitialMetadata() override {}
+
+    bool Write(const W &msg, grpc::WriteOptions options) override
+    {
+        return !should_fail_;
+    }
+
+    bool Read(R *msg) override { return false; }
+    bool NextMessageSize(uint32_t *sz) override { return false; }
+};
+
+
+/*
+	Test Variable::Send() with ClientReaderWriter Write() failure
+*/
+TEST(VariableTests, SendClientReaderWriterWriteFailure)
+{
+    Variable var(kInput, {4});
+    std::vector<double> data = {1.0, 2.0, 3.0, 4.0};
+    var.Segment(0, 3, data);
+
+    FailingClientReaderWriter<philote::Array, philote::Array> failing_stream(true);
+
+    EXPECT_THROW(
+        {
+            var.Send("test_var", "", &failing_stream, 10);
+        },
+        std::runtime_error);
+}
+
+/*
+	Test Variable::Send() with ServerReaderWriterInterface Write() failure
+*/
+TEST(VariableTests, SendServerReaderWriterWriteFailure)
+{
+    Variable var(kOutput, {4});
+    std::vector<double> data = {1.0, 2.0, 3.0, 4.0};
+    var.Segment(0, 3, data);
+
+    FailingServerReaderWriter<philote::Array, philote::Array> failing_stream(true);
+
+    EXPECT_THROW(
+        {
+            var.Send("test_var", "", &failing_stream, 10);
+        },
+        std::runtime_error);
+}
+
+/*
+	Test Variable::Send() with ClientReaderWriterInterface Write() failure
+*/
+TEST(VariableTests, SendClientReaderWriterInterfaceWriteFailure)
+{
+    Variable var(kInput, {4});
+    std::vector<double> data = {1.0, 2.0, 3.0, 4.0};
+    var.Segment(0, 3, data);
+
+    FailingClientReaderWriter<philote::Array, philote::Array> failing_stream(true);
+
+    EXPECT_THROW(
+        {
+            var.Send("test_var", "", &failing_stream, 10);
+        },
+        std::runtime_error);
+}
+
+/*
+	Test Variable::Send() with mid-transmission Write() failure (multiple chunks)
+*/
+TEST(VariableTests, SendMidTransmissionWriteFailure)
+{
+    Variable var(kInput, {10});
+    std::vector<double> data = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+    var.Segment(0, 9, data);
+
+    // Succeed on first write, fail on second
+    FailingClientReaderWriter<philote::Array, philote::Array> failing_stream(true, 1);
+
+    EXPECT_THROW(
+        {
+            var.Send("test_var", "", &failing_stream, 5); // 2 chunks, fail on 2nd
+        },
+        std::runtime_error);
+}
+
+/*
+	Test Variable::Send() succeeds when all Write() calls succeed
+*/
+TEST(VariableTests, SendSuccessWithMultipleChunks)
+{
+    Variable var(kInput, {10});
+    std::vector<double> data = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+    var.Segment(0, 9, data);
+
+    // Never fail
+    FailingClientReaderWriter<philote::Array, philote::Array> succeeding_stream(false);
+
+    EXPECT_NO_THROW({
+        var.Send("test_var", "", &succeeding_stream, 5); // 2 chunks, both succeed
+    });
 }

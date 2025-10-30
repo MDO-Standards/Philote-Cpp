@@ -7,21 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- **Documented SetOptions() override pattern for configurable disciplines** (closes #34)
-  - Added comprehensive comments in base Discipline::SetOptions() explaining override pattern
-  - Fixed Rosenbrock example to properly override Initialize() and SetOptions() instead of using broken signature
-  - Added 9 new tests demonstrating extraction of all protobuf value types (float, int, bool, string)
-  - Added detailed documentation section in CLAUDE.md with complete code examples
-  - Clarified lifecycle: Initialize() declares options, SetOptions() extracts values, Configure() post-processes
-- **Client methods now throw exceptions on gRPC errors** (closes #48)
-  - ExplicitClient::ComputeFunction() and ComputeGradient() now check gRPC status
-  - ImplicitClient::ComputeResiduals(), SolveResiduals(), and ComputeResidualGradients() now check gRPC status
-  - All computation methods throw std::runtime_error with error code and message on RPC failure
-  - **BREAKING CHANGE**: Previously these methods returned silently with potentially invalid data
-  - Error handling is now consistent with other client methods (GetInfo, Setup, etc.)
-  - Prevents silent failures and propagation of corrupted data
-
 ### Added
 - **Comprehensive implicit discipline test suite** (~2,600 lines of new tests)
   - Complete unit tests for ImplicitDiscipline, ImplicitClient, and ImplicitServer
@@ -31,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reuse of test helpers library (TestServerManager, test disciplines, utilities)
 
 ### Fixed
+
 - **Fixed ImplicitDiscipline constructor missing discipline_server_ link** (closes #33)
   - Added discipline_server_.LinkPointers(this) call in constructor
   - Added discipline_server_.UnlinkPointers() call in destructor
@@ -57,6 +43,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - PhiloteTestHelpers provides PhiloteCpp as a PUBLIC dependency
 - Fixed missing discipline_client.h and discipline_server.h in CMake target_sources configuration
 - Removed unused BaseDisciplineClient class declaration from discipline.h (closes #31)
+- - **Variable::Send() and DisciplineServer now check stream Write() failures** (closes #35)
+- All three Variable::Send() method overloads now check Write() return values
+- Throws runtime_error with descriptive messages including variable name and chunk number
+- DisciplineServer::GetVariableDefinitions() and GetPartialDefinitions() now check Write() failures
+- Returns grpc::Status with INTERNAL error code on metadata write failures
+- Prevents silent data loss on network failures, broken connections, or buffer overflows
+- Added 5 comprehensive unit tests using mock stream classes to verify error handling
+- Tests cover first-chunk failure, mid-transmission failure, and success scenarios
+- **Documented SetOptions() override pattern for configurable disciplines** (closes #34)
+  - Added comprehensive comments in base Discipline::SetOptions() explaining override pattern
+  - Fixed Rosenbrock example to properly override Initialize() and SetOptions() instead of using broken signature
+  - Added 9 new tests demonstrating extraction of all protobuf value types (float, int, bool, string)
+  - Added detailed documentation section in CLAUDE.md with complete code examples
+  - Clarified lifecycle: Initialize() declares options, SetOptions() extracts values, Configure() post-processes
+- **Client methods now throw exceptions on gRPC errors** (closes #48)
+  - ExplicitClient::ComputeFunction() and ComputeGradient() now check gRPC status
+  - ImplicitClient::ComputeResiduals(), SolveResiduals(), and ComputeResidualGradients() now check gRPC status
+  - All computation methods throw std::runtime_error with error code and message on RPC failure
+  - **BREAKING CHANGE**: Previously these methods returned silently with potentially invalid data
+  - Error handling is now consistent with other client methods (GetInfo, Setup, etc.)
+  - Prevents silent failures and propagation of corrupted data
 
 ## [0.4.0] - 2025-10-30
 

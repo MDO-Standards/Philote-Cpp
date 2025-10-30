@@ -129,7 +129,13 @@ Status DisciplineServer::GetVariableDefinitions(ServerContext *context,
     if (!writer)
         return Status::OK;
     for (const VariableMetaData &var : discipline_->var_meta())
-        writer->Write(var);
+    {
+        if (!writer->Write(var))
+        {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                              "Failed to write variable metadata for '" + var.name() + "'");
+        }
+    }
 
     return Status::OK;
 }
@@ -147,7 +153,14 @@ Status DisciplineServer::GetPartialDefinitions(ServerContext *context,
     if (!writer)
         return Status::OK;
     for (const PartialsMetaData &partial : discipline_->partials_meta())
-        writer->Write(partial);
+    {
+        if (!writer->Write(partial))
+        {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                              "Failed to write partial metadata for ('" +
+                              partial.name() + "', '" + partial.subname() + "')");
+        }
+    }
 
     return Status::OK;
 }
