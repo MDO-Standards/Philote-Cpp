@@ -6,52 +6,65 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  pull-requests: read
+
 jobs:
   release:
-    # Only run if PR was merged and has release or prerelease label
     if: |
       github.event.pull_request.merged == true &&
       (contains(github.event.pull_request.labels.*.name, 'release') ||
        contains(github.event.pull_request.labels.*.name, 'prerelease'))
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: read
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      - name: Configure Git
+      - name: Import GPG key for signing
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Create a GPG key for github-actions bot
+          cat >key-config <<EOF
+          %no-protection
+          Key-Type: RSA
+          Key-Length: 4096
+          Name-Real: github-actions[bot]
+          Name-Email: github-actions[bot]@users.noreply.github.com
+          Expire-Date: 0
+          EOF
 
-      - name: Extract PR labels
+          gpg --batch --gen-key key-config
+          rm key-config
+
+          # Get the key ID
+          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | awk '{print $2}' | cut -d'/' -f2)
+
+          # Configure git to use GPG
+          git config --global user.signingkey $GPG_KEY_ID
+          git config --global commit.gpgsign true
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Extract and validate labels
         id: labels
         run: |
-          # Get all labels
           LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
-          echo "All labels: $LABELS"
 
-          # Check release type
           IS_RELEASE=$(echo "$LABELS" | jq 'contains(["release"])')
           IS_PRERELEASE=$(echo "$LABELS" | jq 'contains(["prerelease"])')
-
-          # Check version bump type
           IS_MAJOR=$(echo "$LABELS" | jq 'contains(["major"])')
           IS_MINOR=$(echo "$LABELS" | jq 'contains(["minor"])')
           IS_PATCH=$(echo "$LABELS" | jq 'contains(["patch"])')
-
-          # Check prerelease type
           IS_ALPHA=$(echo "$LABELS" | jq 'contains(["alpha"])')
           IS_BETA=$(echo "$LABELS" | jq 'contains(["beta"])')
           IS_RC=$(echo "$LABELS" | jq 'contains(["rc"])')
@@ -65,96 +78,59 @@ jobs:
           echo "is_beta=$IS_BETA" >> $GITHUB_OUTPUT
           echo "is_rc=$IS_RC" >> $GITHUB_OUTPUT
 
-      - name: Validate labels
-        run: |
-          IS_RELEASE="${{ steps.labels.outputs.is_release }}"
-          IS_PRERELEASE="${{ steps.labels.outputs.is_prerelease }}"
-          IS_MAJOR="${{ steps.labels.outputs.is_major }}"
-          IS_MINOR="${{ steps.labels.outputs.is_minor }}"
-          IS_PATCH="${{ steps.labels.outputs.is_patch }}"
-          IS_ALPHA="${{ steps.labels.outputs.is_alpha }}"
-          IS_BETA="${{ steps.labels.outputs.is_beta }}"
-          IS_RC="${{ steps.labels.outputs.is_rc }}"
-
-          # Must have exactly one of release or prerelease
+          # Validation
           if [ "$IS_RELEASE" = "true" ] && [ "$IS_PRERELEASE" = "true" ]; then
             echo "Error: Cannot have both 'release' and 'prerelease' labels"
             exit 1
           fi
 
-          # Must have exactly one version bump type
           BUMP_COUNT=0
           [ "$IS_MAJOR" = "true" ] && BUMP_COUNT=$((BUMP_COUNT + 1))
           [ "$IS_MINOR" = "true" ] && BUMP_COUNT=$((BUMP_COUNT + 1))
           [ "$IS_PATCH" = "true" ] && BUMP_COUNT=$((BUMP_COUNT + 1))
 
-          if [ $BUMP_COUNT -eq 0 ]; then
-            echo "Error: Must have one of 'major', 'minor', or 'patch' label"
-            exit 1
-          elif [ $BUMP_COUNT -gt 1 ]; then
-            echo "Error: Cannot have multiple version bump labels"
+          if [ $BUMP_COUNT -ne 1 ]; then
+            echo "Error: Must have exactly one of 'major', 'minor', or 'patch' label"
             exit 1
           fi
 
-          # Check prerelease type labels
           PRE_COUNT=0
           [ "$IS_ALPHA" = "true" ] && PRE_COUNT=$((PRE_COUNT + 1))
           [ "$IS_BETA" = "true" ] && PRE_COUNT=$((PRE_COUNT + 1))
           [ "$IS_RC" = "true" ] && PRE_COUNT=$((PRE_COUNT + 1))
 
-          if [ "$IS_PRERELEASE" = "true" ]; then
-            # If prerelease, must have exactly one prerelease type
-            if [ $PRE_COUNT -eq 0 ]; then
-              echo "Error: Prerelease must have one of 'alpha', 'beta', or 'rc' label"
-              exit 1
-            elif [ $PRE_COUNT -gt 1 ]; then
-              echo "Error: Cannot have multiple prerelease type labels"
-              exit 1
-            fi
-          else
-            # If stable release, must NOT have any prerelease type labels
-            if [ $PRE_COUNT -gt 0 ]; then
-              echo "Error: Stable release cannot have 'alpha', 'beta', or 'rc' labels"
-              exit 1
-            fi
+          if [ "$IS_PRERELEASE" = "true" ] && [ $PRE_COUNT -ne 1 ]; then
+            echo "Error: Prerelease must have exactly one of 'alpha', 'beta', or 'rc' label"
+            exit 1
           fi
 
-          echo "Label validation passed"
+          if [ "$IS_RELEASE" = "true" ] && [ $PRE_COUNT -gt 0 ]; then
+            echo "Error: Stable release cannot have prerelease type labels"
+            exit 1
+          fi
 
       - name: Calculate new version
         id: version
         run: |
-          # Extract current version from CMakeLists.txt
           CURRENT_VERSION=$(grep -E '^\s*VERSION\s+' CMakeLists.txt | head -1 | sed -E 's/.*VERSION\s+([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
           echo "Current version: $CURRENT_VERSION"
 
-          # Split version into components
           IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
-          # Determine bump type
-          IS_MAJOR="${{ steps.labels.outputs.is_major }}"
-          IS_MINOR="${{ steps.labels.outputs.is_minor }}"
-          IS_PATCH="${{ steps.labels.outputs.is_patch }}"
-
-          # Calculate new base version
-          if [ "$IS_MAJOR" = "true" ]; then
+          if [ "${{ steps.labels.outputs.is_major }}" = "true" ]; then
             MAJOR=$((MAJOR + 1))
             MINOR=0
             PATCH=0
-          elif [ "$IS_MINOR" = "true" ]; then
+          elif [ "${{ steps.labels.outputs.is_minor }}" = "true" ]; then
             MINOR=$((MINOR + 1))
             PATCH=0
-          elif [ "$IS_PATCH" = "true" ]; then
+          elif [ "${{ steps.labels.outputs.is_patch }}" = "true" ]; then
             PATCH=$((PATCH + 1))
           fi
 
-          NEW_BASE_VERSION="$MAJOR.$MINOR.$PATCH"
-          echo "New base version: $NEW_BASE_VERSION"
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
 
-          # Handle prerelease
-          IS_PRERELEASE="${{ steps.labels.outputs.is_prerelease }}"
-          if [ "$IS_PRERELEASE" = "true" ]; then
-            # Determine prerelease type
+          if [ "${{ steps.labels.outputs.is_prerelease }}" = "true" ]; then
             if [ "${{ steps.labels.outputs.is_alpha }}" = "true" ]; then
               PRE_TYPE="alpha"
             elif [ "${{ steps.labels.outputs.is_beta }}" = "true" ]; then
@@ -163,48 +139,29 @@ jobs:
               PRE_TYPE="rc"
             fi
 
-            # Find existing prerelease tags for this version
-            EXISTING_TAGS=$(git tag -l "v${NEW_BASE_VERSION}-${PRE_TYPE}.*" | sort -V)
-
+            EXISTING_TAGS=$(git tag -l "v${NEW_VERSION}-${PRE_TYPE}.*" | sort -V)
             if [ -z "$EXISTING_TAGS" ]; then
-              # No existing prerelease tags, start at .1
               PRE_NUMBER=1
             else
-              # Get the highest prerelease number and increment
               LAST_TAG=$(echo "$EXISTING_TAGS" | tail -1)
               PRE_NUMBER=$(echo "$LAST_TAG" | sed -E "s/.*-${PRE_TYPE}\.([0-9]+)/\1/")
               PRE_NUMBER=$((PRE_NUMBER + 1))
             fi
-
-            NEW_VERSION="${NEW_BASE_VERSION}-${PRE_TYPE}.${PRE_NUMBER}"
-            echo "New prerelease version: $NEW_VERSION"
-          else
-            NEW_VERSION="$NEW_BASE_VERSION"
-            echo "New release version: $NEW_VERSION"
+            NEW_VERSION="${NEW_VERSION}-${PRE_TYPE}.${PRE_NUMBER}"
           fi
 
+          echo "New version: $NEW_VERSION"
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "new_base_version=$NEW_BASE_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Update copyright years (stable release only)
+      - name: Update copyright years
         if: steps.labels.outputs.is_release == 'true'
-        run: |
-          echo "Updating copyright years to $(date +%Y)"
-          python scripts/update_copyright.py $(date +%Y)
+        run: python scripts/update_copyright.py $(date +%Y)
 
       - name: Update version in CMakeLists.txt
         run: |
-          CURRENT_VERSION="${{ steps.version.outputs.current_version }}"
           NEW_VERSION="${{ steps.version.outputs.new_version }}"
-
-          echo "Updating version from $CURRENT_VERSION to $NEW_VERSION in CMakeLists.txt"
-
-          # Update the VERSION line in CMakeLists.txt
-          sed -i.bak -E "s/(VERSION\s+)[0-9]+\.[0-9]+\.[0-9]+(-[a-z]+\.[0-9]+)?/\1${NEW_VERSION}/" CMakeLists.txt
-          rm CMakeLists.txt.bak
-
-          echo "Updated CMakeLists.txt"
+          sed -i "s/VERSION\s\+[0-9.]\+\(-[a-z0-9.]\+\)\?/VERSION ${NEW_VERSION}/" CMakeLists.txt
 
       - name: Update CHANGELOG.md
         run: |
@@ -212,120 +169,81 @@ jobs:
           CURRENT_DATE=$(date +%Y-%m-%d)
           IS_PRERELEASE="${{ steps.labels.outputs.is_prerelease }}"
 
-          echo "Updating CHANGELOG.md for version $NEW_VERSION"
-
           if [ "$IS_PRERELEASE" = "true" ]; then
-            # For prereleases: Add prerelease version entry but keep [Unreleased] section
-            # Check if an [Unreleased] section exists
             if grep -q "## \[Unreleased\]" CHANGELOG.md; then
-              # Insert new prerelease section after [Unreleased]
               awk -v ver="$NEW_VERSION" -v date="$CURRENT_DATE" '
                 /## \[Unreleased\]/ { print; print ""; print "## [" ver "] - " date; next }
                 { print }
               ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
             else
-              # No [Unreleased] section, add both
               awk -v ver="$NEW_VERSION" -v date="$CURRENT_DATE" '
                 /^## \[/ && !inserted { print "## [Unreleased]"; print ""; print "## [" ver "] - " date; print ""; inserted=1 }
                 { print }
               ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
             fi
           else
-            # For stable releases: Replace [Unreleased] with version and add new [Unreleased]
             awk -v ver="$NEW_VERSION" -v date="$CURRENT_DATE" '
               /## \[Unreleased\]/ { print "## [" ver "] - " date; next }
               { print }
             ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
 
-            # Add new [Unreleased] section at the top (after the main title)
             awk '
               /^## \[/ && !inserted { print "## [Unreleased]"; print ""; inserted=1 }
               { print }
             ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
           fi
 
-          # Update version comparison links at bottom
-          # First, add link for new version
-          BASE_VERSION="${{ steps.version.outputs.new_base_version }}"
-
-          # Check if this is the first prerelease or stable release
           if [ "$IS_PRERELEASE" = "true" ]; then
-            # For prerelease, link to previous tag (or base if first)
             PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-            PREV_TAG=${PREV_TAG#v}  # Remove 'v' prefix
+            PREV_TAG=${PREV_TAG#v}
 
-            # Add/update comparison link
             if grep -q "\[$NEW_VERSION\]:" CHANGELOG.md; then
-              # Update existing link
               awk -v ver="$NEW_VERSION" -v prev="$PREV_TAG" '
                 $0 ~ "\\[" ver "\\]:" { print "[" ver "]: https://github.com/MDO-Standards/Philote-Cpp/compare/v" prev "...v" ver; next }
                 { print }
               ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
             else
-              # Add new link before [Unreleased] link
               awk -v ver="$NEW_VERSION" -v prev="$PREV_TAG" '
                 /\[Unreleased\]:/ && !inserted { print "[" ver "]: https://github.com/MDO-Standards/Philote-Cpp/compare/v" prev "...v" ver; inserted=1 }
                 { print }
               ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
             fi
           else
-            # For stable release, update [Unreleased] link and add new version link
             awk -v ver="$NEW_VERSION" '
               /\[Unreleased\]:/ { print "[Unreleased]: https://github.com/MDO-Standards/Philote-Cpp/compare/v" ver "...develop"; next }
               { print }
             ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
 
-            # Find previous version for comparison link
             PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-            PREV_TAG=${PREV_TAG#v}  # Remove 'v' prefix
+            PREV_TAG=${PREV_TAG#v}
 
-            # Add new version comparison link
             awk -v ver="$NEW_VERSION" -v prev="$PREV_TAG" '
               /\[Unreleased\]:/ { print; print "[" ver "]: https://github.com/MDO-Standards/Philote-Cpp/compare/v" prev "...v" ver; next }
               { print }
             ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
           fi
-          echo "Updated CHANGELOG.md"
 
-      - name: Commit changes
+      - name: Commit and push changes
         run: |
-          NEW_VERSION="${{ steps.version.outputs.new_version }}"
-          IS_PRERELEASE="${{ steps.labels.outputs.is_prerelease }}"
-
           git add -A
-
-          if [ "$IS_PRERELEASE" = "true" ]; then
-            git commit -m "chore: bump version to ${NEW_VERSION}"
-          else
-            git commit -m "chore: release version ${NEW_VERSION}"
-          fi
-
+          git commit -S -m "chore: release version ${{ steps.version.outputs.new_version }}"
           git push origin main
 
       - name: Create and push tag
         run: |
-          NEW_VERSION="${{ steps.version.outputs.new_version }}"
-          git tag -a "v${NEW_VERSION}" -m "Release v${NEW_VERSION}"
-          git push origin "v${NEW_VERSION}"
+          git tag -a "v${{ steps.version.outputs.new_version }}" -m "Release v${{ steps.version.outputs.new_version }}"
+          git push origin "v${{ steps.version.outputs.new_version }}"
 
-      - name: Extract changelog for release
+      - name: Extract changelog
         id: changelog
         run: |
           NEW_VERSION="${{ steps.version.outputs.new_version }}"
-
-          # Extract the section for this version from CHANGELOG.md
-          # This extracts everything between ## [VERSION] and the next ## [
-          CHANGELOG_CONTENT=$(sed -n "/## \[$NEW_VERSION\]/,/## \[/{/## \[$NEW_VERSION\]/n;/## \[/!p;}" CHANGELOG.md)
-
-          # If empty, provide a default message
-          if [ -z "$CHANGELOG_CONTENT" ]; then
-            CHANGELOG_CONTENT="Release $NEW_VERSION"
-          fi
-
-          # Save to file for use in release notes
-          echo "$CHANGELOG_CONTENT" > /tmp/release_notes.md
-
-          echo "Extracted changelog for release notes"
+          awk -v ver="$NEW_VERSION" '
+            BEGIN { found=0 }
+            $0 ~ "## \\[" ver "\\]" { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > /tmp/release_notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -335,4 +253,3 @@ jobs:
           body_path: /tmp/release_notes.md
           draft: false
           prerelease: ${{ steps.labels.outputs.is_prerelease == 'true' }}
-          token: ${{ secrets.GITHUB_TOKEN }}

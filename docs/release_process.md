@@ -11,8 +11,53 @@ Philote-Cpp uses an automated release workflow that is triggered when a pull req
 3. Updates copyright years (stable releases only)
 4. Updates version in `CMakeLists.txt`
 5. Updates `CHANGELOG.md`
-6. Creates a git commit and tag
-7. Creates a GitHub Release
+6. Creates a signed git commit and tag
+7. Pushes directly to `main` (using PAT with write permissions)
+8. Creates a GitHub Release
+
+## Prerequisites
+
+The automated release workflow requires the following repository settings:
+
+### 1. Personal Access Token (PAT)
+
+The workflow requires a fine-grained Personal Access Token with permissions to push to the protected `main` branch.
+
+**Creating the PAT:**
+1. Go to your GitHub profile → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**
+2. Click **Generate new token**
+3. Configure:
+   - **Token name**: "Philote-Cpp Release Automation" (or similar)
+   - **Expiration**: Your choice (recommend 1 year and set a reminder to renew)
+   - **Resource owner**: Select **MDO-Standards** (the organization)
+   - **Repository access**: "Only select repositories" → Select **Philote-Cpp**
+   - **Repository permissions**:
+     - **Contents**: Read and write
+     - **Metadata**: Read-only (auto-selected)
+     - **Pull requests**: Read-only
+4. Click **Generate token** and copy it immediately
+
+**Adding to repository:**
+1. Go to Philote-Cpp repository → **Settings** → **Secrets and variables** → **Actions**
+2. Click **New repository secret**
+3. Name: `RELEASE_TOKEN`
+4. Value: Paste the PAT
+5. Click **Add secret**
+
+### 2. Branch Protection on `main`
+
+The following protections should be enabled:
+- "Require pull requests before merging" - Enabled
+- "Require signed commits" - Enabled (workflow creates GPG-signed commits)
+
+### 3. Repository Labels
+
+The following labels must exist in the repository:
+- **Release type**: `release`, `prerelease`
+- **Version bump**: `major`, `minor`, `patch`
+- **Prerelease type**: `alpha`, `beta`, `rc`
+
+To create labels, see [Step-by-Step Release Instructions](#step-by-step-release-instructions) below.
 
 ## Version Numbering
 
