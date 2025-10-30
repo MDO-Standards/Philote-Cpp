@@ -12,6 +12,10 @@ namespace philote {
 namespace test {
 
 // ============================================================================
+// Explicit Discipline Implementations
+// ============================================================================
+
+// ============================================================================
 // ParaboloidDiscipline Implementation
 // ============================================================================
 
@@ -171,6 +175,329 @@ void ErrorDiscipline::ComputePartials(const Variables &inputs, Partials &partial
         throw std::runtime_error("ErrorDiscipline: Error in ComputePartials()");
     }
     partials[{"y", "x"}](0) = 1.0;
+}
+
+// ============================================================================
+// Implicit Discipline Implementations
+// ============================================================================
+
+// ============================================================================
+// SimpleImplicitDiscipline Implementation
+// ============================================================================
+
+void SimpleImplicitDiscipline::Setup() {
+    AddInput("x", {1}, "m");
+    AddOutput("y", {1}, "m^2");
+}
+
+void SimpleImplicitDiscipline::SetupPartials() {
+    DeclarePartials("y", "x");
+    DeclarePartials("y", "y");
+}
+
+void SimpleImplicitDiscipline::ComputeResiduals(const Variables &inputs, const Variables &outputs, Variables &residuals) {
+    double x = inputs.at("x")(0);
+    double y = outputs.at("y")(0);
+    residuals.at("y")(0) = x * x - y;
+}
+
+void SimpleImplicitDiscipline::SolveResiduals(const Variables &inputs, Variables &outputs) {
+    double x = inputs.at("x")(0);
+    outputs.at("y")(0) = x * x;
+}
+
+void SimpleImplicitDiscipline::ComputeResidualGradients(const Variables &inputs, const Variables &outputs, Partials &partials) {
+    double x = inputs.at("x")(0);
+    partials[{"y", "x"}](0) = 2.0 * x;
+    partials[{"y", "y"}](0) = -1.0;
+}
+
+// ============================================================================
+// QuadraticDiscipline Implementation
+// ============================================================================
+
+void QuadraticDiscipline::Setup() {
+    AddInput("a", {1}, "");
+    AddInput("b", {1}, "");
+    AddInput("c", {1}, "");
+    AddOutput("x", {1}, "");
+}
+
+void QuadraticDiscipline::SetupPartials() {
+    DeclarePartials("x", "a");
+    DeclarePartials("x", "b");
+    DeclarePartials("x", "c");
+    DeclarePartials("x", "x");
+}
+
+void QuadraticDiscipline::ComputeResiduals(const Variables &inputs, const Variables &outputs, Variables &residuals) {
+    double a = inputs.at("a")(0);
+    double b = inputs.at("b")(0);
+    double c = inputs.at("c")(0);
+    double x = outputs.at("x")(0);
+
+    residuals.at("x")(0) = a * x * x + b * x + c;
+}
+
+void QuadraticDiscipline::SolveResiduals(const Variables &inputs, Variables &outputs) {
+    double a = inputs.at("a")(0);
+    double b = inputs.at("b")(0);
+    double c = inputs.at("c")(0);
+
+    // Quadratic formula: x = (-b + sqrt(b^2 - 4ac)) / 2a (positive root)
+    double discriminant = b * b - 4.0 * a * c;
+    outputs.at("x")(0) = (-b + std::sqrt(discriminant)) / (2.0 * a);
+}
+
+void QuadraticDiscipline::ComputeResidualGradients(const Variables &inputs, const Variables &outputs, Partials &partials) {
+    double a = inputs.at("a")(0);
+    double b = inputs.at("b")(0);
+    double x = outputs.at("x")(0);
+
+    partials[{"x", "a"}](0) = x * x;
+    partials[{"x", "b"}](0) = x;
+    partials[{"x", "c"}](0) = 1.0;
+    partials[{"x", "x"}](0) = 2.0 * a * x + b;
+}
+
+// ============================================================================
+// MultiResidualDiscipline Implementation
+// ============================================================================
+
+void MultiResidualDiscipline::Setup() {
+    AddInput("sum", {1}, "");
+    AddInput("product", {1}, "");
+    AddOutput("x", {1}, "");
+    AddOutput("y", {1}, "");
+}
+
+void MultiResidualDiscipline::SetupPartials() {
+    DeclarePartials("x", "sum");
+    DeclarePartials("x", "product");
+    DeclarePartials("x", "x");
+    DeclarePartials("x", "y");
+    DeclarePartials("y", "sum");
+    DeclarePartials("y", "product");
+    DeclarePartials("y", "x");
+    DeclarePartials("y", "y");
+}
+
+void MultiResidualDiscipline::ComputeResiduals(const Variables &inputs, const Variables &outputs, Variables &residuals) {
+    double sum = inputs.at("sum")(0);
+    double product = inputs.at("product")(0);
+    double x = outputs.at("x")(0);
+    double y = outputs.at("y")(0);
+
+    residuals.at("x")(0) = x + y - sum;
+    residuals.at("y")(0) = x * y - product;
+}
+
+void MultiResidualDiscipline::SolveResiduals(const Variables &inputs, Variables &outputs) {
+    double sum = inputs.at("sum")(0);
+    double product = inputs.at("product")(0);
+
+    // Solve: x + y = sum, x*y = product
+    // y = sum - x, so x*(sum - x) = product
+    // x*sum - x^2 = product
+    // x^2 - sum*x + product = 0
+    // x = (sum + sqrt(sum^2 - 4*product)) / 2
+    double discriminant = sum * sum - 4.0 * product;
+    double x = (sum + std::sqrt(discriminant)) / 2.0;
+    double y = sum - x;
+
+    outputs.at("x")(0) = x;
+    outputs.at("y")(0) = y;
+}
+
+void MultiResidualDiscipline::ComputeResidualGradients(const Variables &inputs, const Variables &outputs, Partials &partials) {
+    double x = outputs.at("x")(0);
+    double y = outputs.at("y")(0);
+
+    // dR1/d(inputs)
+    partials[{"x", "sum"}](0) = -1.0;
+    partials[{"x", "product"}](0) = 0.0;
+
+    // dR1/d(outputs)
+    partials[{"x", "x"}](0) = 1.0;
+    partials[{"x", "y"}](0) = 1.0;
+
+    // dR2/d(inputs)
+    partials[{"y", "sum"}](0) = 0.0;
+    partials[{"y", "product"}](0) = -1.0;
+
+    // dR2/d(outputs)
+    partials[{"y", "x"}](0) = y;
+    partials[{"y", "y"}](0) = x;
+}
+
+// ============================================================================
+// VectorizedImplicitDiscipline Implementation
+// ============================================================================
+
+VectorizedImplicitDiscipline::VectorizedImplicitDiscipline(size_t n, size_t m) : n_(n), m_(m) {}
+
+void VectorizedImplicitDiscipline::Setup() {
+    AddInput("A", {static_cast<int64_t>(n_), static_cast<int64_t>(m_)}, "");
+    AddInput("x", {static_cast<int64_t>(m_)}, "");
+    AddInput("b", {static_cast<int64_t>(n_)}, "");
+    AddOutput("y", {static_cast<int64_t>(n_)}, "");
+}
+
+void VectorizedImplicitDiscipline::SetupPartials() {
+    DeclarePartials("y", "A");
+    DeclarePartials("y", "x");
+    DeclarePartials("y", "b");
+    DeclarePartials("y", "y");
+}
+
+void VectorizedImplicitDiscipline::ComputeResiduals(const Variables &inputs, const Variables &outputs, Variables &residuals) {
+    // Residual: R = A*x + b - y
+    for (size_t i = 0; i < n_; ++i) {
+        residuals.at("y")(i) = inputs.at("b")(i) - outputs.at("y")(i);
+        for (size_t j = 0; j < m_; ++j) {
+            residuals.at("y")(i) += inputs.at("A")(i * m_ + j) * inputs.at("x")(j);
+        }
+    }
+}
+
+void VectorizedImplicitDiscipline::SolveResiduals(const Variables &inputs, Variables &outputs) {
+    // Solution: y = A*x + b
+    for (size_t i = 0; i < n_; ++i) {
+        outputs.at("y")(i) = inputs.at("b")(i);
+        for (size_t j = 0; j < m_; ++j) {
+            outputs.at("y")(i) += inputs.at("A")(i * m_ + j) * inputs.at("x")(j);
+        }
+    }
+}
+
+void VectorizedImplicitDiscipline::ComputeResidualGradients(const Variables &inputs, const Variables &outputs, Partials &partials) {
+    // dR/dA: Each R[i] has dR/dA[i,j] = x[j]
+    for (size_t i = 0; i < n_; ++i) {
+        for (size_t j = 0; j < m_; ++j) {
+            partials[{"y", "A"}](i * m_ + j) = inputs.at("x")(j);
+        }
+    }
+
+    // dR/dx: Each R[i] has dR/dx[j] = A[i,j]
+    for (size_t i = 0; i < n_; ++i) {
+        for (size_t j = 0; j < m_; ++j) {
+            partials[{"y", "x"}](i * m_ + j) = inputs.at("A")(i * m_ + j);
+        }
+    }
+
+    // dR/db: Identity (dR[i]/db[j] = delta_ij)
+    for (size_t i = 0; i < n_; ++i) {
+        for (size_t j = 0; j < n_; ++j) {
+            partials[{"y", "b"}](i * n_ + j) = (i == j) ? 1.0 : 0.0;
+        }
+    }
+
+    // dR/dy: -Identity (dR[i]/dy[j] = -delta_ij)
+    for (size_t i = 0; i < n_; ++i) {
+        for (size_t j = 0; j < n_; ++j) {
+            partials[{"y", "y"}](i * n_ + j) = (i == j) ? -1.0 : 0.0;
+        }
+    }
+}
+
+// ============================================================================
+// ImplicitErrorDiscipline Implementation
+// ============================================================================
+
+ImplicitErrorDiscipline::ImplicitErrorDiscipline(ErrorMode mode) : mode_(mode) {}
+
+void ImplicitErrorDiscipline::Setup() {
+    if (mode_ == ErrorMode::THROW_ON_SETUP) {
+        throw std::runtime_error("ImplicitErrorDiscipline: Error in Setup()");
+    }
+    AddInput("x", {1}, "");
+    AddOutput("y", {1}, "");
+}
+
+void ImplicitErrorDiscipline::SetupPartials() {
+    DeclarePartials("y", "x");
+    DeclarePartials("y", "y");
+}
+
+void ImplicitErrorDiscipline::ComputeResiduals(const Variables &inputs, const Variables &outputs, Variables &residuals) {
+    if (mode_ == ErrorMode::THROW_ON_COMPUTE_RESIDUALS) {
+        throw std::runtime_error("ImplicitErrorDiscipline: Error in ComputeResiduals()");
+    }
+    double x = inputs.at("x")(0);
+    double y = outputs.at("y")(0);
+    residuals.at("y")(0) = x - y;
+}
+
+void ImplicitErrorDiscipline::SolveResiduals(const Variables &inputs, Variables &outputs) {
+    if (mode_ == ErrorMode::THROW_ON_SOLVE_RESIDUALS) {
+        throw std::runtime_error("ImplicitErrorDiscipline: Error in SolveResiduals()");
+    }
+    outputs.at("y")(0) = inputs.at("x")(0);
+}
+
+void ImplicitErrorDiscipline::ComputeResidualGradients(const Variables &inputs, const Variables &outputs, Partials &partials) {
+    if (mode_ == ErrorMode::THROW_ON_GRADIENTS) {
+        throw std::runtime_error("ImplicitErrorDiscipline: Error in ComputeResidualGradients()");
+    }
+    partials[{"y", "x"}](0) = 1.0;
+    partials[{"y", "y"}](0) = -1.0;
+}
+
+// ============================================================================
+// ImplicitTestServerManager Implementation
+// ============================================================================
+
+ImplicitTestServerManager::ImplicitTestServerManager() : running_(false), discipline_(nullptr) {}
+
+ImplicitTestServerManager::~ImplicitTestServerManager() {
+    if (running_) {
+        StopServer();
+    }
+}
+
+std::string ImplicitTestServerManager::StartServer(ImplicitDiscipline *discipline) {
+    if (running_) {
+        throw std::runtime_error("Server is already running");
+    }
+
+    discipline_ = discipline;
+
+    // Find an available port
+    int port = FindAvailablePort();
+    address_ = "localhost:" + std::to_string(port);
+
+    // Initialize discipline
+    discipline_->Initialize();
+    discipline_->Configure();
+    discipline_->Setup();
+    discipline_->SetupPartials();
+
+    // Build and start server
+    grpc::ServerBuilder builder;
+    builder.AddListeningPort(address_, grpc::InsecureServerCredentials());
+    discipline_->RegisterServices(builder);
+
+    server_ = builder.BuildAndStart();
+    if (!server_) {
+        throw std::runtime_error("Failed to start test server");
+    }
+
+    running_ = true;
+
+    // Give server a moment to fully start
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    return address_;
+}
+
+void ImplicitTestServerManager::StopServer() {
+    if (server_) {
+        server_->Shutdown();
+        server_->Wait();
+        server_.reset();
+    }
+    running_ = false;
+    discipline_ = nullptr;
 }
 
 // ============================================================================

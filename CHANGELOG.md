@@ -7,7 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Comprehensive implicit discipline test suite** (~2,600 lines of new tests)
+  - Complete unit tests for ImplicitDiscipline, ImplicitClient, and ImplicitServer
+  - Integration tests for end-to-end implicit discipline workflows
+  - Error scenario tests covering boundary conditions and failure modes
+  - Test coverage mirroring explicit discipline test patterns
+  - Reuse of test helpers library (TestServerManager, test disciplines, utilities)
+
 ### Fixed
+- **Fixed type validation in implicit server methods**
+  - Added validation to ensure Array message type matches variable metadata type
+  - ComputeResidualsImpl and ComputeResidualGradientsImpl now reject mismatched types
+  - Returns INVALID_ARGUMENT error when type mismatch detected
+- **Fixed Variable::CreateChunk to include type field**
+  - Array messages now properly include variable type during gRPC transmission
+  - Ensures type information flows correctly through client-server communication
+- **Fixed ImplicitClient inheritance structure**
+  - ImplicitClient now properly inherits from DisciplineClient
+  - Enables reuse of base class methods (GetInfo, SetOptions, etc.)
+- **Fixed duplicate library linker warnings**
+  - Removed redundant PhiloteCpp links from test targets that already link PhiloteTestHelpers
+  - PhiloteTestHelpers provides PhiloteCpp as a PUBLIC dependency
 - Fixed missing discipline_client.h and discipline_server.h in CMake target_sources configuration
 
 ## [0.4.0] - 2025-10-30
