@@ -98,13 +98,10 @@ TEST_F(ExplicitErrorScenariosTest, DisciplineThrowsOnCompute) {
     Variables inputs;
     inputs["x"] = CreateScalarVariable(1.0);
 
-    // ComputeFunction should propagate the error from the discipline
-    // In the current implementation, this will likely return an error status
-    // but not throw on the client side unless we check the status
-    EXPECT_NO_THROW({
+    // ComputeFunction should throw when the discipline throws during Compute
+    EXPECT_THROW({
         Variables outputs = client.ComputeFunction(inputs);
-        // The outputs might be empty or incomplete due to the error
-    });
+    }, std::runtime_error);
 }
 
 TEST_F(ExplicitErrorScenariosTest, DisciplineThrowsOnComputePartials) {
@@ -125,10 +122,10 @@ TEST_F(ExplicitErrorScenariosTest, DisciplineThrowsOnComputePartials) {
     Variables inputs;
     inputs["x"] = CreateScalarVariable(1.0);
 
-    // ComputeGradient should handle the error from ComputePartials
-    EXPECT_NO_THROW({
+    // ComputeGradient should throw when the discipline throws during ComputePartials
+    EXPECT_THROW({
         Partials partials = client.ComputeGradient(inputs);
-    });
+    }, std::runtime_error);
 }
 
 // ============================================================================
@@ -214,10 +211,10 @@ TEST_F(ExplicitErrorScenariosTest, WrongShapeInput) {
     inputs["x"] = CreateVectorVariable({1.0, 2.0, 3.0});  // Wrong shape
     inputs["y"] = CreateScalarVariable(4.0);
 
-    // This might fail during variable sending or assignment
-    EXPECT_NO_THROW({
+    // Server should return an error for wrong shape, which will now throw
+    EXPECT_THROW({
         Variables outputs = client.ComputeFunction(inputs);
-    });
+    }, std::runtime_error);
 }
 
 // ============================================================================
@@ -381,16 +378,10 @@ TEST_F(ExplicitErrorScenariosTest, ServerStopDuringOperation) {
     // Stop the server
     server_manager_->StopServer();
 
-    // Try to make another call - should fail
-    // The behavior depends on gRPC - might throw, return error, or hang
-    EXPECT_NO_THROW({
-        try {
-            Variables outputs2 = client.ComputeFunction(inputs);
-            // If it doesn't throw, the outputs might be empty or stale
-        } catch (...) {
-            // Expected in most cases
-        }
-    });
+    // Try to make another call - should throw because server is stopped
+    EXPECT_THROW({
+        Variables outputs2 = client.ComputeFunction(inputs);
+    }, std::runtime_error);
 }
 
 TEST_F(ExplicitErrorScenariosTest, MultipleServerStartStop) {

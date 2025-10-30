@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Client methods now throw exceptions on gRPC errors** (closes #48)
+  - ExplicitClient::ComputeFunction() and ComputeGradient() now check gRPC status
+  - ImplicitClient::ComputeResiduals(), SolveResiduals(), and ComputeResidualGradients() now check gRPC status
+  - All computation methods throw std::runtime_error with error code and message on RPC failure
+  - **BREAKING CHANGE**: Previously these methods returned silently with potentially invalid data
+  - Error handling is now consistent with other client methods (GetInfo, Setup, etc.)
+  - Prevents silent failures and propagation of corrupted data
+
 ### Added
 - **Comprehensive implicit discipline test suite** (~2,600 lines of new tests)
   - Complete unit tests for ImplicitDiscipline, ImplicitClient, and ImplicitServer

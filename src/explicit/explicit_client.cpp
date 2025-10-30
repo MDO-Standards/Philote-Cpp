@@ -87,8 +87,12 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
     }
 
     grpc::Status status = stream->Finish();
-    // Note: We don't throw on error - caller can check if outputs are valid
-    // This allows graceful handling of server-side errors
+    if (!status.ok())
+    {
+        throw std::runtime_error("ComputeFunction RPC failed: [" +
+                                 std::to_string(status.error_code()) + "] " +
+                                 status.error_message());
+    }
 
     return outputs;
 }
@@ -133,8 +137,12 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
     }
 
     grpc::Status status = stream->Finish();
-    // Note: We don't throw on error - caller can check if partials are valid
-    // This allows graceful handling of server-side errors
+    if (!status.ok())
+    {
+        throw std::runtime_error("ComputeGradient RPC failed: [" +
+                                 std::to_string(status.error_code()) + "] " +
+                                 status.error_message());
+    }
 
     return partials;
 }

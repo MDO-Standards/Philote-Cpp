@@ -80,6 +80,12 @@ Variables ImplicitClient::ComputeResiduals(const Variables &vars)
     }
 
     grpc::Status status = stream->Finish();
+    if (!status.ok())
+    {
+        throw std::runtime_error("ComputeResiduals RPC failed: [" +
+                                 std::to_string(status.error_code()) + "] " +
+                                 status.error_message());
+    }
 
     return res;
 }
@@ -121,6 +127,12 @@ Variables ImplicitClient::SolveResiduals(const Variables &vars)
     }
 
     grpc::Status status = stream->Finish();
+    if (!status.ok())
+    {
+        throw std::runtime_error("SolveResiduals RPC failed: [" +
+                                 std::to_string(status.error_code()) + "] " +
+                                 status.error_message());
+    }
 
     return out;
 }
@@ -168,6 +180,12 @@ Partials ImplicitClient::ComputeResidualGradients(const Variables &vars)
     }
 
     grpc::Status status = stream->Finish();
+    if (!status.ok())
+    {
+        throw std::runtime_error("ComputeResidualGradients RPC failed: [" +
+                                 std::to_string(status.error_code()) + "] " +
+                                 status.error_message());
+    }
 
     return partials;
 }
