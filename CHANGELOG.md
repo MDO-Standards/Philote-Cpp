@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Variable::Send() and DisciplineServer now check stream Write() failures** (closes #35)
+  - All three Variable::Send() method overloads now check Write() return values
+  - Throws runtime_error with descriptive messages including variable name and chunk number
+  - DisciplineServer::GetVariableDefinitions() and GetPartialDefinitions() now check Write() failures
+  - Returns grpc::Status with INTERNAL error code on metadata write failures
+  - Prevents silent data loss on network failures, broken connections, or buffer overflows
+  - Added 5 comprehensive unit tests using mock stream classes to verify error handling
+  - Tests cover first-chunk failure, mid-transmission failure, and success scenarios
 - **Documented SetOptions() override pattern for configurable disciplines** (closes #34)
   - Added comprehensive comments in base Discipline::SetOptions() explaining override pattern
   - Fixed Rosenbrock example to properly override Initialize() and SetOptions() instead of using broken signature
