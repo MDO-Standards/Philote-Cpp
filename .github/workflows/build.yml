@@ -14,14 +14,15 @@ jobs:
   build:
       strategy:
         matrix:
-          os: [ubuntu-24.04]
+          os: [ubuntu-22.04]
           compiler: [
+            {c: gcc-9, cpp: g++-9},
+            {c: gcc-10, cpp: g++-10},
+            {c: gcc-11, cpp: g++-11},
             {c: gcc-12, cpp: g++-12},
-            {c: gcc-13, cpp: g++-13},
-            {c: gcc-14, cpp: g++-14},
-            {c: clang-16, cpp: clang++-16},
-            {c: clang-17, cpp: clang++-17},
-            {c: clang-18, cpp: clang++-18}
+#            {c: clang-12, cpp: clang++-12},
+            {c: clang-13, cpp: clang++-13},
+            {c: clang-14, cpp: clang++-14}
             ]
           build_type: [Release, Debug]
             
@@ -30,36 +31,23 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
+          token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgrpc++-dev \
-            libprotobuf-dev \
-            protobuf-compiler-grpc \
-            cmake
+      - uses: eWaterCycle/setup-grpc@v5
+        with:
+          grpc-version: 1.51.1
 
-      - name: Build and install GoogleTest
-        run: |
-          git clone https://github.com/google/googletest.git -b v1.14.0
-          cd googletest
-          mkdir build && cd build
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr
-          make -j$(nproc)
-          sudo make install
-          cd ../..
-          rm -rf googletest
+      - name: Correct gRPC C++ protoc plugin
+        run: ln -s $(which grpc_cpp_plugin) $GRPC_ROOT/bin/protoc-gen-grpc
+
+      - name: Install GTest
+        run: sudo apt-get install libgtest-dev
 
       - name: PhiloteCpp Build
         run: |
           mkdir build
           cd build
           cmake .. -DCMAKE_C_COMPILER=${{ matrix.compiler.c }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler.cpp }} -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DBUILD_TESTS=TRUE
-          make -j$(nproc)
+          make
           make test
         working-directory: ${{github.workspace}}
-
-
-# documentation cleanup
-#find docs/hdoc-output -type f -exec sed -i 's/<footer class="footer">.*<\/footer>//g' {} +

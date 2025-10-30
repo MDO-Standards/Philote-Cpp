@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2025 Christopher A. Lupp
+    Copyright 2022-2023 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -30,10 +30,9 @@
 */
 #pragma once
 
-#include <google/protobuf/struct.pb.h>
+#include "google/protobuf/struct.pb.h"
 
-#include <map>
-#include <variable.h>
+#include <Philote/variable.h>
 
 #include <data.pb.h>
 #include <disciplines.grpc.pb.h>
@@ -41,7 +40,116 @@
 namespace philote
 {
     // forward declaration
-    class DisciplineServer;
+    class Discipline;
+
+    /**
+     * @brief Base class for all analysis discipline servers
+     *
+     */
+    class DisciplineServer : public DisciplineService::Service
+    {
+    public:
+        /**
+         * @brief Construct a new Discipline Server object
+         *
+         */
+        DisciplineServer() = default;
+
+        /**
+         * @brief Destroy the Discipline Server object
+         *
+         * Deallocates all pointers required by the discipline base class
+         */
+        ~DisciplineServer() override;
+
+        /**
+         * @brief Links all pointers needed by the discipline base class
+         *
+         * @param discipline
+         */
+        void LinkPointers(philote::Discipline *discipline);
+
+        /**
+         * @brief Unlinks all pointers
+         */
+        void UnlinkPointers();
+
+        /**
+         * @brief RPC to send the discipline properties to the client
+         *
+         * @param context
+         * @param request
+         * @param response
+         * @return grpc::Status
+         */
+        grpc::Status GetInfo(grpc::ServerContext *context,
+                             google::protobuf::Empty *request,
+                             const ::philote::DisciplineProperties *response);
+
+        /**
+         * @brief RPC to define the discipline stream options to the client
+         *
+         * @param context
+         * @param request
+         * @param response
+         * @return grpc::Status
+         */
+        grpc::Status SetStreamOptions(grpc::ServerContext *context,
+                                      const ::philote::StreamOptions *request,
+                                      google::protobuf::Empty *response) override;
+
+        /**
+         * @brief Set the discipline options
+         *
+         * @param context
+         * @param request
+         * @param response
+         * @return grpc::Status
+         */
+        grpc::Status SetOptions(grpc::ServerContext *context,
+                                const ::philote::DisciplineOptions *request,
+                                google::protobuf::Empty *response) override;
+
+        /**
+         * @brief RPC to define the discipline variables on the client side
+         *
+         * @param context
+         * @param request
+         * @param writer
+         * @return grpc::Status
+         */
+        grpc::Status GetVariableDefinitions(grpc::ServerContext *context,
+                                            const google::protobuf::Empty *request,
+                                            grpc::ServerWriter<::philote::VariableMetaData> *writer) override;
+
+        /**
+         * @brief RPC to define the discipline partials on the client side
+         *
+         * @param context
+         * @param request
+         * @param writer
+         * @return grpc::Status
+         */
+        grpc::Status GetPartialDefinitions(grpc::ServerContext *context,
+                                           const google::protobuf::Empty *request,
+                                           grpc::ServerWriter<::philote::PartialsMetaData> *writer) override;
+
+        /**
+         * @brief RPC that invokes the discipline setup function
+         *
+         * @param context
+         * @param request
+         * @param response
+         * @return grpc::Status
+         */
+        grpc::Status Setup(grpc::ServerContext *context,
+                           const google::protobuf::Empty *request,
+                           google::protobuf::Empty *response) override;
+
+    private:
+        //! Pointer to the discipline implementation
+        philote::Discipline *discipline_;
+    };
 
     /**
      * @brief Definition of the discipline base class
@@ -65,26 +173,17 @@ namespace philote
          * @brief Destroy the Discipline object
          *
          */
-        ~Discipline();
-
-        /**
-         * Gets the options list.
-         *
-         * @return
-         */
-        std::map<std::string, std::string> &options_list();
+        ~Discipline() = default;
 
         /**
          * @brief Accesses the variable meta data
          */
-        std::vector<philote::VariableMetaData> &var_meta() { return var_meta_; }
-        const std::vector<philote::VariableMetaData> &var_meta() const { return var_meta_; }
+        std::vector<philote::VariableMetaData> &var_meta();
 
         /**
          * @brief Accesses the partials meta data
          */
-        std::vector<philote::PartialsMetaData> &partials_meta() { return partials_meta_; }
-        const std::vector<philote::PartialsMetaData> &partials_meta() const { return partials_meta_; }
+        std::vector<philote::PartialsMetaData> &partials_meta();
 
         /**
          * @brief Gets the discipline properties
@@ -98,8 +197,7 @@ namespace philote
          *
          * @return StreamOptions&
          */
-        philote::StreamOptions &stream_opts() { return stream_opts_; }
-        const philote::StreamOptions &stream_opts() const { return stream_opts_; }
+        philote::StreamOptions &stream_opts();
 
         /**
          * @brief Declares an input
@@ -128,87 +226,65 @@ namespace philote
         void DeclarePartials(const std::string &f, const std::string &x);
 
         /**
-         * @brief Add an option to the discipline
-         *
-         * @param name Option name
-         * @param type Option type as string (e.g., "bool", "int", "float", "string")
-         */
-        void AddOption(const std::string &name, const std::string &type);
-
-        /**
-         * @brief Initialize function that sets up available options
-         *
-         * This function is called during discipline construction. It should be
-         * used to define what option names and types are available. The
-         * SetOptions function is used to actually set the option values.
-         */
-        virtual void Initialize();
-
-        /**
-         * @brief Configure function that is called after options are set
-         *
-         * This function is called after SetOptions but before Setup. It can be
-         * used for any configuration that depends on the option values.
-         */
-        virtual void Configure();
-
-        /**
          * @brief Sets up all discipline options based on a protobuf struct that
          * the server received from the client.
          *
          * @param options_struct
          */
-        virtual void SetOptions(const google::protobuf::Struct &options_struct);
+        virtual void Initialize(const google::protobuf::Struct &options_struct);
 
         /**
-         * @brief Setup function that is called by the server when the client
-         * calls the setup RPC.
+         * @brief Sets up the analysis server before any function or gradient
+         * evaluation.
          *
+         * This function should be overridden by the developer of the
+         * discipline.
          */
         virtual void Setup();
 
         /**
-         * @brief Setup function that is called by the server when the client
-         * calls the setup RPC. This function is used to setup the partials.
+         * @brief Defines the partials for this discipline.
          *
+         * This function should be overridden by the developer of the
+         * discipline.
          */
         virtual void SetupPartials();
 
     protected:
-        //! List of options that can be set by the client
-        std::map<std::string, std::string> options_list_;
-
-        //! List of variable meta data
-        std::vector<philote::VariableMetaData> var_meta_;
-
-        //! List of partials meta data
-        std::vector<philote::PartialsMetaData> partials_meta_;
-
-        //! Discipline properties
+        //! Properties of the discipline (continuity, etc.)
         philote::DisciplineProperties properties_;
 
-        //! Stream options
-        philote::StreamOptions stream_opts_;
+        //! Options that determine how data is streamed
+        StreamOptions stream_opts_;
+
+        //! vector containing all variable metadata for the discipline
+        std::vector<VariableMetaData> var_meta_;
+
+        //! vector containing all partials metadata for the discipline
+        std::vector<PartialsMetaData> partials_meta_;
+
+        //! Basic discipline server
+        philote::DisciplineServer discipline_server_;
     };
 
     /**
      * @brief Base class for all analysis discipline clients
      *
      */
-    class BaseDisciplineClient
+    class DisciplineClient
     {
     public:
         /**
          * @brief Construct a new Discipline Client object
          *
          */
-        BaseDisciplineClient();
+        DisciplineClient();
 
         /**
          * @brief Destroy the Discipline Client object
          *
          */
-        ~BaseDisciplineClient() = default;
+        ~DisciplineClient() = default;
 
         /**
          * @brief Connects the client stub to a gRPC channel
@@ -273,17 +349,7 @@ namespace philote
          *
          * @return std::vector<philote::PartialsMetaData>
          */
-        std::vector<philote::PartialsMetaData> GetPartialsMeta();
-
-        /**
-         * @brief Sets the stub for testing purposes.
-         *
-         * @param stub The stub to be used by the client.
-         */
-        void SetStub(std::unique_ptr<philote::DisciplineService::StubInterface> stub)
-        {
-            stub_ = std::move(stub);
-        }
+        std::vector<philote::PartialsMetaData> partials_meta();
 
     protected:
         //! streaming options for the client/server connection
@@ -293,7 +359,7 @@ namespace philote
         philote::DisciplineProperties properties_;
 
         //! gRPC client stub for the generic discipline definition
-        std::unique_ptr<philote::DisciplineService::StubInterface> stub_;
+        std::unique_ptr<philote::DisciplineService::Stub> stub_;
 
         //! variable meta data
         std::vector<philote::VariableMetaData> var_meta_;
@@ -301,4 +367,5 @@ namespace philote
         //! vector containing all partials metadata for the discipline
         std::vector<philote::PartialsMetaData> partials_meta_;
     };
+
 }

@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2025 Christopher A. Lupp
+    Copyright 2022-2023 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@
 
 #include <grpcpp/grpcpp.h>
 
-#include <explicit.h>
+#include <Philote/explicit.h>
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -54,24 +54,6 @@ public:
     ~Paraboloid() = default;
 
 private:
-    // Initialize function to set up available options
-    void Initialize() override
-    {
-        // Call parent initialize first
-        ExplicitDiscipline::Initialize();
-        
-        // Add discipline-specific options
-        AddOption("scale_factor", "float");
-        AddOption("enable_scaling", "bool");
-    }
-
-    // Configure function called after options are set
-    void Configure() override
-    {
-        // Any configuration based on options would go here
-        // For this example, we'll just demonstrate the capability
-    }
-
     // Defines the variables for the discipline
     void Setup() override
     {
@@ -103,17 +85,8 @@ private:
         double x = inputs.at("x")(0);
         double y = inputs.at("y")(0);
 
-        // Approach 1: Traditional std::map with pair keys using std::make_pair
         jac[make_pair("f_xy", "x")](0) = 2.0 * x - 6.0 + y;
         jac[make_pair("f_xy", "y")](0) = 2.0 * y + 8.0 + x;
-
-        // Approach 2: Alternative cleaner syntax using PartialsPairDict
-        // This provides the same functionality with more readable syntax
-        // To use this approach, uncomment the following lines:
-        //
-        // philote::PartialsPairDict pair_jac;
-        // pair_jac("f_xy", "x")(0) = 2.0 * x - 6.0 + y;
-        // pair_jac("f_xy", "y")(0) = 2.0 * y + 8.0 + x;
     }
 };
 

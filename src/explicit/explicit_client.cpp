@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2025 Christopher A. Lupp
+    Copyright 2022-2023 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@
     therein. The DoD does not exercise any editorial, security, or other
     control over the information you may find at these locations.
 */
-#include "explicit.h"
+#include <Philote/explicit.h>
 
 #include <data.pb.h>
 #include <disciplines.pb.h>
@@ -55,22 +55,18 @@ void ExplicitClient::ConnectChannel(std::shared_ptr<ChannelInterface> channel)
 philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
 {
     grpc::ClientContext context;
-    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
+    std::shared_ptr<grpc::ClientReaderWriter<Array, Array>>
         stream(stub_->ComputeFunction(&context));
 
     // send/assign inputs and preallocate outputs
     Variables outputs;
 
-    for (const VariableMetaData &var : GetVariableMetaAll())
+    for (const VariableMetaData &var : var_meta_)
     {
         const string &name = var.name();
 
         if (var.type() == kInput)
-        {
-            // Only send if the input was actually provided
-            if (inputs.count(name) > 0)
-                inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
-        }
+            inputs.at(name).Send(name, "", stream.get(), stream_options_.num_double());
 
         if (var.type() == kOutput)
             outputs[var.name()] = Variable(var);
@@ -87,8 +83,6 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
     }
 
     grpc::Status status = stream->Finish();
-    // Note: We don't throw on error - caller can check if outputs are valid
-    // This allows graceful handling of server-side errors
 
     return outputs;
 }
@@ -96,20 +90,17 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
 philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
 {
     grpc::ClientContext context;
-    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
+    std::shared_ptr<grpc::ClientReaderWriter<Array, Array>>
         stream(stub_->ComputeGradient(&context));
 
     // send/assign inputs
-    for (const VariableMetaData &var : GetVariableMetaAll())
+    for (const VariableMetaData &var : var_meta_)
     {
         const string name = var.name();
+        const string subname = var.name();
 
         if (var.type() == kInput)
-        {
-            // Only send if the input was actually provided
-            if (inputs.count(name) > 0)
-                inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
-        }
+            inputs.at(name).Send(name, subname, stream.get(), stream_options_.num_double());
     }
 
     // finish streaming data to the server
@@ -117,7 +108,7 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
 
     // preallocate partials
     Partials partials;
-    for (const auto &par : GetPartialsMetaConst())
+    for (const auto &par : partials_meta_)
     {
         partials[make_pair(par.name(), par.subname())] = Variable(par);
     }
@@ -133,8 +124,6 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
     }
 
     grpc::Status status = stream->Finish();
-    // Note: We don't throw on error - caller can check if partials are valid
-    // This allows graceful handling of server-side errors
 
     return partials;
 }

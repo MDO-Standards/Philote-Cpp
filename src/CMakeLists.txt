@@ -1,7 +1,7 @@
 #===============================================================================
 #    Philote C++ Bindings
 #
-#    Copyright 2022-2025 Christopher A. Lupp
+#    Copyright 2022-2023 Christopher A. Lupp
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@
 #    therein. The DoD does not exercise any editorial, security, or other
 #    control over the information you may find at these locations.
 #===============================================================================
-include(GenerateGrpc)
 add_subdirectory(utils)
 add_subdirectory(discipline)
 add_subdirectory(explicit)
@@ -42,14 +41,3 @@ add_library(PhiloteCpp STATIC
     $<TARGET_OBJECTS:ExplicitDiscipline>
     $<TARGET_OBJECTS:ImplicitDiscipline>
 )
-target_include_directories(PhiloteCpp
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
-        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/generated>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/philote>
-)
-target_compile_features(PhiloteCpp PUBLIC cxx_std_17)
-target_link_libraries(PhiloteCpp PUBLIC protobuf::libprotobuf gRPC::grpc++)
-enable_coverage(PhiloteCpp)
-

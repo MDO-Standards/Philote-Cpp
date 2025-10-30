@@ -8,15 +8,13 @@
     "customizations": {
         "vscode": {
             "extensions": [
-				"ms-vscode.cpptools-themes",
-				"ms-vscode.cpptools",
-				"ms-azuretools.vscode-docker",
-				"cschlosser.doxdocgen",
-				"stkb.rewrap",
-				"zxh404.vscode-proto3",
-				"ms-vscode.cpptools-extension-pack",
-				"tamasfe.even-better-toml"
-			]
+                "ms-vscode.cpptools-themes",
+                "ms-vscode.cpptools",
+                "ms-azuretools.vscode-docker",
+                "cschlosser.doxdocgen",
+                "stkb.rewrap",
+                "zxh404.vscode-proto3"
+            ]
         }
     }
     // Features to add to the dev container. More info: https://containers.dev/features.

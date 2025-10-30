@@ -28,40 +28,23 @@
     therein. The DoD does not exercise any editorial, security, or other
     control over the information you may find at these locations.
 */
-#include <grpcpp/grpcpp.h>
+#include <cstddef>
 
-#include <Philote/explicit.h>
-
-using grpc::Server;
-using grpc::ServerBuilder;
-
-using philote::ExplicitDiscipline;
-using philote::Partials;
-using philote::Variables;
-
-ExplicitDiscipline::ExplicitDiscipline()
+/**
+ * @brief Struct that stores options
+ *
+ */
+struct StreamOptions
 {
-    // link to discipline server and this object
-    explicit_.LinkPointers(this);
-}
+    /**
+     * @brief Maximum number of doubles that will be sent per stream message.
+     *
+     */
+    size_t num_double;
 
-ExplicitDiscipline::~ExplicitDiscipline()
-{
-    explicit_.UnlinkPointers();
-}
-
-void ExplicitDiscipline::RegisterServices(ServerBuilder &builder)
-{
-    builder.RegisterService(&discipline_server_);
-    builder.RegisterService(&explicit_);
-}
-
-void ExplicitDiscipline::Compute(const Variables &inputs,
-                                 philote::Variables &outputs)
-{
-}
-
-void ExplicitDiscipline::ComputePartials(const Variables &inputs,
-                                         Partials &partials)
-{
-}
+    /**
+     * @brief Maximum number of integers that will be sent per stream message.
+     *
+     */
+    size_t num_int;
+};

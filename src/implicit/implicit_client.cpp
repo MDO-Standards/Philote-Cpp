@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2025 Christopher A. Lupp
+    Copyright 2022-2023 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@
     therein. The DoD does not exercise any editorial, security, or other
     control over the information you may find at these locations.
 */
-#include "implicit.h"
+#include <Philote/implicit.h>
 
 using std::shared_ptr;
 using std::string;
@@ -43,7 +43,7 @@ using philote::Variables;
 
 void ImplicitClient::ConnectChannel(shared_ptr<ChannelInterface> channel)
 {
-    BaseDisciplineClient::ConnectChannel(channel);
+    DisciplineClient::ConnectChannel(channel);
     stub_ = ImplicitService::NewStub(channel);
 }
 

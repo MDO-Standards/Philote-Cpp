@@ -1,7 +1,7 @@
 #===============================================================================
 #    Philote C++ Bindings
 #
-#    Copyright 2022-2025 Christopher A. Lupp
+#    Copyright 2022-2023 Christopher A. Lupp
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -33,11 +33,4 @@ add_library(ExplicitDiscipline OBJECT
     explicit_discipline.cpp
     explicit_client.cpp
 )
-target_include_directories(ExplicitDiscipline
-    PRIVATE
-        ${CMAKE_SOURCE_DIR}/include
-        ${CMAKE_BINARY_DIR}/src/generated
-)
 target_link_libraries(ExplicitDiscipline PRIVATE protobuf::libprotobuf gRPC::grpc++)
-add_dependencies(ExplicitDiscipline GrpcGenerated)
-enable_coverage(ExplicitDiscipline)

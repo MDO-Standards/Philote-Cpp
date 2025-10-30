@@ -1,1 +1,0 @@
-# Philote C++ Bindings

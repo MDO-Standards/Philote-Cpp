@@ -10,13 +10,12 @@ RUN if [ "${REINSTALL_CMAKE_VERSION_FROM_SOURCE}" != "none" ]; then \
     fi \
     && rm -f /tmp/reinstall-cmake.sh
 
-
 # [Optional] Uncomment this section to install additional vcpkg ports.
 # RUN su vscode -c "${VCPKG_ROOT}/vcpkg install <your-port-name-here>"
 
 # [Optional] Uncomment this section to install additional packages.
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends meson ninja-build clang libclang-dev pkg-config
+# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+#     && apt-get -y install --no-install-recommends <your-package-list-here>
 
 WORKDIR /tmp
 RUN git clone --recurse-submodules -b v1.56.0 --depth 1 --shallow-submodules https://github.com/grpc/grpc
@@ -36,12 +35,6 @@ RUN make -j `nproc` install
 WORKDIR /grpc/bin
 RUN ln -s grpc_cpp_plugin protoc-gen-grpc
 ENV PATH "$PATH:/grpc:/grpc/bin:/gtest"
-
-WORKDIR /tmp
-RUN git clone https://github.com/hdoc/hdoc.git
-WORKDIR /tmp/hdoc
-RUN meson --prefix /hdoc build; ninja -C build
-RUN mkdir /hdoc; cp build/hdoc /hdoc/hdoc; cp build/hdoc /hdoc/hdoc
 
 # remove the temporary files
 WORKDIR /

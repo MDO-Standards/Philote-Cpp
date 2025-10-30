@@ -1,7 +1,7 @@
 #===============================================================================
 #    Philote C++ Bindings
 #
-#    Copyright 2022-2025 Christopher A. Lupp
+#    Copyright 2022-2023 Christopher A. Lupp
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -28,27 +28,12 @@
 #    therein. The DoD does not exercise any editorial, security, or other
 #    control over the information you may find at these locations.
 #===============================================================================
-
-# cmake 3.23 is required due to the use of file sets
-cmake_minimum_required (VERSION 3.23)
+cmake_minimum_required (VERSION 3.9)
 
 
 project(PhiloteCpp
-    VERSION 0.4.0
-    LANGUAGES CXX
+    VERSION 0.3.0
 )
-
-# Set a default build type if none was specified
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "Setting build type to 'Release' as none was specified")
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build" FORCE)
-    # Set the possible values of build type for cmake-gui
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
-        "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
-endif()
-
-# Include GNUInstallDirs for standard installation directory variables
-include(GNUInstallDirs)
 
 # cache option variables
 set(
@@ -61,92 +46,27 @@ set(
     FALSE
     CACHE BOOL "Build examples"
 )
-set(
-    ENABLE_COVERAGE
-    FALSE
-    CACHE BOOL "Enable code coverage analysis"
-)
 
 # add cmake scripts
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-include(CodeCoverage)
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-# Coverage configuration
-if(ENABLE_COVERAGE)
-    message("Enabling code coverage...")
+# set the C++ standard
+set(CMAKE_CXX_STANDARD 17)
 
-    # Check if we have the required tools
-    find_program(GCOV_PATH gcov)
-    find_program(LCOV_PATH lcov)
-    find_program(GENHTML_PATH genhtml)
 
-    if(NOT GCOV_PATH)
-        message(FATAL_ERROR "gcov not found! Install gcov and try again.")
-    endif()
-
-    message("Coverage will be applied to library targets")
-endif()
 
 # Find gRPC and its dependencies
-# Try CONFIG first, fall back to pkg-config for system packages
-find_package(Protobuf CONFIG QUIET)
-if(NOT Protobuf_FOUND)
-    # Use MODULE mode for system installations
-    find_package(Protobuf REQUIRED)
+find_package(Protobuf CONFIG REQUIRED)
+find_package(gRPC CONFIG REQUIRED)
 
-    # Create compatibility targets if they don't exist
-    if(NOT TARGET protobuf::libprotobuf AND TARGET protobuf::protobuf)
-        add_library(protobuf::libprotobuf ALIAS protobuf::protobuf)
-    elseif(NOT TARGET protobuf::libprotobuf)
-        add_library(protobuf::libprotobuf INTERFACE IMPORTED)
-        set_target_properties(protobuf::libprotobuf PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIRS}"
-            INTERFACE_LINK_LIBRARIES "${Protobuf_LIBRARIES}"
-        )
-    endif()
+# add include directories
+include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/generated)
 
-    # Ensure protoc executable target exists
-    if(NOT TARGET protobuf::protoc)
-        add_executable(protobuf::protoc IMPORTED)
-        set_target_properties(protobuf::protoc PROPERTIES
-            IMPORTED_LOCATION "${Protobuf_PROTOC_EXECUTABLE}"
-        )
-    endif()
-endif()
-
-find_package(gRPC CONFIG QUIET)
-if(NOT gRPC_FOUND)
-    # Use pkg-config as fallback for system installations
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(GRPC REQUIRED grpc++)
-    pkg_check_modules(GRPC_UNSECURE REQUIRED grpc)
-
-    # Create imported targets for consistency
-    if(NOT TARGET gRPC::grpc++)
-        add_library(gRPC::grpc++ INTERFACE IMPORTED)
-        set_target_properties(gRPC::grpc++ PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES "${GRPC_INCLUDE_DIRS}"
-            INTERFACE_LINK_LIBRARIES "${GRPC_LINK_LIBRARIES}"
-        )
-    endif()
-endif()
-
-# Find grpc_cpp_plugin (needed for proto generation)
-# First check if gRPC CONFIG provided the target
-if(TARGET gRPC::grpc_cpp_plugin)
-    get_target_property(GRPC_CPP_PLUGIN gRPC::grpc_cpp_plugin LOCATION)
-else()
-    # Fall back to find_program
-    find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin)
-    if(NOT GRPC_CPP_PLUGIN)
-        message(FATAL_ERROR "grpc_cpp_plugin not found")
-    endif()
-endif()
 
 # add subdirectories
+add_subdirectory(generated)
 add_subdirectory(src)
-add_subdirectory(include)
-
 if (BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif ()
@@ -159,139 +79,5 @@ if (BUILD_TESTS)
     enable_testing()
     find_package(GTest REQUIRED)
     include(GoogleTest)
-
-    # Verify that GTest::gmock target is available
-    if(NOT TARGET GTest::gmock)
-        message(FATAL_ERROR "GTest::gmock target not found. Please install googletest with gmock support.")
-    endif()
-
     add_subdirectory(test)
 endif (BUILD_TESTS)
-
-
-# installation (and package definitions)
-install(TARGETS
-    PhiloteCpp
-    EXPORT PhiloteCppConfig
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    FILE_SET public_headers
-)
-export(TARGETS
-    PhiloteCpp
-    NAMESPACE PhiloteCpp::
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/PhiloteCppConfig.cmake"
-)
-install(EXPORT
-    PhiloteCppConfig
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/PhiloteCpp"
-    NAMESPACE PhiloteCpp::
-)
-
-# Coverage targets
-if(ENABLE_COVERAGE AND BUILD_TESTS)
-    
-    # List of source directories to exclude from coverage reports
-    # Test executables have coverage enabled to collect data when running library code,
-    # but test source files themselves are excluded from coverage metrics
-    set(COVERAGE_EXCLUDES
-        '/usr/include/*'
-        '*/test/*'
-        '*/tests/*'
-        '*_test.cpp'
-        '*_tests.cpp'
-        '*/test_helpers.*'
-        '*/gtest/*'
-        '*/gmock/*'
-        '*/googletest/*'
-        '*/generated/*'
-        '*.pb.cc'
-        '*.pb.h'
-        '*.grpc.pb.cc'
-        '*.grpc.pb.h'
-        '**/grpc/*'
-        '**/protobuf/*'
-        '*/cmake-build-*/*'
-        '*/build/*'
-        '*/cmake/*'
-        '*/examples/*'
-    )
-    
-    # Coverage target that runs tests and generates coverage
-    add_custom_target(coverage
-        COMMENT "Generating code coverage report"
-        
-        # Clean previous coverage data
-        COMMAND find ${CMAKE_BINARY_DIR} -name "*.gcda" -delete
-        
-        # Run tests to generate coverage data
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        
-        # Generate coverage info files for each source file
-        COMMAND find ${CMAKE_BINARY_DIR}/src -name "*.gcno" -exec ${GCOV_PATH} -p -b {} + || true
-        
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        DEPENDS PhiloteCpp
-    )
-    
-    # If lcov is available, create HTML reports
-    if(LCOV_PATH AND GENHTML_PATH)
-        add_custom_target(coverage-html
-            COMMENT "Generating HTML coverage report"
-            
-            # Clean previous coverage data
-            COMMAND find ${CMAKE_BINARY_DIR} -name "*.gcda" -delete
-            COMMAND ${LCOV_PATH} --zerocounters --directory ${CMAKE_BINARY_DIR}
-            
-            # Run tests
-            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-            
-            # Capture coverage data
-            COMMAND ${LCOV_PATH} --capture --directory ${CMAKE_BINARY_DIR} --output-file coverage.info
-            
-            # Remove unwanted files from coverage
-            COMMAND ${LCOV_PATH} --remove coverage.info ${COVERAGE_EXCLUDES} --output-file coverage_filtered.info
-            
-            # Generate HTML report
-            COMMAND ${GENHTML_PATH} coverage_filtered.info --output-directory coverage_html
-            
-            # Print summary
-            COMMAND ${LCOV_PATH} --summary coverage_filtered.info
-            
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            DEPENDS PhiloteCpp
-        )
-        
-        message("Coverage targets added: 'coverage' and 'coverage-html'")
-        message("  Run: make coverage        # for basic gcov reports")
-        message("  Run: make coverage-html   # for HTML reports")
-    else()
-        add_custom_target(coverage-html
-            COMMAND ${CMAKE_COMMAND} -E echo "lcov and genhtml are required for HTML coverage reports"
-            COMMAND ${CMAKE_COMMAND} -E echo "Install lcov: apt-get install lcov (Ubuntu) or brew install lcov (macOS)"
-        )
-        message("Coverage target added: 'coverage' (lcov not found, HTML reports unavailable)")
-    endif()
-    
-    # Codecov-friendly target that generates coverage.xml
-    add_custom_target(coverage-xml
-        COMMENT "Generating XML coverage report for Codecov"
-        
-        # Clean previous coverage data
-        COMMAND find ${CMAKE_BINARY_DIR} -name "*.gcda" -delete
-        
-        # Run tests
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        
-        # Generate individual .gcov files for each source file
-        COMMAND find ${CMAKE_BINARY_DIR} -name "*.gcno" -exec ${GCOV_PATH} -p -b -o {} + || true
-        
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        DEPENDS PhiloteCpp
-    )
-    
-    message("Codecov target added: 'coverage-xml'")
-    message("  CI Usage: cmake -DENABLE_COVERAGE=ON .. && make coverage-xml")
-    
-endif()
