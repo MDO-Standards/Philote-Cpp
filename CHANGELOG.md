@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reuse of test helpers library (TestServerManager, test disciplines, utilities)
 
 ### Fixed
+- **Added null pointer checks to DisciplineServer RPC methods** (closes #32)
+  - All 7 RPC methods now check if discipline_ pointer is null before dereferencing
+  - Methods return FAILED_PRECONDITION error instead of crashing when discipline not linked
+  - Prevents segmentation faults if RPC called before LinkPointers() or after UnlinkPointers()
+  - Added comprehensive test coverage with 7 new null pointer scenario tests
+  - Improves server robustness and security by preventing remote crash vulnerability
 - **Fixed type validation in implicit server methods**
   - Added validation to ensure Array message type matches variable metadata type
   - ComputeResidualsImpl and ComputeResidualGradientsImpl now reject mismatched types
