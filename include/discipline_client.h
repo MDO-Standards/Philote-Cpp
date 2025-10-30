@@ -35,6 +35,7 @@
 #include <grpcpp/support/status.h>
 
 #include <disciplines.grpc.pb.h>
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
@@ -186,6 +187,20 @@ namespace philote
          */
         void SetPartialsMetaData(const std::vector<PartialsMetaData> &meta) { partials_meta_ = meta; }
 
+        /**
+         * @brief Set the RPC timeout for all client operations
+         *
+         * @param timeout Timeout duration in milliseconds
+         */
+        void SetRPCTimeout(std::chrono::milliseconds timeout) { rpc_timeout_ = timeout; }
+
+        /**
+         * @brief Get the current RPC timeout
+         *
+         * @return std::chrono::milliseconds Current timeout duration
+         */
+        std::chrono::milliseconds GetRPCTimeout() const { return rpc_timeout_; }
+
     private:
         //! gRPC stub
         std::unique_ptr<philote::DisciplineService::StubInterface> stub_;
@@ -201,5 +216,8 @@ namespace philote
 
         //! Partials meta data
         std::vector<philote::PartialsMetaData> partials_meta_;
+
+        //! RPC timeout in milliseconds (default: 60 seconds)
+        std::chrono::milliseconds rpc_timeout_{60000};
     };
 } // namespace philote
