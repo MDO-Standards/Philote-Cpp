@@ -84,7 +84,6 @@ gtest_discover_tests(ExplicitDisciplineTests)
 # explicit discipline server tests
 add_executable(ExplicitDisciplineServerTests explicit_discipline_server_test.cpp)
 target_link_libraries(ExplicitDisciplineServerTests
-    PhiloteCpp
     PhiloteTestHelpers
     GTest::gtest_main
     GTest::gmock
@@ -98,7 +97,6 @@ gtest_discover_tests(ExplicitDisciplineServerTests)
 # explicit client tests
 add_executable(ExplicitClientTests explicit_client_test.cpp)
 target_link_libraries(ExplicitClientTests
-    PhiloteCpp
     PhiloteTestHelpers
     GTest::gtest_main
     GTest::gmock
@@ -112,7 +110,6 @@ gtest_discover_tests(ExplicitClientTests)
 # explicit integration tests
 add_executable(ExplicitIntegrationTests explicit_integration_test.cpp)
 target_link_libraries(ExplicitIntegrationTests
-    PhiloteCpp
     PhiloteTestHelpers
     GTest::gtest_main
     GTest::gmock
@@ -126,7 +123,6 @@ gtest_discover_tests(ExplicitIntegrationTests)
 # explicit error scenarios tests
 add_executable(ExplicitErrorScenariosTests explicit_error_scenarios_test.cpp)
 target_link_libraries(ExplicitErrorScenariosTests
-    PhiloteCpp
     PhiloteTestHelpers
     GTest::gtest_main
     GTest::gmock
@@ -153,7 +149,6 @@ gtest_discover_tests(ImplicitDisciplineTests)
 # implicit discipline server tests
 add_executable(ImplicitDisciplineServerTests implicit_discipline_server_test.cpp)
 target_link_libraries(ImplicitDisciplineServerTests
-    PhiloteCpp
     PhiloteTestHelpers
     GTest::gtest_main
     GTest::gmock
@@ -167,7 +162,6 @@ gtest_discover_tests(ImplicitDisciplineServerTests)
 # implicit client tests
 add_executable(ImplicitClientTests implicit_client_test.cpp)
 target_link_libraries(ImplicitClientTests
-    PhiloteCpp
     PhiloteTestHelpers
     GTest::gtest_main
     GTest::gmock
