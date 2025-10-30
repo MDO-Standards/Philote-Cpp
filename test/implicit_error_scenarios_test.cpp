@@ -576,11 +576,7 @@ TEST_F(ImplicitErrorScenariosTest, AlternatingMethodCalls) {
     }
 }
 
-// TODO: This test needs to be fixed - it's creating Variables without proper type metadata
-// The CreateScalarVariable helper creates variables with type kInput (0), but the server
-// expects type kOutput (3) for output variables in ComputeResiduals. This was previously
-// silently ignored but now properly throws an error.
-TEST_F(ImplicitErrorScenariosTest, DISABLED_WrongOutputGuessProducesNonZeroResidual) {
+TEST_F(ImplicitErrorScenariosTest, WrongOutputGuessProducesNonZeroResidual) {
     auto discipline = std::make_unique<SimpleImplicitDiscipline>();
 
     std::string address = server_manager_->StartServer(discipline.get());
@@ -594,15 +590,17 @@ TEST_F(ImplicitErrorScenariosTest, DISABLED_WrongOutputGuessProducesNonZeroResid
     client.Setup();
     client.GetVariableDefinitions();
 
-    // First solve to get correct output
+    // First solve to get correct output (this gives us properly-typed variables)
     Variables inputs;
     inputs["x"] = CreateScalarVariable(5.0);
     Variables correct_outputs = client.SolveResiduals(inputs);
 
-    // Now evaluate residual with wrong output
+    // Now evaluate residual with wrong output value
+    // Use the correct output variable structure but modify its value
     Variables vars_wrong;
-    vars_wrong["x"] = CreateScalarVariable(5.0);
-    vars_wrong["y"] = CreateScalarVariable(20.0);  // Wrong (correct is 25)
+    vars_wrong["x"] = inputs["x"];
+    vars_wrong["y"] = correct_outputs["y"];  // Copy the variable with correct type
+    vars_wrong["y"](0) = 20.0;  // Change value to wrong guess (correct is 25)
     Variables residuals_wrong = client.ComputeResiduals(vars_wrong);
 
     // Residual should be non-zero
@@ -611,7 +609,7 @@ TEST_F(ImplicitErrorScenariosTest, DISABLED_WrongOutputGuessProducesNonZeroResid
 
     // Now evaluate residual with correct output
     Variables vars_correct;
-    vars_correct["x"] = CreateScalarVariable(5.0);
+    vars_correct["x"] = inputs["x"];
     vars_correct["y"] = correct_outputs["y"];
     Variables residuals_correct = client.ComputeResiduals(vars_correct);
 
