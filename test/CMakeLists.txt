@@ -134,39 +134,39 @@ target_include_directories(ExplicitErrorScenariosTests PRIVATE
 gtest_discover_tests(ExplicitErrorScenariosTests)
 
 # implicit discipline tests
-# Note: Coverage is NOT enabled for implicit tests as they are test-only utilities
 add_executable(ImplicitDisciplineTests implicit_discipline_test.cpp)
 target_link_libraries(ImplicitDisciplineTests
     PhiloteCpp
     GTest::gtest_main
     GTest::gmock
 )
+enable_coverage(ImplicitDisciplineTests)
 target_include_directories(ImplicitDisciplineTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/implicit
 )
 gtest_discover_tests(ImplicitDisciplineTests)
 
 # implicit discipline server tests
-# Note: Coverage is NOT enabled for implicit tests as they are test-only utilities
 add_executable(ImplicitDisciplineServerTests implicit_discipline_server_test.cpp)
 target_link_libraries(ImplicitDisciplineServerTests
     PhiloteTestHelpers
     GTest::gtest_main
     GTest::gmock
 )
+enable_coverage(ImplicitDisciplineServerTests)
 target_include_directories(ImplicitDisciplineServerTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/implicit
 )
 gtest_discover_tests(ImplicitDisciplineServerTests)
 
 # implicit client tests
-# Note: Coverage is NOT enabled for implicit tests as they are test-only utilities
 add_executable(ImplicitClientTests implicit_client_test.cpp)
 target_link_libraries(ImplicitClientTests
     PhiloteTestHelpers
     GTest::gtest_main
     GTest::gmock
 )
+enable_coverage(ImplicitClientTests)
 target_include_directories(ImplicitClientTests PRIVATE
     ${CMAKE_SOURCE_DIR}/src/implicit
 )
