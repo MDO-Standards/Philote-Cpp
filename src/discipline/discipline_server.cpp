@@ -73,6 +73,12 @@ grpc::Status DisciplineServer::GetInfo(ServerContext *context,
                                        const Empty *request,
                                        DisciplineProperties *response)
 {
+    if (discipline_ == nullptr)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                          "Discipline not linked to server");
+    }
+
     *response = discipline_->properties();
 
     return Status::OK;
@@ -82,6 +88,12 @@ Status DisciplineServer::SetStreamOptions(ServerContext *context,
                                           const StreamOptions *request,
                                           Empty *response)
 {
+    if (discipline_ == nullptr)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                          "Discipline not linked to server");
+    }
+
     discipline_->stream_opts() = *request;
 
     return Status::OK;
@@ -91,6 +103,12 @@ grpc::Status DisciplineServer::SetOptions(ServerContext *context,
                                           const DisciplineOptions *request,
                                           Empty *response)
 {
+    if (discipline_ == nullptr)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                          "Discipline not linked to server");
+    }
+
     const Struct &options = request->options();
 
     discipline_->SetOptions(options);
@@ -102,6 +120,12 @@ Status DisciplineServer::GetVariableDefinitions(ServerContext *context,
                                                 const Empty *request,
                                                 ServerWriter<VariableMetaData> *writer)
 {
+    if (discipline_ == nullptr)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                          "Discipline not linked to server");
+    }
+
     if (!writer)
         return Status::OK;
     for (const VariableMetaData &var : discipline_->var_meta())
@@ -114,6 +138,12 @@ Status DisciplineServer::GetPartialDefinitions(ServerContext *context,
                                                const Empty *request,
                                                ServerWriter<PartialsMetaData> *writer)
 {
+    if (discipline_ == nullptr)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                          "Discipline not linked to server");
+    }
+
     if (!writer)
         return Status::OK;
     for (const PartialsMetaData &partial : discipline_->partials_meta())
@@ -126,6 +156,12 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
                                      const Empty *request,
                                      Empty *response)
 {
+    if (discipline_ == nullptr)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                          "Discipline not linked to server");
+    }
+
     if (!discipline_->var_meta().empty() or !discipline_->partials_meta().empty())
     {
         // clear any existing meta data
@@ -167,6 +203,12 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
                                                               const ::google::protobuf::Empty *request,
                                                               ::philote::OptionsList *response)
 {
+    if (discipline_ == nullptr)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                          "Discipline not linked to server");
+    }
+
     // Populate the options list from the discipline's available options
     for (const auto &option : discipline_->options_list())
     {
