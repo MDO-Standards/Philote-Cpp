@@ -185,7 +185,13 @@ void Variable::Send(string name,
         array = CreateChunk(start, end);
         array.set_name(name);
         array.set_subname(subname);
-        stream->Write(array);
+        if (!stream->Write(array))
+        {
+            throw std::runtime_error(
+                "Failed to write variable '" + name +
+                "' to stream (chunk " + std::to_string(i + 1) +
+                " of " + std::to_string(num_chunks) + ")");
+        }
     }
 }
 
@@ -209,7 +215,13 @@ void philote::Variable::Send(std::string name,
         array = CreateChunk(start, end);
         array.set_name(name);
         array.set_subname(subname);
-        stream->Write(array);
+        if (!stream->Write(array))
+        {
+            throw std::runtime_error(
+                "Failed to write variable '" + name +
+                "' to stream (chunk " + std::to_string(i + 1) +
+                " of " + std::to_string(num_chunks) + ")");
+        }
     }
 }
 
@@ -233,7 +245,13 @@ void philote::Variable::Send(std::string name,
         array = CreateChunk(start, end);
         array.set_name(name);
         array.set_subname(subname);
-        stream->Write(array);
+        if (!stream->Write(array))
+        {
+            throw std::runtime_error(
+                "Failed to write variable '" + name +
+                "' to stream (chunk " + std::to_string(i + 1) +
+                " of " + std::to_string(num_chunks) + ")");
+        }
     }
 }
 
