@@ -211,10 +211,10 @@ TEST_F(ExplicitErrorScenariosTest, WrongShapeInput) {
     inputs["x"] = CreateVectorVariable({1.0, 2.0, 3.0});  // Wrong shape
     inputs["y"] = CreateScalarVariable(4.0);
 
-    // This might fail during variable sending or assignment
-    EXPECT_NO_THROW({
+    // Server should return an error for wrong shape, which will now throw
+    EXPECT_THROW({
         Variables outputs = client.ComputeFunction(inputs);
-    });
+    }, std::runtime_error);
 }
 
 // ============================================================================
