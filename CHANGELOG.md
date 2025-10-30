@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Documented SetOptions() override pattern for configurable disciplines** (closes #34)
+  - Added comprehensive comments in base Discipline::SetOptions() explaining override pattern
+  - Fixed Rosenbrock example to properly override Initialize() and SetOptions() instead of using broken signature
+  - Added 9 new tests demonstrating extraction of all protobuf value types (float, int, bool, string)
+  - Added detailed documentation section in CLAUDE.md with complete code examples
+  - Clarified lifecycle: Initialize() declares options, SetOptions() extracts values, Configure() post-processes
 - **Client methods now throw exceptions on gRPC errors** (closes #48)
   - ExplicitClient::ComputeFunction() and ComputeGradient() now check gRPC status
   - ImplicitClient::ComputeResiduals(), SolveResiduals(), and ComputeResidualGradients() now check gRPC status
