@@ -101,10 +101,10 @@ TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnComputeResiduals) {
     vars["x"] = CreateScalarVariable(1.0);
     vars["y"] = CreateScalarVariable(1.0);
 
-    // ComputeResiduals should propagate the error from the discipline
-    EXPECT_NO_THROW({
+    // ComputeResiduals should throw when the discipline throws during ComputeResiduals
+    EXPECT_THROW({
         Variables residuals = client.ComputeResiduals(vars);
-    });
+    }, std::runtime_error);
 }
 
 TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnSolveResiduals) {
@@ -125,10 +125,10 @@ TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnSolveResiduals) {
     Variables inputs;
     inputs["x"] = CreateScalarVariable(1.0);
 
-    // SolveResiduals should handle the error from the discipline
-    EXPECT_NO_THROW({
+    // SolveResiduals should throw when the discipline throws during SolveResiduals
+    EXPECT_THROW({
         Variables outputs = client.SolveResiduals(inputs);
-    });
+    }, std::runtime_error);
 }
 
 TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnComputeResidualGradients) {
@@ -151,10 +151,10 @@ TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnComputeResidualGradients) {
     vars["x"] = CreateScalarVariable(1.0);
     vars["y"] = CreateScalarVariable(1.0);
 
-    // ComputeResidualGradients should handle the error
-    EXPECT_NO_THROW({
+    // ComputeResidualGradients should throw when the discipline throws during ComputeResidualGradients
+    EXPECT_THROW({
         Partials partials = client.ComputeResidualGradients(vars);
-    });
+    }, std::runtime_error);
 }
 
 // ============================================================================
@@ -465,10 +465,10 @@ TEST_F(ImplicitErrorScenariosTest, ClientAfterServerStop) {
     Variables inputs;
     inputs["x"] = CreateScalarVariable(2.0);
 
-    // This should fail or timeout since server is stopped
-    EXPECT_NO_THROW({
+    // Should throw because server is stopped
+    EXPECT_THROW({
         Variables outputs = client.SolveResiduals(inputs);
-    });
+    }, std::runtime_error);
 }
 
 // ============================================================================
