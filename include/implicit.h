@@ -34,6 +34,7 @@
 #include "discipline_server.h"
 
 #include <discipline.h>
+#include "discipline_client.h"
 
 namespace philote
 {
@@ -455,7 +456,7 @@ namespace philote
      * @see philote::ImplicitDiscipline
      * @see philote::ExplicitClient
      */
-    class ImplicitClient : public BaseDisciplineClient
+    class ImplicitClient : public ::philote::DisciplineClient
     {
     public:
         //! Constructor
@@ -501,8 +502,18 @@ namespace philote
          */
         Partials ComputeResidualGradients(const Variables &vars);
 
+        /**
+         * @brief Sets the stub for testing purposes (allows dependency injection)
+         *
+         * @param stub The stub to inject
+         */
+        void SetStub(std::unique_ptr<ImplicitService::StubInterface> stub)
+        {
+            stub_ = std::move(stub);
+        }
+
     private:
-        //! explicit service stub
-        std::unique_ptr<ImplicitService::Stub> stub_;
+        //! implicit service stub
+        std::unique_ptr<ImplicitService::StubInterface> stub_;
     };
 } // namespace philote
