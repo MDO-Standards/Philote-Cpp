@@ -161,7 +161,15 @@ jobs:
       - name: Update version in CMakeLists.txt
         run: |
           NEW_VERSION="${{ steps.version.outputs.new_version }}"
-          sed -i "s/VERSION\s\+[0-9.]\+\(-[a-z0-9.]\+\)\?/VERSION ${NEW_VERSION}/" CMakeLists.txt
+          # Only update the VERSION in the project() command, not cmake_minimum_required
+          awk -v new_ver="$NEW_VERSION" '
+            /^project\(/ { in_project=1 }
+            in_project && /VERSION/ {
+              sub(/VERSION\s+[0-9.]+(-[a-z0-9.]+)?/, "VERSION " new_ver)
+              in_project=0
+            }
+            { print }
+          ' CMakeLists.txt > CMakeLists.txt.tmp && mv CMakeLists.txt.tmp CMakeLists.txt
 
       - name: Update CHANGELOG.md
         run: |
