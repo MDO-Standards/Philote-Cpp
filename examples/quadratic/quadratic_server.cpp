@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2023 Christopher A. Lupp
+    Copyright 2022-2025 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@
 
 #include <grpcpp/grpcpp.h>
 
-#include <Philote/implicit.h>
+#include <implicit.h>
 
 using grpc::Server;
 using grpc::ServerBuilder;

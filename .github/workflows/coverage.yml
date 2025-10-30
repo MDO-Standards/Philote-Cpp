@@ -1,0 +1,88 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          cmake \
+          lcov \
+          libgrpc++-dev \
+          libprotobuf-dev \
+          protobuf-compiler-grpc
+
+    - name: Build and install GoogleTest
+      run: |
+        git clone https://github.com/google/googletest.git -b v1.14.0
+        cd googletest
+        mkdir build && cd build
+        cmake .. -DCMAKE_INSTALL_PREFIX=/usr
+        make -j$(nproc)
+        sudo make install
+        cd ../..
+        rm -rf googletest
+    
+    - name: Configure with coverage
+      run: |
+        mkdir build && cd build
+        cmake .. -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
+    
+    - name: Build
+      run: |
+        cd build
+        make -j$(nproc)
+    
+    - name: Generate coverage report
+      run: |
+        cd build
+        # Clean previous coverage data
+        find . -name "*.gcda" -delete
+        lcov --zerocounters --directory .
+
+        # Run tests to generate coverage data
+        ctest --output-on-failure
+
+        # Capture coverage data
+        lcov --capture --directory . --output-file coverage.info \
+          --ignore-errors inconsistent,mismatch,negative
+
+        # Filter out unwanted files from coverage
+        lcov --remove coverage.info \
+          '/usr/include/*' \
+          '*/test/*' \
+          '*/tests/*' \
+          '*/gtest/*' \
+          '*/gmock/*' \
+          '*/generated/*' \
+          '*/cmake-build-*/*' \
+          '*/build/*' \
+          '*/cmake/*' \
+          '*/examples/*' \
+          --output-file coverage_filtered.info \
+          --ignore-errors inconsistent,unused
+
+        # Print summary
+        lcov --summary coverage_filtered.info \
+          --ignore-errors inconsistent
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        files: ./build/coverage_filtered.info
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: true

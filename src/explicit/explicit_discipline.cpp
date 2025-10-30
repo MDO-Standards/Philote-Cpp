@@ -1,7 +1,7 @@
 /*
     Philote C++ Bindings
 
-    Copyright 2022-2023 Christopher A. Lupp
+    Copyright 2022-2025 Christopher A. Lupp
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@
 */
 #include <grpcpp/grpcpp.h>
 
-#include <Philote/explicit.h>
+#include "explicit.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -41,13 +41,17 @@ using philote::Variables;
 
 ExplicitDiscipline::ExplicitDiscipline()
 {
-    // link to discipline server and this object
+    // Link discipline server to this discipline instance
+    discipline_server_.LinkPointers(this);
+
+    // Link explicit server to this discipline instance
     explicit_.LinkPointers(this);
 }
 
 ExplicitDiscipline::~ExplicitDiscipline()
 {
     explicit_.UnlinkPointers();
+    discipline_server_.UnlinkPointers();
 }
 
 void ExplicitDiscipline::RegisterServices(ServerBuilder &builder)
@@ -59,9 +63,13 @@ void ExplicitDiscipline::RegisterServices(ServerBuilder &builder)
 void ExplicitDiscipline::Compute(const Variables &inputs,
                                  philote::Variables &outputs)
 {
+    // This method is intended to be overridden by derived classes
+    // No default implementation provided
 }
 
 void ExplicitDiscipline::ComputePartials(const Variables &inputs,
                                          Partials &partials)
 {
+    // This method is intended to be overridden by derived classes
+    // No default implementation provided
 }

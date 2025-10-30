@@ -4,6 +4,9 @@ cmake-*/
 build/
 doxer.*
 
+docs/hdoc-output/
+docs/generated/
+
 *.DS_Store
 
 # grpc generated files
