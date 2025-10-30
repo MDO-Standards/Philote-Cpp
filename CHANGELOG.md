@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed redundant PhiloteCpp links from test targets that already link PhiloteTestHelpers
   - PhiloteTestHelpers provides PhiloteCpp as a PUBLIC dependency
 - Fixed missing discipline_client.h and discipline_server.h in CMake target_sources configuration
+- Removed unused BaseDisciplineClient class declaration from discipline.h (closes #31)
 
 ## [0.4.0] - 2025-10-30
 
