@@ -175,6 +175,23 @@ namespace philote
         virtual void SetupPartials();
 
     protected:
+        /**
+         * @brief Computes the shape for a partial derivative df/dx
+         *
+         * This helper method encapsulates the logic for determining the shape
+         * of partial derivative arrays based on the shapes of the output (f)
+         * and input (x) variables.
+         *
+         * @param f Name of the output variable
+         * @param x Name of the input (or output for implicit disciplines) variable
+         * @param allow_output_as_x If true, allows x to be an output variable (for implicit disciplines)
+         * @return std::vector<int64_t> The computed shape for the partial derivative
+         * @throws std::runtime_error If variables are not found
+         */
+        std::vector<int64_t> ComputePartialShape(const std::string &f,
+                                                  const std::string &x,
+                                                  bool allow_output_as_x);
+
         //! List of options that can be set by the client
         std::map<std::string, std::string> options_list_;
 

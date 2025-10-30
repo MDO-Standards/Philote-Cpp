@@ -83,7 +83,9 @@ void Discipline::AddOutput(const string &name,
     var_meta().push_back(var);
 }
 
-void Discipline::DeclarePartials(const string &f, const string &x)
+vector<int64_t> Discipline::ComputePartialShape(const string &f,
+                                                 const string &x,
+                                                 bool allow_output_as_x)
 {
     // determine and assign the shape of the partials array
     vector<int64_t> shape_f, shape_x;
@@ -100,14 +102,28 @@ void Discipline::DeclarePartials(const string &f, const string &x)
         }
     }
 
-    // Then find the input variable shape
+    // Then find the input (or output for implicit) variable shape
     for (const auto &var : var_meta_)
     {
-        if (var.name() == x and var.type() == kInput)
+        if (allow_output_as_x)
         {
-            for (const auto &dim : var.shape())
-                shape_x.push_back(dim);
-            found_x = true;
+            // For implicit disciplines, x can be either input or output
+            if (var.name() == x and (var.type() == kInput or var.type() == kOutput))
+            {
+                for (const auto &dim : var.shape())
+                    shape_x.push_back(dim);
+                found_x = true;
+            }
+        }
+        else
+        {
+            // For explicit disciplines, x must be an input
+            if (var.name() == x and var.type() == kInput)
+            {
+                for (const auto &dim : var.shape())
+                    shape_x.push_back(dim);
+                found_x = true;
+            }
         }
     }
 
@@ -143,6 +159,14 @@ void Discipline::DeclarePartials(const string &f, const string &x)
         shape.insert(shape.end(), shape_f.begin(), shape_f.end());
         shape.insert(shape.end(), shape_x.begin(), shape_x.end());
     }
+
+    return shape;
+}
+
+void Discipline::DeclarePartials(const string &f, const string &x)
+{
+    // Compute the shape using the helper method
+    vector<int64_t> shape = ComputePartialShape(f, x, false);
 
     // assign the meta data
     PartialsMetaData meta;
