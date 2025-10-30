@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-10-30
+
 ### Added
 - Comprehensive unit test suite using Google Test and Google Mock
   - Unit tests for discipline server, explicit discipline server, and implicit discipline server
@@ -143,7 +145,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI/CD pipeline with GitHub Actions
 - Apache 2.0 license
 
-[Unreleased]: https://github.com/MDO-Standards/Philote-Cpp/compare/v0.3.0...develop
+[Unreleased]: https://github.com/MDO-Standards/Philote-Cpp/compare/v0.4.0...develop
+[0.4.0]: https://github.com/MDO-Standards/Philote-Cpp/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/MDO-Standards/Philote-Cpp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/MDO-Standards/Philote-Cpp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/MDO-Standards/Philote-Cpp/releases/tag/v0.1.0
