@@ -24,6 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reuse of test helpers library (TestServerManager, test disciplines, utilities)
 
 ### Changed
+- **Added noexcept specifications to appropriate methods** (closes #47)
+  - Added noexcept to all class destructors (Variable, PairDict, Discipline, all server and client classes)
+  - Added noexcept to Variable::Shape() and Variable::Size() getters
+  - Added noexcept to PairDict query methods: contains(), size(), empty()
+  - Added noexcept to PairDict move constructor and move assignment operator
+  - Added noexcept to Discipline const getters: var_meta(), partials_meta(), stream_opts()
+  - Added noexcept to DisciplineServer::DisciplinePointerNull()
+  - Added noexcept to DisciplineClient const getters: GetStreamOptions(), GetProperties(), GetVariableMetaAll(), GetPartialsMetaConst(), GetRPCTimeout()
+  - Enables compiler optimizations and improves STL container performance (especially std::vector<Variable>)
+  - Makes exception guarantees explicit for const member access
+  - Follows selective noexcept approach: added to destructors, move operations, simple getters, and query methods
 - **Modernized pointer management to use shared_ptr** (closes #43)
   - Discipline base class now inherits from std::enable_shared_from_this<Discipline>
   - DisciplineServer, ExplicitServer, and ImplicitServer now use shared_ptr instead of raw pointers
