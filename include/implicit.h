@@ -63,9 +63,9 @@ namespace philote
          * @brief Links the explicit server to the discipline server and
          * explicit discipline via pointers
          *
-         * @param discipline
+         * @param implementation Shared pointer to the implicit discipline instance
          */
-        void LinkPointers(philote::ImplicitDiscipline *implementation);
+        void LinkPointers(std::shared_ptr<philote::ImplicitDiscipline> implementation);
 
         /**
          * @brief Dereferences all pointers
@@ -136,8 +136,8 @@ namespace philote
         }
 
     private:
-        //! Pointer to the implementation of the implicit discipline
-        philote::ImplicitDiscipline *implementation_;
+        //! Shared pointer to the implementation of the implicit discipline
+        std::shared_ptr<philote::ImplicitDiscipline> implementation_;
     };
 
     /**
@@ -584,7 +584,7 @@ grpc::Status philote::ImplicitServer::ComputeResidualsImpl(grpc::ServerContext *
 
     // preallocate the variables based on meta data
     Variables inputs, outputs, residuals;
-    const auto *discipline = static_cast<philote::Discipline *>(implementation_);
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
         return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");
@@ -708,7 +708,7 @@ grpc::Status philote::ImplicitServer::SolveResidualsImpl(grpc::ServerContext *co
 
     // preallocate the inputs based on meta data
     Variables inputs;
-    const auto *discipline = static_cast<philote::Discipline *>(implementation_);
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
         return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");
@@ -815,7 +815,7 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
 
     // preallocate the inputs and outputs based on meta data
     Variables inputs, outputs;
-    const auto *discipline = static_cast<philote::Discipline *>(implementation_);
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
         return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");

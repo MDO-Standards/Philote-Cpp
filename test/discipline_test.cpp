@@ -13,7 +13,7 @@ class DisciplineTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        discipline = std::make_unique<Discipline>();
+        discipline = std::make_shared<Discipline>();
     }
 
     void TearDown() override
@@ -21,7 +21,7 @@ protected:
         discipline.reset();
     }
 
-    std::unique_ptr<Discipline> discipline;
+    std::shared_ptr<Discipline> discipline;
 };
 
 // Test constructor and basic initialization
@@ -313,7 +313,7 @@ class ConfigurableDisciplineTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        discipline = std::make_unique<ConfigurableDiscipline>();
+        discipline = std::make_shared<ConfigurableDiscipline>();
         discipline->Initialize();  // Must call Initialize() after construction
     }
 
@@ -322,7 +322,7 @@ protected:
         discipline.reset();
     }
 
-    std::unique_ptr<ConfigurableDiscipline> discipline;
+    std::shared_ptr<ConfigurableDiscipline> discipline;
 };
 
 // Test that Initialize properly declares options

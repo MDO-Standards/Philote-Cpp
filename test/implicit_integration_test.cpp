@@ -34,7 +34,7 @@ using namespace philote::test;
 class ImplicitIntegrationTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        server_manager_ = std::make_unique<ImplicitTestServerManager>();
+        server_manager_ = std::make_shared<ImplicitTestServerManager>();
     }
 
     void TearDown() override {
@@ -44,7 +44,7 @@ protected:
         server_manager_.reset();
     }
 
-    std::unique_ptr<ImplicitTestServerManager> server_manager_;
+    std::shared_ptr<ImplicitTestServerManager> server_manager_;
 };
 
 // ============================================================================
@@ -53,10 +53,10 @@ protected:
 
 TEST_F(ImplicitIntegrationTest, SimpleImplicitResidualComputation) {
     // Create and setup discipline: R = x^2 - y
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
     // Start server
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     // Create client and connect
@@ -88,9 +88,9 @@ TEST_F(ImplicitIntegrationTest, SimpleImplicitResidualComputation) {
 }
 
 TEST_F(ImplicitIntegrationTest, SimpleImplicitSolveResiduals) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -115,9 +115,9 @@ TEST_F(ImplicitIntegrationTest, SimpleImplicitSolveResiduals) {
 }
 
 TEST_F(ImplicitIntegrationTest, SimpleImplicitGradientComputation) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -148,9 +148,9 @@ TEST_F(ImplicitIntegrationTest, SimpleImplicitGradientComputation) {
 }
 
 TEST_F(ImplicitIntegrationTest, QuadraticDiscipline) {
-    auto discipline = std::make_unique<QuadraticDiscipline>();
+    auto discipline = std::make_shared<QuadraticDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -174,9 +174,9 @@ TEST_F(ImplicitIntegrationTest, QuadraticDiscipline) {
 }
 
 TEST_F(ImplicitIntegrationTest, QuadraticGradients) {
-    auto discipline = std::make_unique<QuadraticDiscipline>();
+    auto discipline = std::make_shared<QuadraticDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -216,9 +216,9 @@ TEST_F(ImplicitIntegrationTest, QuadraticGradients) {
 }
 
 TEST_F(ImplicitIntegrationTest, MultiResidualDiscipline) {
-    auto discipline = std::make_unique<MultiResidualDiscipline>();
+    auto discipline = std::make_shared<MultiResidualDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -242,9 +242,9 @@ TEST_F(ImplicitIntegrationTest, MultiResidualDiscipline) {
 }
 
 TEST_F(ImplicitIntegrationTest, MultiResidualGradients) {
-    auto discipline = std::make_unique<MultiResidualDiscipline>();
+    auto discipline = std::make_shared<MultiResidualDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -290,9 +290,9 @@ TEST_F(ImplicitIntegrationTest, MultiResidualGradients) {
 
 TEST_F(ImplicitIntegrationTest, VectorizedImplicitDiscipline) {
     // Create 3x2 system: R = A*x + b - y where A is 3x2, x is 2-vector, b is 3-vector, y is 3-vector
-    auto discipline = std::make_unique<VectorizedImplicitDiscipline>(3, 2);
+    auto discipline = std::make_shared<VectorizedImplicitDiscipline>(3, 2);
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -333,9 +333,9 @@ TEST_F(ImplicitIntegrationTest, VectorizedImplicitDiscipline) {
 // ============================================================================
 
 TEST_F(ImplicitIntegrationTest, MultipleSequentialSolveCalls) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -360,9 +360,9 @@ TEST_F(ImplicitIntegrationTest, MultipleSequentialSolveCalls) {
 }
 
 TEST_F(ImplicitIntegrationTest, InterleavedResidualSolveAndGradientCalls) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -409,9 +409,9 @@ TEST_F(ImplicitIntegrationTest, InterleavedResidualSolveAndGradientCalls) {
 }
 
 TEST_F(ImplicitIntegrationTest, ResidualEvaluationWithWrongOutputs) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -448,9 +448,9 @@ TEST_F(ImplicitIntegrationTest, LargeVectorDataIntegrity) {
     const size_t n = 100;
     const size_t m = 50;
 
-    auto discipline = std::make_unique<VectorizedImplicitDiscipline>(n, m);
+    auto discipline = std::make_shared<VectorizedImplicitDiscipline>(n, m);
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -481,9 +481,9 @@ TEST_F(ImplicitIntegrationTest, LargeVectorDataIntegrity) {
 }
 
 TEST_F(ImplicitIntegrationTest, NegativeAndZeroValues) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -520,9 +520,9 @@ TEST_F(ImplicitIntegrationTest, NegativeAndZeroValues) {
 
 TEST_F(ImplicitIntegrationTest, VerifySolutionSatisfiesResidual) {
     // Solve the residual and then verify it evaluates to near-zero
-    auto discipline = std::make_unique<QuadraticDiscipline>();
+    auto discipline = std::make_shared<QuadraticDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;

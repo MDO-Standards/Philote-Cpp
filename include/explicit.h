@@ -72,9 +72,9 @@ namespace philote
          * @brief Links the explicit server to the discipline server and
          * explicit discipline via pointers
          *
-         * @param discipline
+         * @param implementation Shared pointer to the explicit discipline instance
          */
-        void LinkPointers(philote::ExplicitDiscipline *implementation);
+        void LinkPointers(std::shared_ptr<philote::ExplicitDiscipline> implementation);
 
         /**
          * @brief Dereferences all pointers
@@ -125,8 +125,8 @@ namespace philote
         }
 
     private:
-        //! Pointer to the implementation of the explicit discipline
-        philote::ExplicitDiscipline *implementation_;
+        //! Shared pointer to the implementation of the explicit discipline
+        std::shared_ptr<philote::ExplicitDiscipline> implementation_;
     };
 
     /**
@@ -486,7 +486,7 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
 
     // preallocate the inputs based on meta data
     Variables inputs;
-    const auto *discipline = static_cast<philote::Discipline *>(implementation_);
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
         return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");
@@ -593,7 +593,7 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
 
     // preallocate the inputs based on meta data
     Variables inputs;
-    const auto *discipline = static_cast<philote::Discipline *>(implementation_);
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
         return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");

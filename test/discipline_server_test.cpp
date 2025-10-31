@@ -35,9 +35,9 @@ class DisciplineServerTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        server = std::make_unique<DisciplineServer>();
-        mock_discipline = std::make_unique<MockDiscipline>();
-        server->LinkPointers(mock_discipline.get());
+        server = std::make_shared<DisciplineServer>();
+        mock_discipline = std::make_shared<MockDiscipline>();
+        server->LinkPointers(mock_discipline);
     }
 
     void TearDown() override
@@ -47,8 +47,8 @@ protected:
         mock_discipline.reset();
     }
 
-    std::unique_ptr<DisciplineServer> server;
-    std::unique_ptr<MockDiscipline> mock_discipline;
+    std::shared_ptr<DisciplineServer> server;
+    std::shared_ptr<MockDiscipline> mock_discipline;
 };
 
 // Test constructor and pointer management
@@ -62,7 +62,7 @@ TEST_F(DisciplineServerTest, ConstructorAndPointerManagement)
     EXPECT_TRUE(server->DisciplinePointerNull());
 
     // Test relinking pointers
-    server->LinkPointers(mock_discipline.get());
+    server->LinkPointers(mock_discipline);
     EXPECT_FALSE(server->DisciplinePointerNull());
 }
 

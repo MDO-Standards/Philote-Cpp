@@ -41,11 +41,10 @@ using philote::Variables;
 
 ExplicitDiscipline::ExplicitDiscipline()
 {
-    // Link discipline server to this discipline instance
-    discipline_server_.LinkPointers(this);
-
-    // Link explicit server to this discipline instance
-    explicit_.LinkPointers(this);
+    // Note: LinkPointers cannot be called here because shared_from_this()
+    // requires the object to be managed by a shared_ptr first.
+    // RegisterServices() will handle the linking when the discipline
+    // is ready to be used.
 }
 
 ExplicitDiscipline::~ExplicitDiscipline()
@@ -56,6 +55,12 @@ ExplicitDiscipline::~ExplicitDiscipline()
 
 void ExplicitDiscipline::RegisterServices(ServerBuilder &builder)
 {
+    // Link servers to this discipline instance using shared_from_this()
+    // This must be done when the discipline is managed by a shared_ptr
+    auto self = std::dynamic_pointer_cast<ExplicitDiscipline>(shared_from_this());
+    discipline_server_.LinkPointers(shared_from_this());
+    explicit_.LinkPointers(self);
+
     builder.RegisterService(&discipline_server_);
     builder.RegisterService(&explicit_);
 }

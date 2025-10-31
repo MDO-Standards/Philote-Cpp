@@ -68,8 +68,8 @@ protected:
     }
 
     // Helper to create a simple discipline with x input and y output
-    std::unique_ptr<ParaboloidDiscipline> CreateSimpleDiscipline() {
-        auto discipline = std::make_unique<ParaboloidDiscipline>();
+    std::shared_ptr<ParaboloidDiscipline> CreateSimpleDiscipline() {
+        auto discipline = std::make_shared<ParaboloidDiscipline>();
         discipline->Initialize();
         discipline->Configure();
         discipline->Setup();
@@ -106,7 +106,7 @@ TEST_F(ExplicitServerTest, LinkAndUnlinkPointers) {
     auto discipline = CreateSimpleDiscipline();
 
     // Link pointers
-    EXPECT_NO_THROW(server_->LinkPointers(discipline.get()));
+    EXPECT_NO_THROW(server_->LinkPointers(discipline));
 
     // Unlink pointers
     EXPECT_NO_THROW(server_->UnlinkPointers());
@@ -116,9 +116,9 @@ TEST_F(ExplicitServerTest, MultipleLinkUnlink) {
     auto discipline1 = CreateSimpleDiscipline();
     auto discipline2 = CreateSimpleDiscipline();
 
-    server_->LinkPointers(discipline1.get());
+    server_->LinkPointers(discipline1);
     server_->UnlinkPointers();
-    server_->LinkPointers(discipline2.get());
+    server_->LinkPointers(discipline2);
     server_->UnlinkPointers();
 
     EXPECT_TRUE(true);  // Should not crash
@@ -143,7 +143,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionUnlinkedPointers) {
 
 TEST_F(ExplicitServerTest, ComputeFunctionNullStream) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     grpc::Status status = server_->ComputeFunction(context_.get(), nullptr);
 
@@ -154,7 +154,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionNullStream) {
 
 TEST_F(ExplicitServerTest, ComputeFunctionVariableNotFound) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -177,7 +177,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionVariableNotFound) {
 
 TEST_F(ExplicitServerTest, ComputeFunctionInvalidVariableType) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -204,7 +204,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionInvalidVariableType) {
 
 TEST_F(ExplicitServerTest, ComputeFunctionSimpleScalar) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -244,13 +244,13 @@ TEST_F(ExplicitServerTest, ComputeFunctionSimpleScalar) {
 }
 
 TEST_F(ExplicitServerTest, ComputeFunctionMultiOutput) {
-    auto discipline = std::make_unique<MultiOutputDiscipline>();
+    auto discipline = std::make_shared<MultiOutputDiscipline>();
     discipline->Initialize();
     discipline->Configure();
     discipline->Setup();
     discipline->SetupPartials();
 
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -292,13 +292,13 @@ TEST_F(ExplicitServerTest, ComputeFunctionMultiOutput) {
 }
 
 TEST_F(ExplicitServerTest, ComputeFunctionVectorData) {
-    auto discipline = std::make_unique<VectorizedDiscipline>(2, 3);
+    auto discipline = std::make_shared<VectorizedDiscipline>(2, 3);
     discipline->Initialize();
     discipline->Configure();
     discipline->Setup();
     discipline->SetupPartials();
 
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -359,7 +359,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionVectorData) {
 }
 
 TEST_F(ExplicitServerTest, ComputeFunctionComputeThrows) {
-    auto mock_discipline = std::make_unique<MockExplicitDiscipline>();
+    auto mock_discipline = std::make_shared<MockExplicitDiscipline>();
 
     // Setup metadata
     VariableMetaData x_meta, y_meta;
@@ -377,7 +377,7 @@ TEST_F(ExplicitServerTest, ComputeFunctionComputeThrows) {
     EXPECT_CALL(*mock_discipline, Compute(_, _))
         .WillOnce(Throw(std::runtime_error("Compute failed")));
 
-    server_->LinkPointers(mock_discipline.get());
+    server_->LinkPointers(mock_discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -415,7 +415,7 @@ TEST_F(ExplicitServerTest, ComputeGradientUnlinkedPointers) {
 
 TEST_F(ExplicitServerTest, ComputeGradientNullStream) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     grpc::Status status = server_->ComputeGradient(context_.get(), nullptr);
 
@@ -425,7 +425,7 @@ TEST_F(ExplicitServerTest, ComputeGradientNullStream) {
 
 TEST_F(ExplicitServerTest, ComputeGradientVariableNotFound) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -451,7 +451,7 @@ TEST_F(ExplicitServerTest, ComputeGradientVariableNotFound) {
 
 TEST_F(ExplicitServerTest, ComputeGradientSimpleScalar) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -491,13 +491,13 @@ TEST_F(ExplicitServerTest, ComputeGradientSimpleScalar) {
 }
 
 TEST_F(ExplicitServerTest, ComputeGradientMultiplePartials) {
-    auto discipline = std::make_unique<MultiOutputDiscipline>();
+    auto discipline = std::make_shared<MultiOutputDiscipline>();
     discipline->Initialize();
     discipline->Configure();
     discipline->Setup();
     discipline->SetupPartials();
 
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -546,7 +546,7 @@ TEST_F(ExplicitServerTest, ComputeGradientMultiplePartials) {
 }
 
 TEST_F(ExplicitServerTest, ComputeGradientComputePartialsThrows) {
-    auto mock_discipline = std::make_unique<MockExplicitDiscipline>();
+    auto mock_discipline = std::make_shared<MockExplicitDiscipline>();
 
     // Setup metadata
     VariableMetaData x_meta, y_meta;
@@ -570,7 +570,7 @@ TEST_F(ExplicitServerTest, ComputeGradientComputePartialsThrows) {
     EXPECT_CALL(*mock_discipline, ComputePartials(_, _))
         .WillOnce(Throw(std::runtime_error("ComputePartials failed")));
 
-    server_->LinkPointers(mock_discipline.get());
+    server_->LinkPointers(mock_discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -598,7 +598,7 @@ TEST_F(ExplicitServerTest, DestructorUnlinksPointers) {
     auto discipline = CreateSimpleDiscipline();
     auto server = std::make_unique<ExplicitServer>();
 
-    server->LinkPointers(discipline.get());
+    server->LinkPointers(discipline);
 
     // Destructor should be called and unlink pointers without issues
     EXPECT_NO_THROW(server.reset());

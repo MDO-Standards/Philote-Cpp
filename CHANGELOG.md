@@ -23,6 +23,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Test coverage mirroring explicit discipline test patterns
   - Reuse of test helpers library (TestServerManager, test disciplines, utilities)
 
+### Changed
+- **Modernized pointer management to use shared_ptr** (closes #43)
+  - Discipline base class now inherits from std::enable_shared_from_this<Discipline>
+  - DisciplineServer, ExplicitServer, and ImplicitServer now use shared_ptr instead of raw pointers
+  - LinkPointers() methods now accept shared_ptr<Discipline> instead of raw pointers
+  - RegisterServices() calls shared_from_this() to safely link servers to disciplines
+  - Examples updated to use std::make_shared for discipline instantiation
+  - Test helpers (TestServerManager, ImplicitTestServerManager) updated to accept shared_ptr
+  - All test files updated to use make_shared for discipline creation
+  - **BREAKING CHANGE**: Disciplines must now be created with std::make_shared instead of stack allocation
+  - Improves ownership semantics and eliminates dangling pointer risks
+
 ### Fixed
 
 - **Fixed integer overflow vulnerability in Variable::AssignChunk()** (closes #36)

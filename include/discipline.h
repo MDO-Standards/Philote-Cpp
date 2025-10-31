@@ -33,6 +33,7 @@
 #include <google/protobuf/struct.pb.h>
 
 #include <map>
+#include <memory>
 #include <variable.h>
 
 #include <data.pb.h>
@@ -57,7 +58,7 @@ namespace philote
      * external synchronization. User-defined Compute methods must also be thread-safe
      * if concurrent RPC calls are expected.
      */
-    class Discipline
+    class Discipline : public std::enable_shared_from_this<Discipline>
     {
     public:
         /**

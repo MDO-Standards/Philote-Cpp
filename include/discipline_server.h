@@ -79,9 +79,9 @@ namespace philote
         /**
          * @brief Links all pointers needed by the discipline base class
          *
-         * @param discipline
+         * @param discipline Shared pointer to the discipline instance
          */
-        void LinkPointers(philote::Discipline *discipline);
+        void LinkPointers(std::shared_ptr<philote::Discipline> discipline);
 
         /**
          * @brief Unlinks all pointers
@@ -165,7 +165,7 @@ namespace philote
                            google::protobuf::Empty *response) override;
 
     private:
-        //! Pointer to the discipline implementation
-        philote::Discipline *discipline_ = nullptr;
+        //! Shared pointer to the discipline implementation
+        std::shared_ptr<philote::Discipline> discipline_;
     };
 } // namespace philote

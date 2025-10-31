@@ -16,7 +16,7 @@ class ImplicitDisciplineTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        discipline = std::make_unique<ImplicitDiscipline>();
+        discipline = std::make_shared<ImplicitDiscipline>();
     }
 
     void TearDown() override
@@ -24,7 +24,7 @@ protected:
         discipline.reset();
     }
 
-    std::unique_ptr<ImplicitDiscipline> discipline;
+    std::shared_ptr<ImplicitDiscipline> discipline;
 };
 
 // Test constructor and basic initialization
@@ -144,7 +144,7 @@ class SimpleImplicitTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        discipline = std::make_unique<SimpleImplicitDisciplineTest>();
+        discipline = std::make_shared<SimpleImplicitDisciplineTest>();
         discipline->Setup();
         discipline->SetupPartials();
     }
@@ -154,7 +154,7 @@ protected:
         discipline.reset();
     }
 
-    std::unique_ptr<SimpleImplicitDisciplineTest> discipline;
+    std::shared_ptr<SimpleImplicitDisciplineTest> discipline;
 };
 
 // Test fixture for ComplexImplicitDisciplineTest
@@ -163,7 +163,7 @@ class ComplexImplicitTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        discipline = std::make_unique<ComplexImplicitDisciplineTest>();
+        discipline = std::make_shared<ComplexImplicitDisciplineTest>();
         discipline->Setup();
         discipline->SetupPartials();
     }
@@ -173,7 +173,7 @@ protected:
         discipline.reset();
     }
 
-    std::unique_ptr<ComplexImplicitDisciplineTest> discipline;
+    std::shared_ptr<ComplexImplicitDisciplineTest> discipline;
 };
 
 // Test variable setup
@@ -518,7 +518,7 @@ TEST_F(ImplicitDisciplineTest, RegisterServicesRegistersServers)
     // Build the server - this will fail if services aren't properly registered
     // We're just verifying the registration doesn't crash
     EXPECT_NO_THROW({
-        std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
+        std::shared_ptr<grpc::Server> server = builder.BuildAndStart();
         if (server) {
             server->Shutdown();
         }
