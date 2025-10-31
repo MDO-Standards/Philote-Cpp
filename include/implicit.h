@@ -44,6 +44,11 @@ namespace philote
     /**
      * @brief Implicit server class
      *
+     * @note Thread Safety: gRPC may invoke RPC handlers concurrently on the same server
+     * instance. While the server infrastructure itself is thread-safe, the linked
+     * ImplicitDiscipline must also be thread-safe if concurrent RPC calls are expected.
+     * User-defined ComputeResiduals, SolveResiduals, and ComputeResidualGradients methods
+     * should include appropriate synchronization if they modify shared state.
      */
     class ImplicitServer : public ImplicitService::Service
     {
@@ -273,6 +278,12 @@ namespace philote
      *       and SolveResiduals(). ComputeResiduals evaluates R(x,y), while
      *       SolveResiduals finds y such that R(x,y) = 0.
      *
+     * @note Thread Safety: This class is NOT inherently thread-safe. Concurrent calls
+     * to ComputeResiduals, SolveResiduals, or ComputeResidualGradients from multiple
+     * RPC handlers will access the same instance without synchronization. User-defined
+     * implementations should add appropriate locks if they modify shared state or if
+     * thread safety is required.
+     *
      * @see philote::ImplicitClient
      * @see philote::ExplicitDiscipline
      */
@@ -481,6 +492,12 @@ namespace philote
      * @note For implicit disciplines, variables passed to ComputeResiduals()
      *       must include both inputs and outputs. SolveResiduals() only requires
      *       inputs and returns the solved outputs.
+     *
+     * @note Thread Safety: This class is NOT thread-safe. Each thread should create
+     * its own ImplicitClient instance. Concurrent calls to ComputeResiduals,
+     * SolveResiduals, or ComputeResidualGradients on the same instance will cause data
+     * races. The underlying gRPC stub is thread-safe, so multiple ImplicitClient
+     * instances can safely share a channel.
      *
      * @see philote::ImplicitDiscipline
      * @see philote::ExplicitClient

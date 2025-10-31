@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Thread safety documentation for all public API classes** (closes #42)
+  - Added thread safety notes to Variable, PairDict, Variables, and Partials
+  - Added thread safety notes to Discipline, DisciplineClient, and DisciplineServer
+  - Added thread safety notes to ExplicitDiscipline, ExplicitClient, and ExplicitServer
+  - Added thread safety notes to ImplicitDiscipline, ImplicitClient, and ImplicitServer
+  - Documents that classes are NOT thread-safe and require external synchronization
+  - Clarifies that gRPC channels/stubs are thread-safe, enabling multiple clients per thread
+  - Warns users that concurrent RPC calls to the same server instance may occur
 - **Comprehensive implicit discipline test suite** (~2,600 lines of new tests)
   - Complete unit tests for ImplicitDiscipline, ImplicitClient, and ImplicitServer
   - Integration tests for end-to-end implicit discipline workflows

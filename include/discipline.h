@@ -51,6 +51,11 @@ namespace philote
      * and setup partials functions without code duplication within the explicit
      * and implicit classes.
      *
+     * @note Thread Safety: This class is NOT thread-safe. Concurrent calls to methods
+     * that modify internal state (Setup, SetupPartials, SetOptions, etc.) will cause
+     * data races. Discipline instances should not be shared across threads without
+     * external synchronization. User-defined Compute methods must also be thread-safe
+     * if concurrent RPC calls are expected.
      */
     class Discipline
     {
