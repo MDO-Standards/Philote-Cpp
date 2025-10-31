@@ -509,7 +509,7 @@ namespace philote
         ImplicitClient() = default;
 
         //! Destructor
-        ~ImplicitClient() = default;
+        ~ImplicitClient() noexcept = default;
 
         /**
          * @brief Connects the client stub to a gRPC channel

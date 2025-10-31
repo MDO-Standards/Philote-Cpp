@@ -141,7 +141,7 @@ namespace philote
          *
          * @return const StreamOptions&
          */
-        const StreamOptions &GetStreamOptions() const { return stream_options_; }
+        const StreamOptions &GetStreamOptions() const noexcept { return stream_options_; }
 
         /**
          * @brief Set the stream options
@@ -155,7 +155,7 @@ namespace philote
          *
          * @return const DisciplineProperties&
          */
-        const DisciplineProperties &GetProperties() const { return properties_; }
+        const DisciplineProperties &GetProperties() const noexcept { return properties_; }
 
         /**
          * @brief Set the discipline properties
@@ -169,7 +169,7 @@ namespace philote
          *
          * @return const std::vector<VariableMetaData>&
          */
-        const std::vector<VariableMetaData> &GetVariableMetaAll() const { return var_meta_; }
+        const std::vector<VariableMetaData> &GetVariableMetaAll() const noexcept { return var_meta_; }
 
         /**
          * @brief Set the variable metadata
@@ -183,7 +183,7 @@ namespace philote
          *
          * @return const std::vector<PartialsMetaData>&
          */
-        const std::vector<PartialsMetaData> &GetPartialsMetaConst() const { return partials_meta_; }
+        const std::vector<PartialsMetaData> &GetPartialsMetaConst() const noexcept { return partials_meta_; }
 
         /**
          * @brief Set the partials metadata
@@ -204,7 +204,7 @@ namespace philote
          *
          * @return std::chrono::milliseconds Current timeout duration
          */
-        std::chrono::milliseconds GetRPCTimeout() const { return rpc_timeout_; }
+        std::chrono::milliseconds GetRPCTimeout() const noexcept { return rpc_timeout_; }
 
     private:
         //! gRPC stub
