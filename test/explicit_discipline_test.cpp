@@ -16,7 +16,7 @@ class ExplicitDisciplineTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        discipline = std::make_unique<ExplicitDiscipline>();
+        discipline = std::make_shared<ExplicitDiscipline>();
     }
 
     void TearDown() override
@@ -24,7 +24,7 @@ protected:
         discipline.reset();
     }
 
-    std::unique_ptr<ExplicitDiscipline> discipline;
+    std::shared_ptr<ExplicitDiscipline> discipline;
 };
 
 // Test constructor and basic initialization
@@ -126,7 +126,7 @@ class SimpleExplicitDisciplineTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        discipline = std::make_unique<SimpleExplicitDiscipline>();
+        discipline = std::make_shared<SimpleExplicitDiscipline>();
         discipline->Setup();
         discipline->SetupPartials();
     }
@@ -136,7 +136,7 @@ protected:
         discipline.reset();
     }
 
-    std::unique_ptr<SimpleExplicitDiscipline> discipline;
+    std::shared_ptr<SimpleExplicitDiscipline> discipline;
 };
 
 // Test fixture for ComplexExplicitDiscipline
@@ -145,7 +145,7 @@ class ComplexExplicitDisciplineTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        discipline = std::make_unique<ComplexExplicitDiscipline>();
+        discipline = std::make_shared<ComplexExplicitDiscipline>();
         discipline->Setup();
         discipline->SetupPartials();
     }
@@ -155,7 +155,7 @@ protected:
         discipline.reset();
     }
 
-    std::unique_ptr<ComplexExplicitDiscipline> discipline;
+    std::shared_ptr<ComplexExplicitDiscipline> discipline;
 };
 
 // Test variable setup
@@ -399,7 +399,7 @@ TEST_F(ExplicitDisciplineTest, RegisterServicesRegistersServers)
     // Build the server - this will fail if services aren't properly registered
     // We're just verifying the registration doesn't crash
     EXPECT_NO_THROW({
-        std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
+        std::shared_ptr<grpc::Server> server = builder.BuildAndStart();
         if (server) {
             server->Shutdown();
         }

@@ -120,12 +120,12 @@ std::vector<double> Variable::Segment(const size_t &start, const size_t &end) co
     return data;
 }
 
-std::vector<size_t> Variable::Shape() const
+std::vector<size_t> Variable::Shape() const noexcept
 {
     return shape_;
 }
 
-size_t Variable::Size() const
+size_t Variable::Size() const noexcept
 {
     return data_.size();
 }
@@ -150,6 +150,7 @@ Array Variable::CreateChunk(const size_t &start, const size_t &end) const
 
     out.set_start(start);
     out.set_end(end);
+    out.set_type(type_);  // Set the variable type
 
     // set the data
     const vector<double> segment = Segment(start, end);
@@ -184,14 +185,21 @@ void Variable::Send(string name,
         array = CreateChunk(start, end);
         array.set_name(name);
         array.set_subname(subname);
-        stream->Write(array);
+        if (!stream->Write(array))
+        {
+            throw std::runtime_error(
+                "Failed to write variable '" + name +
+                "' to stream (chunk " + std::to_string(i + 1) +
+                " of " + std::to_string(num_chunks) + ")");
+        }
     }
 }
 
 void philote::Variable::Send(std::string name,
                              std::string subname,
                              grpc::ServerReaderWriterInterface<::philote::Array, ::philote::Array> *stream,
-                             const size_t &chunk_size) const
+                             const size_t &chunk_size,
+                             grpc::ServerContext* context) const
 {
     Array array;
     size_t start = 0, end;
@@ -201,6 +209,15 @@ void philote::Variable::Send(std::string name,
         num_chunks = 1;
     for (size_t i = 0; i < num_chunks; i++)
     {
+        // Check for cancellation before processing each chunk
+        if (context != nullptr && context->IsCancelled())
+        {
+            throw std::runtime_error(
+                "Operation cancelled while sending variable '" + name +
+                "' (chunk " + std::to_string(i + 1) +
+                " of " + std::to_string(num_chunks) + ")");
+        }
+
         start = i * chunk_size;
         end = start + chunk_size - 1;  // end is inclusive
         if (end >= n)
@@ -208,7 +225,13 @@ void philote::Variable::Send(std::string name,
         array = CreateChunk(start, end);
         array.set_name(name);
         array.set_subname(subname);
-        stream->Write(array);
+        if (!stream->Write(array))
+        {
+            throw std::runtime_error(
+                "Failed to write variable '" + name +
+                "' to stream (chunk " + std::to_string(i + 1) +
+                " of " + std::to_string(num_chunks) + ")");
+        }
     }
 }
 
@@ -232,14 +255,27 @@ void philote::Variable::Send(std::string name,
         array = CreateChunk(start, end);
         array.set_name(name);
         array.set_subname(subname);
-        stream->Write(array);
+        if (!stream->Write(array))
+        {
+            throw std::runtime_error(
+                "Failed to write variable '" + name +
+                "' to stream (chunk " + std::to_string(i + 1) +
+                " of " + std::to_string(num_chunks) + ")");
+        }
     }
 }
 
 void Variable::AssignChunk(const Array &data)
 {
-    size_t start = data.start();
-    size_t end = data.end();
+    // Validate indices are non-negative before casting to size_t
+    // This prevents integer overflow attacks where negative values wrap to SIZE_MAX
+    if (data.start() < 0)
+        throw std::invalid_argument("Start index cannot be negative in Variable::AssignChunk");
+    if (data.end() < 0)
+        throw std::invalid_argument("End index cannot be negative in Variable::AssignChunk");
+
+    size_t start = static_cast<size_t>(data.start());
+    size_t end = static_cast<size_t>(data.end());
 
     if (start > end)
         throw std::invalid_argument("Start index greater than end index in Variable::AssignChunk");

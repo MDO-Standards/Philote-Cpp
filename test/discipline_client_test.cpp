@@ -50,14 +50,14 @@ class DisciplineClientTest : public ::testing::Test
 protected:
     void SetUp() override
     {
-        client_ = std::make_unique<philote::DisciplineClient>();
+        client_ = std::make_shared<philote::DisciplineClient>();
         mock_stub_ = new philote::MockDisciplineServiceStub();
         // Inject the mock stub into the client
         client_->SetStub(std::unique_ptr<philote::DisciplineService::StubInterface>(mock_stub_));
     }
 
     philote::MockDisciplineServiceStub *mock_stub_ = nullptr;
-    std::unique_ptr<philote::DisciplineClient> client_;
+    std::shared_ptr<philote::DisciplineClient> client_;
 };
 
 // Test constructor and initial state

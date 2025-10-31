@@ -83,7 +83,9 @@ void Discipline::AddOutput(const string &name,
     var_meta().push_back(var);
 }
 
-void Discipline::DeclarePartials(const string &f, const string &x)
+vector<int64_t> Discipline::ComputePartialShape(const string &f,
+                                                 const string &x,
+                                                 bool allow_output_as_x)
 {
     // determine and assign the shape of the partials array
     vector<int64_t> shape_f, shape_x;
@@ -100,14 +102,28 @@ void Discipline::DeclarePartials(const string &f, const string &x)
         }
     }
 
-    // Then find the input variable shape
+    // Then find the input (or output for implicit) variable shape
     for (const auto &var : var_meta_)
     {
-        if (var.name() == x and var.type() == kInput)
+        if (allow_output_as_x)
         {
-            for (const auto &dim : var.shape())
-                shape_x.push_back(dim);
-            found_x = true;
+            // For implicit disciplines, x can be either input or output
+            if (var.name() == x and (var.type() == kInput or var.type() == kOutput))
+            {
+                for (const auto &dim : var.shape())
+                    shape_x.push_back(dim);
+                found_x = true;
+            }
+        }
+        else
+        {
+            // For explicit disciplines, x must be an input
+            if (var.name() == x and var.type() == kInput)
+            {
+                for (const auto &dim : var.shape())
+                    shape_x.push_back(dim);
+                found_x = true;
+            }
         }
     }
 
@@ -144,6 +160,14 @@ void Discipline::DeclarePartials(const string &f, const string &x)
         shape.insert(shape.end(), shape_x.begin(), shape_x.end());
     }
 
+    return shape;
+}
+
+void Discipline::DeclarePartials(const string &f, const string &x)
+{
+    // Compute the shape using the helper method
+    vector<int64_t> shape = ComputePartialShape(f, x, false);
+
     // assign the meta data
     PartialsMetaData meta;
     meta.set_name(f);
@@ -173,6 +197,22 @@ void Discipline::Configure()
 
 void Discipline::SetOptions(const google::protobuf::Struct &options_struct)
 {
+    // Base implementation simply calls Configure() after options should be set.
+    // Derived classes should override this method to extract option values from
+    // the protobuf Struct and store them in strongly-typed member variables.
+    //
+    // Example pattern for derived classes:
+    //   void MyDiscipline::SetOptions(const google::protobuf::Struct &options_struct) {
+    //       // Extract option values into member variables
+    //       auto it = options_struct.fields().find("my_option");
+    //       if (it != options_struct.fields().end()) {
+    //           my_option_ = it->second.number_value();  // or string_value(), bool_value()
+    //       }
+    //
+    //       // Call parent implementation to invoke Configure()
+    //       ExplicitDiscipline::SetOptions(options_struct);  // or ImplicitDiscipline
+    //   }
+    //
     // Call configure after options are set
     Configure();
 }
@@ -185,4 +225,19 @@ void Discipline::SetupPartials()
 {
 }
 
-philote::Discipline::~Discipline() = default;
+void Discipline::SetContext(grpc::ServerContext* context) const noexcept
+{
+    current_context_ = context;
+}
+
+void Discipline::ClearContext() const noexcept
+{
+    current_context_ = nullptr;
+}
+
+bool Discipline::IsCancelled() const noexcept
+{
+    return current_context_ != nullptr && current_context_->IsCancelled();
+}
+
+philote::Discipline::~Discipline() noexcept = default;

@@ -35,6 +35,7 @@
 #include <grpcpp/support/status.h>
 
 #include <disciplines.grpc.pb.h>
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
@@ -44,6 +45,11 @@ namespace philote
     /**
      * @brief Client class for interacting with a discipline server
      *
+     * @note Thread Safety: This class is NOT thread-safe. Each thread should create
+     * its own DisciplineClient instance. Concurrent calls to methods on the same
+     * instance (e.g., ComputeFunction, GetInfo) will cause data races as they modify
+     * internal state. The underlying gRPC channel is thread-safe, so multiple client
+     * instances can safely share the same channel.
      */
     class DisciplineClient
     {
@@ -135,7 +141,7 @@ namespace philote
          *
          * @return const StreamOptions&
          */
-        const StreamOptions &GetStreamOptions() const { return stream_options_; }
+        const StreamOptions &GetStreamOptions() const noexcept { return stream_options_; }
 
         /**
          * @brief Set the stream options
@@ -149,7 +155,7 @@ namespace philote
          *
          * @return const DisciplineProperties&
          */
-        const DisciplineProperties &GetProperties() const { return properties_; }
+        const DisciplineProperties &GetProperties() const noexcept { return properties_; }
 
         /**
          * @brief Set the discipline properties
@@ -163,7 +169,7 @@ namespace philote
          *
          * @return const std::vector<VariableMetaData>&
          */
-        const std::vector<VariableMetaData> &GetVariableMetaAll() const { return var_meta_; }
+        const std::vector<VariableMetaData> &GetVariableMetaAll() const noexcept { return var_meta_; }
 
         /**
          * @brief Set the variable metadata
@@ -177,7 +183,7 @@ namespace philote
          *
          * @return const std::vector<PartialsMetaData>&
          */
-        const std::vector<PartialsMetaData> &GetPartialsMetaConst() const { return partials_meta_; }
+        const std::vector<PartialsMetaData> &GetPartialsMetaConst() const noexcept { return partials_meta_; }
 
         /**
          * @brief Set the partials metadata
@@ -185,6 +191,20 @@ namespace philote
          * @param meta
          */
         void SetPartialsMetaData(const std::vector<PartialsMetaData> &meta) { partials_meta_ = meta; }
+
+        /**
+         * @brief Set the RPC timeout for all client operations
+         *
+         * @param timeout Timeout duration in milliseconds
+         */
+        void SetRPCTimeout(std::chrono::milliseconds timeout) { rpc_timeout_ = timeout; }
+
+        /**
+         * @brief Get the current RPC timeout
+         *
+         * @return std::chrono::milliseconds Current timeout duration
+         */
+        std::chrono::milliseconds GetRPCTimeout() const noexcept { return rpc_timeout_; }
 
     private:
         //! gRPC stub
@@ -201,5 +221,8 @@ namespace philote
 
         //! Partials meta data
         std::vector<philote::PartialsMetaData> partials_meta_;
+
+        //! RPC timeout in milliseconds (default: 60 seconds)
+        std::chrono::milliseconds rpc_timeout_{60000};
     };
 } // namespace philote

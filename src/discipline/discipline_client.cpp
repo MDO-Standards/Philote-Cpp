@@ -56,11 +56,18 @@ void DisciplineClient::ConnectChannel(const std::shared_ptr<grpc::ChannelInterfa
 void DisciplineClient::GetInfo()
 {
     ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + rpc_timeout_);
     Empty request;
 
     auto status = stub_->GetInfo(&context, request, &properties_);
     if (!status.ok())
     {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(rpc_timeout_.count()) +
+                                   "ms: " + status.error_message());
+        }
         std::string error_msg = "Failed to get discipline info [code=" +
                                std::to_string(status.error_code()) + "]: " +
                                status.error_message();
@@ -71,11 +78,18 @@ void DisciplineClient::GetInfo()
 void DisciplineClient::SendStreamOptions()
 {
     ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + rpc_timeout_);
     ::google::protobuf::Empty response;
 
     auto status = stub_->SetStreamOptions(&context, stream_options_, &response);
     if (!status.ok())
     {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(rpc_timeout_.count()) +
+                                   "ms: " + status.error_message());
+        }
         throw std::runtime_error("Failed to set stream options: " + status.error_message());
     }
 }
@@ -83,11 +97,18 @@ void DisciplineClient::SendStreamOptions()
 void DisciplineClient::SendOptions(const DisciplineOptions &options)
 {
     ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + rpc_timeout_);
     ::google::protobuf::Empty response;
 
     auto status = stub_->SetOptions(&context, options, &response);
     if (!status.ok())
     {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(rpc_timeout_.count()) +
+                                   "ms: " + status.error_message());
+        }
         throw std::runtime_error("Failed to set options: " + status.error_message());
     }
 }
@@ -95,11 +116,18 @@ void DisciplineClient::SendOptions(const DisciplineOptions &options)
 void DisciplineClient::Setup()
 {
     ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + rpc_timeout_);
     ::google::protobuf::Empty request, response;
 
     auto status = stub_->Setup(&context, request, &response);
     if (!status.ok())
     {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(rpc_timeout_.count()) +
+                                   "ms: " + status.error_message());
+        }
         throw std::runtime_error("Failed to setup discipline: " + status.error_message());
     }
 }
@@ -107,6 +135,7 @@ void DisciplineClient::Setup()
 void DisciplineClient::GetVariableDefinitions()
 {
     ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + rpc_timeout_);
     Empty request;
     std::unique_ptr<grpc::ClientReaderInterface<philote::VariableMetaData>> reactor;
 
@@ -125,6 +154,12 @@ void DisciplineClient::GetVariableDefinitions()
     auto status = reactor->Finish();
     if (!status.ok())
     {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(rpc_timeout_.count()) +
+                                   "ms: " + status.error_message());
+        }
         throw std::runtime_error("Failed to get variable definitions: " + status.error_message());
     }
 }
@@ -132,6 +167,7 @@ void DisciplineClient::GetVariableDefinitions()
 void DisciplineClient::GetPartialDefinitions()
 {
     ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + rpc_timeout_);
     Empty request;
     std::unique_ptr<grpc::ClientReaderInterface<philote::PartialsMetaData>> reactor;
 
@@ -150,6 +186,12 @@ void DisciplineClient::GetPartialDefinitions()
     auto status = reactor->Finish();
     if (!status.ok())
     {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(rpc_timeout_.count()) +
+                                   "ms: " + status.error_message());
+        }
         throw std::runtime_error("Failed to get partial definitions: " + status.error_message());
     }
 }

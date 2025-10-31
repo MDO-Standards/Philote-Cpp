@@ -8,13 +8,14 @@
 #include <grpcpp/grpcpp.h>
 
 #include "explicit.h"
+#include "implicit.h"
 #include "variable.h"
 
 namespace philote {
 namespace test {
 
 // ============================================================================
-// Test Discipline Implementations
+// Test Discipline Implementations - Explicit
 // ============================================================================
 
 /**
@@ -80,6 +81,164 @@ public:
 
 private:
     ErrorMode mode_;
+};
+
+/**
+ * Slow discipline for testing cancellation
+ * Sleeps during computation to allow cancellation to occur
+ * Checks IsCancelled() and throws if cancelled
+ */
+class SlowDiscipline : public ExplicitDiscipline {
+public:
+    SlowDiscipline(int sleep_ms = 100);
+    void Setup() override;
+    void SetupPartials() override;
+    void Compute(const Variables &inputs, Variables &outputs) override;
+    void ComputePartials(const Variables &inputs, Partials &partials) override;
+
+    // Track if cancellation was detected
+    bool WasCancelled() const { return was_cancelled_; }
+
+private:
+    int sleep_ms_;
+    mutable bool was_cancelled_ = false;
+};
+
+// ============================================================================
+// Test Discipline Implementations - Implicit
+// ============================================================================
+
+/**
+ * Simple implicit discipline: x^2 - y = 0
+ * Residual: R(x, y) = x^2 - y
+ * Solution: y = x^2
+ * Partials: dR/dx = 2x, dR/dy = -1
+ */
+class SimpleImplicitDiscipline : public ImplicitDiscipline {
+public:
+    void Setup() override;
+    void SetupPartials() override;
+    void ComputeResiduals(const Variables &inputs, const Variables &outputs, Variables &residuals) override;
+    void SolveResiduals(const Variables &inputs, Variables &outputs) override;
+    void ComputeResidualGradients(const Variables &inputs, const Variables &outputs, Partials &partials) override;
+};
+
+/**
+ * Quadratic equation discipline: ax^2 + bx + c = 0
+ * Inputs: a, b, c (coefficients)
+ * Output: x (solution using quadratic formula, positive root)
+ * Residual: R(a,b,c,x) = ax^2 + bx + c
+ * Partials: dR/da = x^2, dR/db = x, dR/dc = 1, dR/dx = 2ax + b
+ */
+class QuadraticDiscipline : public ImplicitDiscipline {
+public:
+    void Setup() override;
+    void SetupPartials() override;
+    void ComputeResiduals(const Variables &inputs, const Variables &outputs, Variables &residuals) override;
+    void SolveResiduals(const Variables &inputs, Variables &outputs) override;
+    void ComputeResidualGradients(const Variables &inputs, const Variables &outputs, Partials &partials) override;
+};
+
+/**
+ * Multi-residual discipline with coupled equations:
+ *   R1: x + y - sum = 0
+ *   R2: x * y - product = 0
+ * Inputs: sum, product
+ * Outputs: x, y
+ */
+class MultiResidualDiscipline : public ImplicitDiscipline {
+public:
+    void Setup() override;
+    void SetupPartials() override;
+    void ComputeResiduals(const Variables &inputs, const Variables &outputs, Variables &residuals) override;
+    void SolveResiduals(const Variables &inputs, Variables &outputs) override;
+    void ComputeResidualGradients(const Variables &inputs, const Variables &outputs, Partials &partials) override;
+};
+
+/**
+ * Vectorized implicit discipline for testing vector operations
+ * System: A*x + b - y = 0
+ * Inputs: A (matrix), b (vector)
+ * Outputs: y (vector)
+ * Solution: y = A*x + b (where x is initialized from inputs)
+ */
+class VectorizedImplicitDiscipline : public ImplicitDiscipline {
+public:
+    VectorizedImplicitDiscipline(size_t n, size_t m);
+    void Setup() override;
+    void SetupPartials() override;
+    void ComputeResiduals(const Variables &inputs, const Variables &outputs, Variables &residuals) override;
+    void SolveResiduals(const Variables &inputs, Variables &outputs) override;
+    void ComputeResidualGradients(const Variables &inputs, const Variables &outputs, Partials &partials) override;
+
+private:
+    size_t n_;  // Output dimension
+    size_t m_;  // Input dimension
+};
+
+/**
+ * Error-throwing implicit discipline for testing error handling
+ */
+class ImplicitErrorDiscipline : public ImplicitDiscipline {
+public:
+    enum class ErrorMode {
+        NO_ERROR,
+        THROW_ON_SETUP,
+        THROW_ON_COMPUTE_RESIDUALS,
+        THROW_ON_SOLVE_RESIDUALS,
+        THROW_ON_GRADIENTS
+    };
+
+    ImplicitErrorDiscipline(ErrorMode mode = ErrorMode::NO_ERROR);
+    void Setup() override;
+    void SetupPartials() override;
+    void ComputeResiduals(const Variables &inputs, const Variables &outputs, Variables &residuals) override;
+    void SolveResiduals(const Variables &inputs, Variables &outputs) override;
+    void ComputeResidualGradients(const Variables &inputs, const Variables &outputs, Partials &partials) override;
+
+private:
+    ErrorMode mode_;
+};
+
+// ============================================================================
+// Server Management Helpers - Implicit
+// ============================================================================
+
+/**
+ * Test server wrapper for implicit discipline integration testing
+ * Manages server lifecycle and provides connection info
+ */
+class ImplicitTestServerManager {
+public:
+    ImplicitTestServerManager();
+    ~ImplicitTestServerManager();
+
+    /**
+     * Start server with given discipline on a random available port
+     * Returns the server address (e.g., "localhost:12345")
+     */
+    std::string StartServer(std::shared_ptr<ImplicitDiscipline> discipline);
+
+    /**
+     * Stop the server and clean up
+     */
+    void StopServer();
+
+    /**
+     * Get the server address
+     */
+    std::string GetAddress() const { return address_; }
+
+    /**
+     * Check if server is running
+     */
+    bool IsRunning() const { return running_; }
+
+private:
+    std::unique_ptr<grpc::Server> server_;
+    std::string address_;
+    bool running_;
+    std::shared_ptr<ImplicitDiscipline> discipline_;
 };
 
 // ============================================================================
@@ -152,7 +311,7 @@ public:
      * Start server with given discipline on a random available port
      * Returns the server address (e.g., "localhost:12345")
      */
-    std::string StartServer(ExplicitDiscipline *discipline);
+    std::string StartServer(std::shared_ptr<ExplicitDiscipline> discipline);
 
     /**
      * Stop the server and clean up
@@ -173,7 +332,7 @@ private:
     std::unique_ptr<grpc::Server> server_;
     std::string address_;
     bool running_;
-    ExplicitDiscipline *discipline_;
+    std::shared_ptr<ExplicitDiscipline> discipline_;
 };
 
 /**

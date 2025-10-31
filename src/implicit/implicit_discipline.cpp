@@ -44,65 +44,35 @@ using philote::Variables;
 
 ImplicitDiscipline::ImplicitDiscipline()
 {
-    // link to discipline server and this object
-    implicit_.LinkPointers(this);
+    // Note: LinkPointers cannot be called here because shared_from_this()
+    // requires the object to be managed by a shared_ptr first.
+    // RegisterServices() will handle the linking when the discipline
+    // is ready to be used.
 }
 
-ImplicitDiscipline::~ImplicitDiscipline()
+ImplicitDiscipline::~ImplicitDiscipline() noexcept
 {
     implicit_.UnlinkPointers();
+    discipline_server_.UnlinkPointers();
 }
 
 void ImplicitDiscipline::RegisterServices(ServerBuilder &builder)
 {
+    // Link servers to this discipline instance using shared_from_this()
+    // This must be done when the discipline is managed by a shared_ptr
+    auto self = std::dynamic_pointer_cast<ImplicitDiscipline>(shared_from_this());
+    discipline_server_.LinkPointers(shared_from_this());
+    implicit_.LinkPointers(self);
+
     builder.RegisterService(&discipline_server_);
     builder.RegisterService(&implicit_);
 }
 
 void ImplicitDiscipline::DeclarePartials(const string &f, const string &x)
 {
-
-    // determine and assign the shape of the partials array
-    vector<int64_t> shape_f, shape_x;
-    for (const auto &var : var_meta_)
-    {
-        if (var.name() == f and var.type() == kOutput)
-        {
-            for (const auto &dim : var.shape())
-                shape_f.push_back(dim);
-        }
-
-        if (var.name() == x and (var.type() == kInput or var.type() == kOutput))
-        {
-            for (const auto &dim : var.shape())
-                shape_x.push_back(dim);
-        }
-    }
-
-    // create the combined shape array
-    vector<int64_t> shape;
-
-    if (shape_f.size() == 1 and shape_f[0] == 1 and shape_x.size() == 1 and shape_x[0] == 1)
-    {
-        shape.resize(1);
-        shape[0] = 1;
-    }
-    else if (shape_f.size() == 1 and shape_f[0] == 1)
-    {
-        shape.resize(shape_x.size());
-        shape = shape_x;
-    }
-    else if (shape_x.size() == 1 and shape_x[0] == 1)
-    {
-        shape.resize(shape_f.size());
-        shape = shape_f;
-    }
-    else
-    {
-        shape.resize(shape_f.size() + shape_x.size());
-        shape.insert(shape.end(), shape_f.begin(), shape_f.end());
-        shape.insert(shape.end(), shape_x.begin(), shape_x.end());
-    }
+    // Compute the shape using the base class helper method
+    // Pass true to allow outputs as the x parameter (for implicit disciplines)
+    vector<int64_t> shape = ComputePartialShape(f, x, true);
 
     // assign the meta data
     PartialsMetaData meta;

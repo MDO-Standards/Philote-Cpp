@@ -75,6 +75,11 @@ namespace philote
      * philote::Variable temp(meta);
      * temp(0) = 300.0;
      * @endcode
+     *
+     * @note Thread Safety: This class is NOT thread-safe. Concurrent reads and writes
+     * to the same Variable instance will cause data races. If multiple threads need to
+     * access the same Variable, external synchronization is required. Each thread should
+     * preferably have its own Variable instances.
      */
     class Variable
     {
@@ -112,7 +117,7 @@ namespace philote
          * @brief Destroy the Variables object
          *
          */
-        ~Variable() = default;
+        ~Variable() noexcept = default;
 
         /**
          * @brief Assigns a segment of the array given a subvector
@@ -149,14 +154,14 @@ namespace philote
          * @return std::vector<size_t> vector containing the length of the
          * individual dimensions
          */
-        std::vector<size_t> Shape() const;
+        std::vector<size_t> Shape() const noexcept;
 
         /**
          * @brief Returns the size of the array.
          *
          * @return size_t size of the array
          */
-        size_t Size() const;
+        size_t Size() const noexcept;
 
         /**
          * @brief Returns the value of the array at a given index
@@ -196,12 +201,17 @@ namespace philote
         /**
          * @brief Sends the variable from the server to the client using the interface
          *
-         * @param stream
+         * @param name Variable name
+         * @param subname Variable subname (for partials)
+         * @param stream The gRPC stream to write to
+         * @param chunk_size Number of elements per chunk
+         * @param context Optional server context for cancellation detection
          */
         void Send(std::string name,
                   std::string subname,
                   grpc::ServerReaderWriterInterface<::philote::Array, ::philote::Array> *stream,
-                  const size_t &chunk_size) const;
+                  const size_t &chunk_size,
+                  grpc::ServerContext* context = nullptr) const;
 
         /**
          * @brief Sends the variable from the client to the server using the interface
@@ -272,6 +282,10 @@ namespace philote
      * philote::PartialsPairDict pair_partials;
      * pair_partials("output", "input")(0) = 1.5;
      * @endcode
+     *
+     * @note Thread Safety: This class is NOT thread-safe. The underlying std::map
+     * does not provide thread safety for concurrent modifications. If multiple threads
+     * need to access the same PairDict, external synchronization is required.
      */
     template<typename T>
     class PairDict
@@ -281,6 +295,31 @@ namespace philote
          * @brief Default constructor
          */
         PairDict() = default;
+
+        /**
+         * @brief Copy constructor
+         */
+        PairDict(const PairDict&) = default;
+
+        /**
+         * @brief Copy assignment operator
+         */
+        PairDict& operator=(const PairDict&) = default;
+
+        /**
+         * @brief Move constructor
+         */
+        PairDict(PairDict&&) noexcept = default;
+
+        /**
+         * @brief Move assignment operator
+         */
+        PairDict& operator=(PairDict&&) noexcept = default;
+
+        /**
+         * @brief Destructor
+         */
+        ~PairDict() noexcept = default;
 
         /**
          * @brief Access/modify value using two keys
@@ -313,7 +352,7 @@ namespace philote
          * @param key2 Second key
          * @return true if the key pair exists
          */
-        bool contains(const std::string& key1, const std::string& key2) const
+        bool contains(const std::string& key1, const std::string& key2) const noexcept
         {
             return data_.find(std::make_pair(key1, key2)) != data_.end();
         }
@@ -323,7 +362,7 @@ namespace philote
          *
          * @return Number of key-value pairs
          */
-        size_t size() const
+        size_t size() const noexcept
         {
             return data_.size();
         }
@@ -333,7 +372,7 @@ namespace philote
          *
          * @return true if empty
          */
-        bool empty() const
+        bool empty() const noexcept
         {
             return data_.empty();
         }

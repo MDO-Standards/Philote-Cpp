@@ -303,6 +303,38 @@ for (const auto& [name, var] : residuals) {
 }
 ```
 
+## Handling Cancellation
+
+For long-running implicit solvers, disciplines can detect client cancellations by checking `IsCancelled()`:
+
+```cpp
+class IterativeSolver : public philote::ImplicitDiscipline {
+    void SolveResiduals(const philote::Variables &inputs,
+                       philote::Variables &outputs) override {
+        int max_iter = 10000;
+        double tolerance = 1e-10;
+
+        for (int iter = 0; iter < max_iter; iter++) {
+            // Check cancellation every 100 iterations
+            if (iter % 100 == 0 && IsCancelled()) {
+                throw std::runtime_error("Solver cancelled by client");
+            }
+
+            // ... Newton iteration or other solver method ...
+
+            if (residual_norm < tolerance) break;
+        }
+    }
+};
+```
+
+**Key Points**:
+- Server automatically detects cancellations - `IsCancelled()` is optional
+- Particularly useful for iterative solvers that may not converge
+- Check periodically to minimize overhead
+- Works across all client languages
+- See @ref explicit_disciplines for more cancellation examples
+
 ## Complete Examples
 
 See the examples directory:

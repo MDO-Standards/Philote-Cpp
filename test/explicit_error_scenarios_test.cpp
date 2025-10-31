@@ -33,7 +33,7 @@ using namespace philote::test;
 class ExplicitErrorScenariosTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        server_manager_ = std::make_unique<TestServerManager>();
+        server_manager_ = std::make_shared<TestServerManager>();
     }
 
     void TearDown() override {
@@ -43,7 +43,7 @@ protected:
         server_manager_.reset();
     }
 
-    std::unique_ptr<TestServerManager> server_manager_;
+    std::shared_ptr<TestServerManager> server_manager_;
 };
 
 // ============================================================================
@@ -74,17 +74,17 @@ TEST(ExplicitClientConnectionErrors, InvalidAddress) {
 // ============================================================================
 
 TEST_F(ExplicitErrorScenariosTest, DisciplineThrowsOnSetup) {
-    auto discipline = std::make_unique<ErrorDiscipline>(ErrorDiscipline::ErrorMode::THROW_ON_SETUP);
+    auto discipline = std::make_shared<ErrorDiscipline>(ErrorDiscipline::ErrorMode::THROW_ON_SETUP);
 
     // Starting server should succeed even if discipline setup throws
     // because Setup is called after server start in TestServerManager
-    EXPECT_THROW(server_manager_->StartServer(discipline.get()), std::runtime_error);
+    EXPECT_THROW(server_manager_->StartServer(discipline), std::runtime_error);
 }
 
 TEST_F(ExplicitErrorScenariosTest, DisciplineThrowsOnCompute) {
-    auto discipline = std::make_unique<ErrorDiscipline>(ErrorDiscipline::ErrorMode::THROW_ON_COMPUTE);
+    auto discipline = std::make_shared<ErrorDiscipline>(ErrorDiscipline::ErrorMode::THROW_ON_COMPUTE);
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -98,19 +98,16 @@ TEST_F(ExplicitErrorScenariosTest, DisciplineThrowsOnCompute) {
     Variables inputs;
     inputs["x"] = CreateScalarVariable(1.0);
 
-    // ComputeFunction should propagate the error from the discipline
-    // In the current implementation, this will likely return an error status
-    // but not throw on the client side unless we check the status
-    EXPECT_NO_THROW({
+    // ComputeFunction should throw when the discipline throws during Compute
+    EXPECT_THROW({
         Variables outputs = client.ComputeFunction(inputs);
-        // The outputs might be empty or incomplete due to the error
-    });
+    }, std::runtime_error);
 }
 
 TEST_F(ExplicitErrorScenariosTest, DisciplineThrowsOnComputePartials) {
-    auto discipline = std::make_unique<ErrorDiscipline>(ErrorDiscipline::ErrorMode::THROW_ON_PARTIALS);
+    auto discipline = std::make_shared<ErrorDiscipline>(ErrorDiscipline::ErrorMode::THROW_ON_PARTIALS);
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -125,10 +122,10 @@ TEST_F(ExplicitErrorScenariosTest, DisciplineThrowsOnComputePartials) {
     Variables inputs;
     inputs["x"] = CreateScalarVariable(1.0);
 
-    // ComputeGradient should handle the error from ComputePartials
-    EXPECT_NO_THROW({
+    // ComputeGradient should throw when the discipline throws during ComputePartials
+    EXPECT_THROW({
         Partials partials = client.ComputeGradient(inputs);
-    });
+    }, std::runtime_error);
 }
 
 // ============================================================================
@@ -136,9 +133,9 @@ TEST_F(ExplicitErrorScenariosTest, DisciplineThrowsOnComputePartials) {
 // ============================================================================
 
 TEST_F(ExplicitErrorScenariosTest, MissingInputVariable) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -161,9 +158,9 @@ TEST_F(ExplicitErrorScenariosTest, MissingInputVariable) {
 }
 
 TEST_F(ExplicitErrorScenariosTest, ExtraUnknownVariable) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -196,9 +193,9 @@ TEST_F(ExplicitErrorScenariosTest, ExtraUnknownVariable) {
 // ============================================================================
 
 TEST_F(ExplicitErrorScenariosTest, WrongShapeInput) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -214,10 +211,10 @@ TEST_F(ExplicitErrorScenariosTest, WrongShapeInput) {
     inputs["x"] = CreateVectorVariable({1.0, 2.0, 3.0});  // Wrong shape
     inputs["y"] = CreateScalarVariable(4.0);
 
-    // This might fail during variable sending or assignment
-    EXPECT_NO_THROW({
+    // Server should return an error for wrong shape, which will now throw
+    EXPECT_THROW({
         Variables outputs = client.ComputeFunction(inputs);
-    });
+    }, std::runtime_error);
 }
 
 // ============================================================================
@@ -225,9 +222,9 @@ TEST_F(ExplicitErrorScenariosTest, WrongShapeInput) {
 // ============================================================================
 
 TEST_F(ExplicitErrorScenariosTest, EmptyInputsMap) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -248,9 +245,9 @@ TEST_F(ExplicitErrorScenariosTest, EmptyInputsMap) {
 }
 
 TEST_F(ExplicitErrorScenariosTest, VeryLargeValues) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -274,9 +271,9 @@ TEST_F(ExplicitErrorScenariosTest, VeryLargeValues) {
 }
 
 TEST_F(ExplicitErrorScenariosTest, VerySmallValues) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -301,9 +298,9 @@ TEST_F(ExplicitErrorScenariosTest, VerySmallValues) {
 }
 
 TEST_F(ExplicitErrorScenariosTest, InfinityValues) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -327,9 +324,9 @@ TEST_F(ExplicitErrorScenariosTest, InfinityValues) {
 }
 
 TEST_F(ExplicitErrorScenariosTest, NaNValues) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -357,9 +354,9 @@ TEST_F(ExplicitErrorScenariosTest, NaNValues) {
 // ============================================================================
 
 TEST_F(ExplicitErrorScenariosTest, ServerStopDuringOperation) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -381,31 +378,25 @@ TEST_F(ExplicitErrorScenariosTest, ServerStopDuringOperation) {
     // Stop the server
     server_manager_->StopServer();
 
-    // Try to make another call - should fail
-    // The behavior depends on gRPC - might throw, return error, or hang
-    EXPECT_NO_THROW({
-        try {
-            Variables outputs2 = client.ComputeFunction(inputs);
-            // If it doesn't throw, the outputs might be empty or stale
-        } catch (...) {
-            // Expected in most cases
-        }
-    });
+    // Try to make another call - should throw because server is stopped
+    EXPECT_THROW({
+        Variables outputs2 = client.ComputeFunction(inputs);
+    }, std::runtime_error);
 }
 
 TEST_F(ExplicitErrorScenariosTest, MultipleServerStartStop) {
-    auto discipline1 = std::make_unique<ParaboloidDiscipline>();
+    auto discipline1 = std::make_shared<ParaboloidDiscipline>();
 
     // Start first server
-    std::string address1 = server_manager_->StartServer(discipline1.get());
+    std::string address1 = server_manager_->StartServer(discipline1);
     ASSERT_FALSE(address1.empty());
 
     // Stop it
     server_manager_->StopServer();
 
     // Start another server
-    auto discipline2 = std::make_unique<ParaboloidDiscipline>();
-    std::string address2 = server_manager_->StartServer(discipline2.get());
+    auto discipline2 = std::make_shared<ParaboloidDiscipline>();
+    std::string address2 = server_manager_->StartServer(discipline2);
     ASSERT_FALSE(address2.empty());
 
     // Should be able to connect to new server
@@ -432,9 +423,9 @@ TEST_F(ExplicitErrorScenariosTest, MultipleServerStartStop) {
 TEST_F(ExplicitErrorScenariosTest, ZeroLengthVector) {
     // Create a discipline that accepts zero-length vectors might not make sense
     // but we test the boundary
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -459,9 +450,9 @@ TEST_F(ExplicitErrorScenariosTest, ZeroLengthVector) {
 // ============================================================================
 
 TEST_F(ExplicitErrorScenariosTest, RapidSuccessiveCalls) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -488,9 +479,9 @@ TEST_F(ExplicitErrorScenariosTest, RapidSuccessiveCalls) {
 TEST_F(ExplicitErrorScenariosTest, LargeNumberOfVariables) {
     // MultiOutputDiscipline only has 3 outputs, which is not that large
     // But it's the largest we have in our test helpers
-    auto discipline = std::make_unique<MultiOutputDiscipline>();
+    auto discipline = std::make_shared<MultiOutputDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;

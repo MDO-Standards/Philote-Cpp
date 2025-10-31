@@ -7,6 +7,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **gRPC stream cancellation detection support** (partial #46)
+  - Server-side detection of client cancellations in all streaming RPC methods
+  - Discipline base class adds SetContext(), ClearContext(), and IsCancelled() methods
+  - User disciplines can check IsCancelled() during long-running computations for early termination
+  - Variable::Send() checks for cancellation between chunks during transmission
+  - All server templates (Explicit and Implicit) check cancellation at three key points:
+    - Before starting operations
+    - Before expensive user computations (with context propagation)
+    - Before sending results back to client
+  - Returns grpc::StatusCode::CANCELLED when cancellation detected
+  - Works across all client languages (Python, C++, etc.) via gRPC protocol-level detection
+  - Backward compatible - existing disciplines work without modification
+  - Enables better resource utilization by stopping wasted computation on dead connections
+- **Thread safety documentation for all public API classes** (closes #42)
+  - Added thread safety notes to Variable, PairDict, Variables, and Partials
+  - Added thread safety notes to Discipline, DisciplineClient, and DisciplineServer
+  - Added thread safety notes to ExplicitDiscipline, ExplicitClient, and ExplicitServer
+  - Added thread safety notes to ImplicitDiscipline, ImplicitClient, and ImplicitServer
+  - Documents that classes are NOT thread-safe and require external synchronization
+  - Clarifies that gRPC channels/stubs are thread-safe, enabling multiple clients per thread
+  - Warns users that concurrent RPC calls to the same server instance may occur
+- **Comprehensive implicit discipline test suite** (~2,600 lines of new tests)
+  - Complete unit tests for ImplicitDiscipline, ImplicitClient, and ImplicitServer
+  - Integration tests for end-to-end implicit discipline workflows
+  - Error scenario tests covering boundary conditions and failure modes
+  - Test coverage mirroring explicit discipline test patterns
+  - Reuse of test helpers library (TestServerManager, test disciplines, utilities)
+
+### Changed
+- **Added noexcept specifications to appropriate methods** (closes #47)
+  - Added noexcept to all class destructors (Variable, PairDict, Discipline, all server and client classes)
+  - Added noexcept to Variable::Shape() and Variable::Size() getters
+  - Added noexcept to PairDict query methods: contains(), size(), empty()
+  - Added noexcept to PairDict move constructor and move assignment operator
+  - Added noexcept to Discipline const getters: var_meta(), partials_meta(), stream_opts()
+  - Added noexcept to DisciplineServer::DisciplinePointerNull()
+  - Added noexcept to DisciplineClient const getters: GetStreamOptions(), GetProperties(), GetVariableMetaAll(), GetPartialsMetaConst(), GetRPCTimeout()
+  - Enables compiler optimizations and improves STL container performance (especially std::vector<Variable>)
+  - Makes exception guarantees explicit for const member access
+  - Follows selective noexcept approach: added to destructors, move operations, simple getters, and query methods
+- **Modernized pointer management to use shared_ptr** (closes #43)
+  - Discipline base class now inherits from std::enable_shared_from_this<Discipline>
+  - DisciplineServer, ExplicitServer, and ImplicitServer now use shared_ptr instead of raw pointers
+  - LinkPointers() methods now accept shared_ptr<Discipline> instead of raw pointers
+  - RegisterServices() calls shared_from_this() to safely link servers to disciplines
+  - Examples updated to use std::make_shared for discipline instantiation
+  - Test helpers (TestServerManager, ImplicitTestServerManager) updated to accept shared_ptr
+  - All test files updated to use make_shared for discipline creation
+  - **BREAKING CHANGE**: Disciplines must now be created with std::make_shared instead of stack allocation
+  - Improves ownership semantics and eliminates dangling pointer risks
+
+### Fixed
+
+- **Fixed integer overflow vulnerability in Variable::AssignChunk()** (closes #36)
+  - Added validation to check data.start() and data.end() are non-negative before casting to size_t
+  - Prevents integer overflow attacks where negative values wrap to SIZE_MAX
+  - Protects against memory corruption from malicious network input
+  - Added comprehensive security tests for negative indices and edge cases
+  - Mitigates denial of service and potential code execution vulnerabilities
+- **Fixed ImplicitDiscipline constructor missing discipline_server_ link** (closes #33)
+  - Added discipline_server_.LinkPointers(this) call in constructor
+  - Added discipline_server_.UnlinkPointers() call in destructor
+  - Now properly links both base discipline server and implicit server, matching ExplicitDiscipline pattern
+  - Prevents segmentation faults when calling base discipline RPC methods on implicit disciplines
+- **Added null pointer checks to DisciplineServer RPC methods** (closes #32)
+  - All 7 RPC methods now check if discipline_ pointer is null before dereferencing
+  - Methods return FAILED_PRECONDITION error instead of crashing when discipline not linked
+  - Prevents segmentation faults if RPC called before LinkPointers() or after UnlinkPointers()
+  - Added comprehensive test coverage with 7 new null pointer scenario tests
+  - Improves server robustness and security by preventing remote crash vulnerability
+- **Fixed type validation in implicit server methods**
+  - Added validation to ensure Array message type matches variable metadata type
+  - ComputeResidualsImpl and ComputeResidualGradientsImpl now reject mismatched types
+  - Returns INVALID_ARGUMENT error when type mismatch detected
+- **Fixed Variable::CreateChunk to include type field**
+  - Array messages now properly include variable type during gRPC transmission
+  - Ensures type information flows correctly through client-server communication
+- **Fixed ImplicitClient inheritance structure**
+  - ImplicitClient now properly inherits from DisciplineClient
+  - Enables reuse of base class methods (GetInfo, SetOptions, etc.)
+- **Fixed duplicate library linker warnings**
+  - Removed redundant PhiloteCpp links from test targets that already link PhiloteTestHelpers
+  - PhiloteTestHelpers provides PhiloteCpp as a PUBLIC dependency
+- Fixed missing discipline_client.h and discipline_server.h in CMake target_sources configuration
+- Removed unused BaseDisciplineClient class declaration from discipline.h (closes #31)
+- - **Variable::Send() and DisciplineServer now check stream Write() failures** (closes #35)
+- All three Variable::Send() method overloads now check Write() return values
+- Throws runtime_error with descriptive messages including variable name and chunk number
+- DisciplineServer::GetVariableDefinitions() and GetPartialDefinitions() now check Write() failures
+- Returns grpc::Status with INTERNAL error code on metadata write failures
+- Prevents silent data loss on network failures, broken connections, or buffer overflows
+- Added 5 comprehensive unit tests using mock stream classes to verify error handling
+- Tests cover first-chunk failure, mid-transmission failure, and success scenarios
+- **Documented SetOptions() override pattern for configurable disciplines** (closes #34)
+  - Added comprehensive comments in base Discipline::SetOptions() explaining override pattern
+  - Fixed Rosenbrock example to properly override Initialize() and SetOptions() instead of using broken signature
+  - Added 9 new tests demonstrating extraction of all protobuf value types (float, int, bool, string)
+  - Added detailed documentation section in CLAUDE.md with complete code examples
+  - Clarified lifecycle: Initialize() declares options, SetOptions() extracts values, Configure() post-processes
+- **Client methods now throw exceptions on gRPC errors** (closes #48)
+  - ExplicitClient::ComputeFunction() and ComputeGradient() now check gRPC status
+  - ImplicitClient::ComputeResiduals(), SolveResiduals(), and ComputeResidualGradients() now check gRPC status
+  - All computation methods throw std::runtime_error with error code and message on RPC failure
+  - **BREAKING CHANGE**: Previously these methods returned silently with potentially invalid data
+  - Error handling is now consistent with other client methods (GetInfo, Setup, etc.)
+  - Prevents silent failures and propagation of corrupted data
+
 ## [0.4.0] - 2025-10-30
 
 ### Added

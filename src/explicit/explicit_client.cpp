@@ -55,6 +55,7 @@ void ExplicitClient::ConnectChannel(std::shared_ptr<ChannelInterface> channel)
 philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
 {
     grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
     std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
         stream(stub_->ComputeFunction(&context));
 
@@ -87,8 +88,18 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
     }
 
     grpc::Status status = stream->Finish();
-    // Note: We don't throw on error - caller can check if outputs are valid
-    // This allows graceful handling of server-side errors
+    if (!status.ok())
+    {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(GetRPCTimeout().count()) +
+                                   "ms: " + status.error_message());
+        }
+        throw std::runtime_error("ComputeFunction RPC failed: [" +
+                                 std::to_string(status.error_code()) + "] " +
+                                 status.error_message());
+    }
 
     return outputs;
 }
@@ -96,6 +107,7 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
 philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
 {
     grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
     std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
         stream(stub_->ComputeGradient(&context));
 
@@ -133,8 +145,18 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
     }
 
     grpc::Status status = stream->Finish();
-    // Note: We don't throw on error - caller can check if partials are valid
-    // This allows graceful handling of server-side errors
+    if (!status.ok())
+    {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(GetRPCTimeout().count()) +
+                                   "ms: " + status.error_message());
+        }
+        throw std::runtime_error("ComputeGradient RPC failed: [" +
+                                 std::to_string(status.error_code()) + "] " +
+                                 status.error_message());
+    }
 
     return partials;
 }

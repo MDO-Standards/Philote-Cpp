@@ -33,6 +33,7 @@
 #include <google/protobuf/struct.pb.h>
 
 #include <map>
+#include <memory>
 #include <variable.h>
 
 #include <data.pb.h>
@@ -51,8 +52,13 @@ namespace philote
      * and setup partials functions without code duplication within the explicit
      * and implicit classes.
      *
+     * @note Thread Safety: This class is NOT thread-safe. Concurrent calls to methods
+     * that modify internal state (Setup, SetupPartials, SetOptions, etc.) will cause
+     * data races. Discipline instances should not be shared across threads without
+     * external synchronization. User-defined Compute methods must also be thread-safe
+     * if concurrent RPC calls are expected.
      */
-    class Discipline
+    class Discipline : public std::enable_shared_from_this<Discipline>
     {
     public:
         /**
@@ -65,7 +71,7 @@ namespace philote
          * @brief Destroy the Discipline object
          *
          */
-        ~Discipline();
+        ~Discipline() noexcept;
 
         /**
          * Gets the options list.
@@ -78,13 +84,13 @@ namespace philote
          * @brief Accesses the variable meta data
          */
         std::vector<philote::VariableMetaData> &var_meta() { return var_meta_; }
-        const std::vector<philote::VariableMetaData> &var_meta() const { return var_meta_; }
+        const std::vector<philote::VariableMetaData> &var_meta() const noexcept { return var_meta_; }
 
         /**
          * @brief Accesses the partials meta data
          */
         std::vector<philote::PartialsMetaData> &partials_meta() { return partials_meta_; }
-        const std::vector<philote::PartialsMetaData> &partials_meta() const { return partials_meta_; }
+        const std::vector<philote::PartialsMetaData> &partials_meta() const noexcept { return partials_meta_; }
 
         /**
          * @brief Gets the discipline properties
@@ -99,7 +105,7 @@ namespace philote
          * @return StreamOptions&
          */
         philote::StreamOptions &stream_opts() { return stream_opts_; }
-        const philote::StreamOptions &stream_opts() const { return stream_opts_; }
+        const philote::StreamOptions &stream_opts() const noexcept { return stream_opts_; }
 
         /**
          * @brief Declares an input
@@ -174,7 +180,69 @@ namespace philote
          */
         virtual void SetupPartials();
 
+        /**
+         * @brief Set the gRPC server context for cancellation detection
+         *
+         * This method is called by the server before invoking user-defined
+         * compute methods. It allows disciplines to check for cancellation
+         * during long-running computations.
+         *
+         * @param context The gRPC server context, or nullptr to clear
+         */
+        void SetContext(grpc::ServerContext* context) const noexcept;
+
+        /**
+         * @brief Clear the gRPC server context
+         *
+         * This method is called by the server after user-defined compute
+         * methods complete to ensure the context pointer doesn't outlive
+         * the RPC call.
+         */
+        void ClearContext() const noexcept;
+
+        /**
+         * @brief Check if the current operation has been cancelled
+         *
+         * User disciplines can call this method during long-running computations
+         * to detect if the client has cancelled the request. If true is returned,
+         * the discipline should stop computation and return/throw as appropriate.
+         *
+         * @return true if the operation has been cancelled by the client
+         * @return false if no cancellation has been requested or no context is set
+         *
+         * @par Example: Checking Cancellation in Long Computations
+         * @code
+         * void MyDiscipline::Compute(const Variables &inputs, Variables &outputs) {
+         *     for (int iter = 0; iter < 1000000; iter++) {
+         *         // Check cancellation every 1000 iterations
+         *         if (iter % 1000 == 0 && IsCancelled()) {
+         *             throw std::runtime_error("Computation cancelled by client");
+         *         }
+         *         // ... expensive computation ...
+         *     }
+         * }
+         * @endcode
+         */
+        bool IsCancelled() const noexcept;
+
     protected:
+        /**
+         * @brief Computes the shape for a partial derivative df/dx
+         *
+         * This helper method encapsulates the logic for determining the shape
+         * of partial derivative arrays based on the shapes of the output (f)
+         * and input (x) variables.
+         *
+         * @param f Name of the output variable
+         * @param x Name of the input (or output for implicit disciplines) variable
+         * @param allow_output_as_x If true, allows x to be an output variable (for implicit disciplines)
+         * @return std::vector<int64_t> The computed shape for the partial derivative
+         * @throws std::runtime_error If variables are not found
+         */
+        std::vector<int64_t> ComputePartialShape(const std::string &f,
+                                                  const std::string &x,
+                                                  bool allow_output_as_x);
+
         //! List of options that can be set by the client
         std::map<std::string, std::string> options_list_;
 
@@ -189,116 +257,9 @@ namespace philote
 
         //! Stream options
         philote::StreamOptions stream_opts_;
+
+        //! Current gRPC server context for cancellation detection (mutable for const correctness)
+        mutable grpc::ServerContext* current_context_ = nullptr;
     };
 
-    /**
-     * @brief Base class for all analysis discipline clients
-     *
-     */
-    class BaseDisciplineClient
-    {
-    public:
-        /**
-         * @brief Construct a new Discipline Client object
-         *
-         */
-        BaseDisciplineClient();
-
-        /**
-         * @brief Destroy the Discipline Client object
-         *
-         */
-        ~BaseDisciplineClient() = default;
-
-        /**
-         * @brief Connects the client stub to a gRPC channel
-         *
-         * @param channel
-         */
-        void ConnectChannel(const std::shared_ptr<grpc::ChannelInterface> &channel);
-
-        /**
-         * @brief Get the fundamental properties of the discipline
-         *
-         * @return philote::DisciplineProperties
-         */
-        void GetInfo();
-
-        /**
-         * @brief Sends the stream options to the server
-         *
-         */
-        void SendStreamOptions();
-
-        /**
-         * @brief Sends the options for the discipline
-         *
-         */
-        void SendOptions(const philote::DisciplineOptions &options);
-
-        /**
-         * @brief Sets up the discipline
-         *
-         */
-        void Setup();
-
-        /**
-         * @brief Receives the variable definitions from the server
-         *
-         */
-        void GetVariableDefinitions();
-
-        /**
-         * @brief Receives the partial definitions from the server
-         *
-         */
-        void GetPartialDefinitions();
-
-        /**
-         * @brief Get the names of all variables associated with this discipline
-         *
-         * @return std::vector<std::string>
-         */
-        std::vector<std::string> GetVariableNames();
-
-        /**
-         * @brief Gets the variable meta data of the discipline
-         *
-         * @return philote::Variables
-         */
-        philote::VariableMetaData GetVariableMeta(const std::string &name);
-
-        /**
-         * @brief Gets the partials meta data
-         *
-         * @return std::vector<philote::PartialsMetaData>
-         */
-        std::vector<philote::PartialsMetaData> GetPartialsMeta();
-
-        /**
-         * @brief Sets the stub for testing purposes.
-         *
-         * @param stub The stub to be used by the client.
-         */
-        void SetStub(std::unique_ptr<philote::DisciplineService::StubInterface> stub)
-        {
-            stub_ = std::move(stub);
-        }
-
-    protected:
-        //! streaming options for the client/server connection
-        philote::StreamOptions stream_options_;
-
-        //! discipline properties
-        philote::DisciplineProperties properties_;
-
-        //! gRPC client stub for the generic discipline definition
-        std::unique_ptr<philote::DisciplineService::StubInterface> stub_;
-
-        //! variable meta data
-        std::vector<philote::VariableMetaData> var_meta_;
-
-        //! vector containing all partials metadata for the discipline
-        std::vector<philote::PartialsMetaData> partials_meta_;
-    };
 }

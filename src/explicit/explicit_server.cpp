@@ -47,19 +47,19 @@ using philote::ExplicitServer;
 using philote::Partials;
 using philote::Variables;
 
-ExplicitServer::~ExplicitServer()
+ExplicitServer::~ExplicitServer() noexcept
 {
     UnlinkPointers();
 }
 
-void ExplicitServer::LinkPointers(philote::ExplicitDiscipline *implementation)
+void ExplicitServer::LinkPointers(std::shared_ptr<philote::ExplicitDiscipline> implementation)
 {
     implementation_ = implementation;
 }
 
 void ExplicitServer::UnlinkPointers()
 {
-    implementation_ = nullptr;
+    implementation_.reset();
 }
 
 Status ExplicitServer::ComputeFunction(ServerContext *context,

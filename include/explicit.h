@@ -32,6 +32,7 @@
 
 #include <string>
 #include <map>
+#include <unordered_map>
 #include <utility>
 
 #include <discipline.h>
@@ -51,6 +52,12 @@ namespace philote
      *
      * This class should be inherited from by analysis discipline developers to
      * create analysis servers.
+     *
+     * @note Thread Safety: gRPC may invoke RPC handlers concurrently on the same server
+     * instance. While the server infrastructure itself is thread-safe, the linked
+     * ExplicitDiscipline must also be thread-safe if concurrent RPC calls are expected.
+     * User-defined Compute and ComputePartials methods should include appropriate
+     * synchronization if they modify shared state.
      */
     class ExplicitServer : public ExplicitService::Service
     {
@@ -59,15 +66,15 @@ namespace philote
         ExplicitServer() = default;
 
         //! Destructor
-        ~ExplicitServer();
+        ~ExplicitServer() noexcept;
 
         /**
          * @brief Links the explicit server to the discipline server and
          * explicit discipline via pointers
          *
-         * @param discipline
+         * @param implementation Shared pointer to the explicit discipline instance
          */
-        void LinkPointers(philote::ExplicitDiscipline *implementation);
+        void LinkPointers(std::shared_ptr<philote::ExplicitDiscipline> implementation);
 
         /**
          * @brief Dereferences all pointers
@@ -118,8 +125,8 @@ namespace philote
         }
 
     private:
-        //! Pointer to the implementation of the explicit discipline
-        philote::ExplicitDiscipline *implementation_;
+        //! Shared pointer to the implementation of the explicit discipline
+        std::shared_ptr<philote::ExplicitDiscipline> implementation_;
     };
 
     /**
@@ -244,6 +251,11 @@ namespace philote
      * }
      * @endcode
      *
+     * @note Thread Safety: This class is NOT inherently thread-safe. Concurrent calls
+     * to Compute or ComputePartials from multiple RPC handlers will access the same
+     * instance without synchronization. User-defined implementations should add
+     * appropriate locks if they modify shared state or if thread safety is required.
+     *
      * @see philote::ExplicitClient
      * @see philote::ImplicitDiscipline
      */
@@ -258,7 +270,7 @@ namespace philote
         /**
          *  @brief Destroy the Explicit Discipline object
          */
-        ~ExplicitDiscipline();
+        ~ExplicitDiscipline() noexcept;
 
         /**
          * @brief Registers all services with a gRPC channel
@@ -393,6 +405,12 @@ namespace philote
      * philote::Partials partials = client.ComputeGradient(inputs);
      * @endcode
      *
+     * @note Thread Safety: This class is NOT thread-safe. Each thread should create
+     * its own ExplicitClient instance. Concurrent calls to ComputeFunction or
+     * ComputeGradient on the same instance will cause data races. The underlying gRPC
+     * stub is thread-safe, so multiple ExplicitClient instances can safely share a
+     * channel.
+     *
      * @see philote::ExplicitDiscipline
      * @see philote::ImplicitClient
      */
@@ -403,7 +421,7 @@ namespace philote
         ExplicitClient() = default;
 
         //! Destructor
-        ~ExplicitClient() = default;
+        ~ExplicitClient() noexcept = default;
 
         /**
          * @brief Connects the client stub to a gRPC channel
@@ -464,11 +482,17 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Stream is null");
     }
 
+    // Check for cancellation before starting
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
+    }
+
     philote::Array array;
 
     // preallocate the inputs based on meta data
     Variables inputs;
-    const auto *discipline = static_cast<philote::Discipline *>(implementation_);
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
         return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");
@@ -481,21 +505,25 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
             inputs[name] = Variable(var);
     }
 
+    // Build O(1) lookup map for variable metadata
+    std::unordered_map<std::string, const VariableMetaData*> var_lookup;
+    for (const auto &var : discipline->var_meta())
+    {
+        var_lookup[var.name()] = &var;
+    }
+
     while (stream->Read(&array))
     {
         // get variables from the stream message
         const std::string &name = array.name();
 
-        // get the variable corresponding to the current message
-        const auto &var = std::find_if(discipline->var_meta().begin(),
-                                       discipline->var_meta().end(),
-                                       [&name](const VariableMetaData &var)
-                                       { return var.name() == name; });
-
-        if (var == discipline->var_meta().end())
+        // get the variable corresponding to the current message using O(1) lookup
+        auto var_it = var_lookup.find(name);
+        if (var_it == var_lookup.end())
         {
             return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
         }
+        const VariableMetaData* var = var_it->second;
 
         // obtain the inputs and discrete inputs from the stream
         if (var->type() == VariableType::kInput)
@@ -525,6 +553,15 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
             outputs[var.name()] = Variable(var);
     }
 
+    // Check for cancellation before expensive computation
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before computation");
+    }
+
+    // Set context for discipline to check cancellation during compute
+    discipline->SetContext(context);
+
     // call the discipline developer-defined Compute function
     try
     {
@@ -532,8 +569,18 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
     }
     catch (const std::exception &e)
     {
+        discipline->ClearContext();
         return grpc::Status(grpc::StatusCode::INTERNAL,
                       "Failed to compute outputs: " + std::string(e.what()));
+    }
+
+    // Clear context after computation
+    discipline->ClearContext();
+
+    // Check for cancellation before sending results
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before sending results");
     }
 
     // iterate through continuous outputs
@@ -542,7 +589,7 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
         const std::string &name = out.first;
         try
         {
-            out.second.Send(name, "", stream, discipline->stream_opts().num_double());
+            out.second.Send(name, "", stream, discipline->stream_opts().num_double(), context);
         }
         catch (const std::exception &e)
         {
@@ -567,11 +614,17 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Stream is null");
     }
 
+    // Check for cancellation before starting
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
+    }
+
     philote::Array array;
 
     // preallocate the inputs based on meta data
     Variables inputs;
-    const auto *discipline = static_cast<philote::Discipline *>(implementation_);
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
         return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");
@@ -584,21 +637,25 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
             inputs[name] = Variable(var);
     }
 
+    // Build O(1) lookup map for variable metadata
+    std::unordered_map<std::string, const VariableMetaData*> var_lookup;
+    for (const auto &var : discipline->var_meta())
+    {
+        var_lookup[var.name()] = &var;
+    }
+
     while (stream->Read(&array))
     {
         // get variables from the stream message
         const std::string &name = array.name();
 
-        // get the variable corresponding to the current message
-        const auto &var = std::find_if(discipline->var_meta().begin(),
-                                       discipline->var_meta().end(),
-                                       [&name](const VariableMetaData &var)
-                                       { return var.name() == name; });
-
-        if (var == discipline->var_meta().end())
+        // get the variable corresponding to the current message using O(1) lookup
+        auto var_it = var_lookup.find(name);
+        if (var_it == var_lookup.end())
         {
             return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
         }
+        const VariableMetaData* var = var_it->second;
 
         // obtain the inputs and discrete inputs from the stream
         if (var->type() == VariableType::kInput)
@@ -631,6 +688,15 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
         partials[std::make_pair(par.name(), par.subname())] = Variable(kOutput, shape);
     }
 
+    // Check for cancellation before expensive computation
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before computation");
+    }
+
+    // Set context for discipline to check cancellation during compute
+    discipline->SetContext(context);
+
     // call the discipline developer-defined Compute function
     try
     {
@@ -638,8 +704,18 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
     }
     catch (const std::exception &e)
     {
+        discipline->ClearContext();
         return grpc::Status(grpc::StatusCode::INTERNAL,
                       "Failed to compute partials: " + std::string(e.what()));
+    }
+
+    // Clear context after computation
+    discipline->ClearContext();
+
+    // Check for cancellation before sending results
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before sending results");
     }
 
     // iterate through continuous outputs
@@ -649,7 +725,7 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
         const std::string &subname = par.first.second;
         try
         {
-            par.second.Send(name, subname, stream, discipline->stream_opts().num_double());
+            par.second.Send(name, subname, stream, discipline->stream_opts().num_double(), context);
         }
         catch (const std::exception &e)
         {

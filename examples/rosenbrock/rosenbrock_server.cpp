@@ -68,12 +68,25 @@ private:
     // dimension of the Rosenbrock function
     int64_t n_;
 
-    // set options
-    void Initialize(const Struct &options) override
+    // Declare available options
+    void Initialize() override
     {
-        n_ = options.fields().find("dimension")->second.number_value();
+        ExplicitDiscipline::Initialize();
+        AddOption("dimension", "int");
+    }
 
-		cout << "Dimension: " << n_ << endl;
+    // Extract option values from protobuf Struct
+    void SetOptions(const Struct &options_struct) override
+    {
+        auto it = options_struct.fields().find("dimension");
+        if (it != options_struct.fields().end())
+        {
+            n_ = static_cast<int64_t>(it->second.number_value());
+            cout << "Dimension set to: " << n_ << endl;
+        }
+
+        // Call parent implementation to invoke Configure()
+        ExplicitDiscipline::SetOptions(options_struct);
     }
 
     // Defines the variables for the discipline
@@ -143,11 +156,11 @@ private:
 int main()
 {
     std::string address("localhost:50051");
-    Rosenbrock service;
+    auto service = std::make_shared<Rosenbrock>();
 
     ServerBuilder builder;
     builder.AddListeningPort(address, grpc::InsecureServerCredentials());
-    service.RegisterServices(builder);
+    service->RegisterServices(builder);
 
     std::unique_ptr<Server> server(builder.BuildAndStart());
 

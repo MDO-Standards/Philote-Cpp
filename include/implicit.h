@@ -34,6 +34,7 @@
 #include "discipline_server.h"
 
 #include <discipline.h>
+#include "discipline_client.h"
 
 namespace philote
 {
@@ -43,6 +44,11 @@ namespace philote
     /**
      * @brief Implicit server class
      *
+     * @note Thread Safety: gRPC may invoke RPC handlers concurrently on the same server
+     * instance. While the server infrastructure itself is thread-safe, the linked
+     * ImplicitDiscipline must also be thread-safe if concurrent RPC calls are expected.
+     * User-defined ComputeResiduals, SolveResiduals, and ComputeResidualGradients methods
+     * should include appropriate synchronization if they modify shared state.
      */
     class ImplicitServer : public ImplicitService::Service
     {
@@ -51,15 +57,15 @@ namespace philote
         ImplicitServer() = default;
 
         //! Destructor
-        ~ImplicitServer();
+        ~ImplicitServer() noexcept;
 
         /**
          * @brief Links the explicit server to the discipline server and
          * explicit discipline via pointers
          *
-         * @param discipline
+         * @param implementation Shared pointer to the implicit discipline instance
          */
-        void LinkPointers(philote::ImplicitDiscipline *implementation);
+        void LinkPointers(std::shared_ptr<philote::ImplicitDiscipline> implementation);
 
         /**
          * @brief Dereferences all pointers
@@ -100,9 +106,38 @@ namespace philote
                                               grpc::ServerReaderWriter<::philote::Array,
                                                                        ::philote::Array> *stream);
 
+        // Test helper methods that accept interface pointers for unit testing with mocks
+        template<typename StreamType>
+        grpc::Status ComputeResidualsImpl(grpc::ServerContext *context, StreamType *stream);
+
+        template<typename StreamType>
+        grpc::Status SolveResidualsImpl(grpc::ServerContext *context, StreamType *stream);
+
+        template<typename StreamType>
+        grpc::Status ComputeResidualGradientsImpl(grpc::ServerContext *context, StreamType *stream);
+
+        // Public wrappers for tests
+        grpc::Status ComputeResidualsForTesting(grpc::ServerContext *context,
+                                                grpc::ServerReaderWriterInterface<::philote::Array,
+                                                                                 ::philote::Array> *stream) {
+            return ComputeResidualsImpl(context, stream);
+        }
+
+        grpc::Status SolveResidualsForTesting(grpc::ServerContext *context,
+                                              grpc::ServerReaderWriterInterface<::philote::Array,
+                                                                               ::philote::Array> *stream) {
+            return SolveResidualsImpl(context, stream);
+        }
+
+        grpc::Status ComputeResidualGradientsForTesting(grpc::ServerContext *context,
+                                                        grpc::ServerReaderWriterInterface<::philote::Array,
+                                                                                         ::philote::Array> *stream) {
+            return ComputeResidualGradientsImpl(context, stream);
+        }
+
     private:
-        //! Pointer to the implementation of the implicit discipline
-        philote::ImplicitDiscipline *implementation_;
+        //! Shared pointer to the implementation of the implicit discipline
+        std::shared_ptr<philote::ImplicitDiscipline> implementation_;
     };
 
     /**
@@ -243,6 +278,12 @@ namespace philote
      *       and SolveResiduals(). ComputeResiduals evaluates R(x,y), while
      *       SolveResiduals finds y such that R(x,y) = 0.
      *
+     * @note Thread Safety: This class is NOT inherently thread-safe. Concurrent calls
+     * to ComputeResiduals, SolveResiduals, or ComputeResidualGradients from multiple
+     * RPC handlers will access the same instance without synchronization. User-defined
+     * implementations should add appropriate locks if they modify shared state or if
+     * thread safety is required.
+     *
      * @see philote::ImplicitClient
      * @see philote::ExplicitDiscipline
      */
@@ -259,7 +300,7 @@ namespace philote
          * @brief Destroy the Implicit Discipline object
          *
          */
-        ~ImplicitDiscipline();
+        ~ImplicitDiscipline() noexcept;
 
         /**
          * @brief Registers all services with a gRPC channel
@@ -452,17 +493,23 @@ namespace philote
      *       must include both inputs and outputs. SolveResiduals() only requires
      *       inputs and returns the solved outputs.
      *
+     * @note Thread Safety: This class is NOT thread-safe. Each thread should create
+     * its own ImplicitClient instance. Concurrent calls to ComputeResiduals,
+     * SolveResiduals, or ComputeResidualGradients on the same instance will cause data
+     * races. The underlying gRPC stub is thread-safe, so multiple ImplicitClient
+     * instances can safely share a channel.
+     *
      * @see philote::ImplicitDiscipline
      * @see philote::ExplicitClient
      */
-    class ImplicitClient : public BaseDisciplineClient
+    class ImplicitClient : public ::philote::DisciplineClient
     {
     public:
         //! Constructor
         ImplicitClient() = default;
 
         //! Destructor
-        ~ImplicitClient() = default;
+        ~ImplicitClient() noexcept = default;
 
         /**
          * @brief Connects the client stub to a gRPC channel
@@ -501,8 +548,460 @@ namespace philote
          */
         Partials ComputeResidualGradients(const Variables &vars);
 
+        /**
+         * @brief Sets the stub for testing purposes (allows dependency injection)
+         *
+         * @param stub The stub to inject
+         */
+        void SetStub(std::unique_ptr<ImplicitService::StubInterface> stub)
+        {
+            stub_ = std::move(stub);
+        }
+
     private:
-        //! explicit service stub
-        std::unique_ptr<ImplicitService::Stub> stub_;
+        //! implicit service stub
+        std::unique_ptr<ImplicitService::StubInterface> stub_;
     };
-} // namespace philote
+
+// Template implementations must be in header
+#include <algorithm>
+#include <unordered_map>
+
+template<typename StreamType>
+grpc::Status philote::ImplicitServer::ComputeResidualsImpl(grpc::ServerContext *context, StreamType *stream)
+{
+    if (!implementation_)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "Discipline implementation not linked");
+    }
+
+    if (!stream)
+    {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Stream is null");
+    }
+
+    // Check for cancellation before starting
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
+    }
+
+    philote::Array array;
+
+    // preallocate the variables based on meta data
+    Variables inputs, outputs, residuals;
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
+    if (!discipline)
+    {
+        return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");
+    }
+
+    for (const auto &var : discipline->var_meta())
+    {
+        std::string name = var.name();
+        if (var.type() == kInput)
+            inputs[name] = Variable(var);
+        if (var.type() == kOutput)
+        {
+            outputs[var.name()] = Variable(var);
+            residuals[var.name()] = Variable(var);
+        }
+    }
+
+    // Build O(1) lookup map for variable metadata
+    std::unordered_map<std::string, const VariableMetaData*> var_lookup;
+    for (const auto &var : discipline->var_meta())
+    {
+        var_lookup[var.name()] = &var;
+    }
+
+    while (stream->Read(&array))
+    {
+        // get variables from the stream message
+        const std::string &name = array.name();
+
+        // get the variable corresponding to the current message using O(1) lookup
+        auto var_it = var_lookup.find(name);
+        if (var_it == var_lookup.end())
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
+        }
+        const VariableMetaData* var = var_it->second;
+
+        // Validate that the message type matches the metadata type
+        if (array.type() != var->type())
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                         "Type mismatch for variable " + name + ": expected " +
+                         std::to_string(var->type()) + " but received " + std::to_string(array.type()));
+        }
+
+        // obtain the inputs and outputs from the stream
+        if (var->type() == VariableType::kInput)
+        {
+            try
+            {
+                inputs[name].AssignChunk(array);
+            }
+            catch (const std::exception &e)
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                              "Failed to assign chunk for input " + name + ": " + e.what());
+            }
+        }
+        else if (var->type() == VariableType::kOutput)
+        {
+            try
+            {
+                outputs[name].AssignChunk(array);
+            }
+            catch (const std::exception &e)
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                              "Failed to assign chunk for output " + name + ": " + e.what());
+            }
+        }
+        else
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                         "Invalid variable type received for variable: " + name);
+        }
+    }
+
+    // Check for cancellation before expensive computation
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before computation");
+    }
+
+    // Set context for discipline to check cancellation during compute
+    discipline->SetContext(context);
+
+    // call the discipline developer-defined Compute function
+    try
+    {
+        implementation_->ComputeResiduals(inputs, outputs, residuals);
+    }
+    catch (const std::exception &e)
+    {
+        discipline->ClearContext();
+        return grpc::Status(grpc::StatusCode::INTERNAL,
+                      "Failed to compute residuals: " + std::string(e.what()));
+    }
+
+    // Clear context after computation
+    discipline->ClearContext();
+
+    // Check for cancellation before sending results
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before sending results");
+    }
+
+    // iterate through residuals
+    for (const auto &res : residuals)
+    {
+        const std::string &name = res.first;
+        try
+        {
+            res.second.Send(name, "", stream, discipline->stream_opts().num_double(), context);
+        }
+        catch (const std::exception &e)
+        {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                          "Failed to send residual " + name + ": " + e.what());
+        }
+    }
+
+    return grpc::Status::OK;
+}
+
+template<typename StreamType>
+grpc::Status philote::ImplicitServer::SolveResidualsImpl(grpc::ServerContext *context, StreamType *stream)
+{
+    if (!implementation_)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "Discipline implementation not linked");
+    }
+
+    if (!stream)
+    {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Stream is null");
+    }
+
+    // Check for cancellation before starting
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
+    }
+
+    philote::Array array;
+
+    // preallocate the inputs based on meta data
+    Variables inputs;
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
+    if (!discipline)
+    {
+        return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");
+    }
+
+    for (const auto &var : discipline->var_meta())
+    {
+        std::string name = var.name();
+        if (var.type() == kInput)
+            inputs[name] = Variable(var);
+    }
+
+    // Build O(1) lookup map for variable metadata
+    std::unordered_map<std::string, const VariableMetaData*> var_lookup;
+    for (const auto &var : discipline->var_meta())
+    {
+        var_lookup[var.name()] = &var;
+    }
+
+    while (stream->Read(&array))
+    {
+        // get variables from the stream message
+        const std::string &name = array.name();
+
+        // get the variable corresponding to the current message using O(1) lookup
+        auto var_it = var_lookup.find(name);
+        if (var_it == var_lookup.end())
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
+        }
+        const VariableMetaData* var = var_it->second;
+
+        // obtain the inputs from the stream (only inputs expected for solve)
+        if (var->type() == VariableType::kInput)
+        {
+            try
+            {
+                inputs[name].AssignChunk(array);
+            }
+            catch (const std::exception &e)
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                              "Failed to assign chunk for input " + name + ": " + e.what());
+            }
+        }
+        else
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                         "Expected input variable but received different type for: " + name);
+        }
+    }
+
+    // preallocate outputs
+    Variables outputs;
+    for (const VariableMetaData &var : discipline->var_meta())
+    {
+        if (var.type() == kOutput)
+            outputs[var.name()] = Variable(var);
+    }
+
+    // Check for cancellation before expensive computation
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before computation");
+    }
+
+    // Set context for discipline to check cancellation during solve
+    discipline->SetContext(context);
+
+    // call the discipline developer-defined Solve function
+    try
+    {
+        implementation_->SolveResiduals(inputs, outputs);
+    }
+    catch (const std::exception &e)
+    {
+        discipline->ClearContext();
+        return grpc::Status(grpc::StatusCode::INTERNAL,
+                      "Failed to solve residuals: " + std::string(e.what()));
+    }
+
+    // Clear context after computation
+    discipline->ClearContext();
+
+    // Check for cancellation before sending results
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before sending results");
+    }
+
+    // iterate through continuous outputs
+    for (const auto &var : outputs)
+    {
+        const std::string &name = var.first;
+        try
+        {
+            var.second.Send(name, "", stream, discipline->stream_opts().num_double(), context);
+        }
+        catch (const std::exception &e)
+        {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                          "Failed to send output " + name + ": " + e.what());
+        }
+    }
+
+    return grpc::Status::OK;
+}
+
+template<typename StreamType>
+grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerContext *context, StreamType *stream)
+{
+    if (!implementation_)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "Discipline implementation not linked");
+    }
+
+    if (!stream)
+    {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Stream is null");
+    }
+
+    // Check for cancellation before starting
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
+    }
+
+    philote::Array array;
+
+    // preallocate the inputs and outputs based on meta data
+    Variables inputs, outputs;
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
+    if (!discipline)
+    {
+        return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");
+    }
+
+    for (const auto &var : discipline->var_meta())
+    {
+        const std::string &name = var.name();
+        if (var.type() == kInput)
+            inputs[name] = Variable(var);
+        if (var.type() == kOutput)
+            outputs[name] = Variable(var);
+    }
+
+    // Build O(1) lookup map for variable metadata
+    std::unordered_map<std::string, const VariableMetaData*> var_lookup;
+    for (const auto &var : discipline->var_meta())
+    {
+        var_lookup[var.name()] = &var;
+    }
+
+    while (stream->Read(&array))
+    {
+        // get variables from the stream message
+        const std::string &name = array.name();
+
+        // get the variable corresponding to the current message using O(1) lookup
+        auto var_it = var_lookup.find(name);
+        if (var_it == var_lookup.end())
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
+        }
+        const VariableMetaData* var = var_it->second;
+
+        // Validate that the message type matches the metadata type
+        if (array.type() != var->type())
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                         "Type mismatch for variable " + name + ": expected " +
+                         std::to_string(var->type()) + " but received " + std::to_string(array.type()));
+        }
+
+        // obtain the inputs and outputs from the stream
+        if (var->type() == VariableType::kInput)
+        {
+            try
+            {
+                inputs[name].AssignChunk(array);
+            }
+            catch (const std::exception &e)
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                              "Failed to assign chunk for input " + name + ": " + e.what());
+            }
+        }
+        else if (var->type() == VariableType::kOutput)
+        {
+            try
+            {
+                outputs[name].AssignChunk(array);
+            }
+            catch (const std::exception &e)
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                              "Failed to assign chunk for output " + name + ": " + e.what());
+            }
+        }
+        else
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                         "Invalid variable type received for variable: " + name);
+        }
+    }
+
+    // preallocate partials
+    Partials partials;
+    for (const PartialsMetaData &par : discipline->partials_meta())
+    {
+        std::vector<size_t> shape;
+        for (const int64_t &dim : par.shape())
+            shape.push_back(dim);
+
+        partials[std::make_pair(par.name(), par.subname())] = Variable(kOutput, shape);
+    }
+
+    // Check for cancellation before expensive computation
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before computation");
+    }
+
+    // Set context for discipline to check cancellation during compute
+    discipline->SetContext(context);
+
+    // call the discipline developer-defined Compute function
+    try
+    {
+        implementation_->ComputeResidualGradients(inputs, outputs, partials);
+    }
+    catch (const std::exception &e)
+    {
+        discipline->ClearContext();
+        return grpc::Status(grpc::StatusCode::INTERNAL,
+                      "Failed to compute residual gradients: " + std::string(e.what()));
+    }
+
+    // Clear context after computation
+    discipline->ClearContext();
+
+    // Check for cancellation before sending results
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before sending results");
+    }
+
+    // iterate through partials
+    for (const auto &par : partials)
+    {
+        const std::string &name = par.first.first;
+        const std::string &subname = par.first.second;
+        try
+        {
+            par.second.Send(name, subname, stream, discipline->stream_opts().num_double(), context);
+        }
+        catch (const std::exception &e)
+        {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                          "Failed to send partial " + name + "/" + subname + ": " + e.what());
+        }
+    }
+
+    return grpc::Status::OK;
+}} // namespace philote
