@@ -53,6 +53,12 @@ target_link_libraries(DisciplineTests PhiloteCpp GTest::gtest_main GTest::gmock)
 enable_coverage(DisciplineTests)
 gtest_discover_tests(DisciplineTests)
 
+# discipline cancellation tests
+add_executable(DisciplineCancellationTests discipline_cancellation_test.cpp)
+target_link_libraries(DisciplineCancellationTests PhiloteTestHelpers GTest::gtest_main GTest::gmock)
+enable_coverage(DisciplineCancellationTests)
+gtest_discover_tests(DisciplineCancellationTests)
+
 # discipline server tests
 add_executable(DisciplineServerTests discipline_server_test.cpp)
 target_link_libraries(DisciplineServerTests PhiloteCpp GTest::gtest_main GTest::gmock)

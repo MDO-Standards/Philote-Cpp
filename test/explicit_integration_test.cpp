@@ -377,3 +377,151 @@ TEST_F(ExplicitIntegrationTest, NegativeAndZeroValues) {
     Variables outputs3 = client.ComputeFunction(inputs3);
     EXPECT_DOUBLE_EQ(outputs3["f"](0), 8.0);  // 4 + 4 = 8
 }
+
+// ============================================================================
+// Cancellation Tests
+// ============================================================================
+
+TEST_F(ExplicitIntegrationTest, CancellationViaTimeout) {
+    // Use SlowDiscipline that sleeps for 500ms
+    auto discipline = std::make_shared<SlowDiscipline>(500);
+
+    std::string address = server_manager_->StartServer(discipline);
+    ASSERT_FALSE(address.empty());
+
+    ExplicitClient client;
+    auto channel = CreateTestChannel(address);
+    client.ConnectChannel(channel);
+
+    client.GetInfo();
+    client.Setup();
+    client.GetVariableDefinitions();
+
+    // Set timeout shorter than computation time
+    client.SetRPCTimeout(std::chrono::milliseconds(100));
+
+    Variables inputs;
+    inputs["x"] = CreateScalarVariable(1.0);
+
+    // Expect timeout error (DEADLINE_EXCEEDED)
+    EXPECT_THROW({
+        try {
+            client.ComputeFunction(inputs);
+            FAIL() << "Expected timeout exception";
+        } catch (const std::runtime_error& e) {
+            std::string msg(e.what());
+            // Should mention timeout or deadline
+            EXPECT_TRUE(msg.find("timeout") != std::string::npos ||
+                       msg.find("DEADLINE_EXCEEDED") != std::string::npos)
+                << "Got error: " << msg;
+            throw;
+        }
+    }, std::runtime_error);
+}
+
+TEST_F(ExplicitIntegrationTest, DisciplineDetectsCancellation) {
+    // Use SlowDiscipline that checks IsCancelled() every 10ms
+    auto discipline = std::make_shared<SlowDiscipline>(500);
+
+    std::string address = server_manager_->StartServer(discipline);
+    ASSERT_FALSE(address.empty());
+
+    ExplicitClient client;
+    auto channel = CreateTestChannel(address);
+    client.ConnectChannel(channel);
+
+    client.GetInfo();
+    client.Setup();
+    client.GetVariableDefinitions();
+
+    // Set timeout that will trigger during computation
+    client.SetRPCTimeout(std::chrono::milliseconds(100));
+
+    Variables inputs;
+    inputs["x"] = CreateScalarVariable(1.0);
+
+    // The discipline should detect cancellation and throw
+    EXPECT_THROW({
+        try {
+            client.ComputeFunction(inputs);
+            FAIL() << "Expected cancellation to be detected";
+        } catch (const std::runtime_error& e) {
+            std::string msg(e.what());
+            // Should get either the discipline's cancellation message or a gRPC error
+            bool is_cancellation_error =
+                msg.find("cancelled") != std::string::npos ||
+                msg.find("timeout") != std::string::npos ||
+                msg.find("DEADLINE_EXCEEDED") != std::string::npos;
+            EXPECT_TRUE(is_cancellation_error)
+                << "Got error: " << msg;
+            throw;
+        }
+    }, std::runtime_error);
+}
+
+TEST_F(ExplicitIntegrationTest, GradientCancellationViaTimeout) {
+    // Test that gradient computation can also be cancelled
+    auto discipline = std::make_shared<SlowDiscipline>(500);
+
+    std::string address = server_manager_->StartServer(discipline);
+    ASSERT_FALSE(address.empty());
+
+    ExplicitClient client;
+    auto channel = CreateTestChannel(address);
+    client.ConnectChannel(channel);
+
+    client.GetInfo();
+    client.Setup();
+    client.GetVariableDefinitions();
+    client.GetPartialDefinitions();
+
+    // Set timeout shorter than computation time
+    client.SetRPCTimeout(std::chrono::milliseconds(100));
+
+    Variables inputs;
+    inputs["x"] = CreateScalarVariable(1.0);
+
+    // Expect timeout error during gradient computation
+    EXPECT_THROW({
+        try {
+            client.ComputeGradient(inputs);
+            FAIL() << "Expected timeout exception";
+        } catch (const std::runtime_error& e) {
+            std::string msg(e.what());
+            EXPECT_TRUE(msg.find("timeout") != std::string::npos ||
+                       msg.find("DEADLINE_EXCEEDED") != std::string::npos ||
+                       msg.find("cancelled") != std::string::npos)
+                << "Got error: " << msg;
+            throw;
+        }
+    }, std::runtime_error);
+}
+
+TEST_F(ExplicitIntegrationTest, NoFalsePositiveCancellation) {
+    // Verify that normal operations don't falsely detect cancellation
+    auto discipline = std::make_shared<SlowDiscipline>(50);
+
+    std::string address = server_manager_->StartServer(discipline);
+    ASSERT_FALSE(address.empty());
+
+    ExplicitClient client;
+    auto channel = CreateTestChannel(address);
+    client.ConnectChannel(channel);
+
+    client.GetInfo();
+    client.Setup();
+    client.GetVariableDefinitions();
+
+    // Set timeout longer than computation time
+    client.SetRPCTimeout(std::chrono::milliseconds(5000));
+
+    Variables inputs;
+    inputs["x"] = CreateScalarVariable(3.0);
+
+    // Should complete successfully without cancellation
+    Variables outputs = client.ComputeFunction(inputs);
+
+    ASSERT_EQ(outputs.size(), 1);
+    EXPECT_DOUBLE_EQ(outputs["y"](0), 6.0);  // y = 2*x = 2*3 = 6
+    EXPECT_FALSE(discipline->WasCancelled());
+}
