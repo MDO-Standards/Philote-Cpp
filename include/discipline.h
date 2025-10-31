@@ -180,6 +180,51 @@ namespace philote
          */
         virtual void SetupPartials();
 
+        /**
+         * @brief Set the gRPC server context for cancellation detection
+         *
+         * This method is called by the server before invoking user-defined
+         * compute methods. It allows disciplines to check for cancellation
+         * during long-running computations.
+         *
+         * @param context The gRPC server context, or nullptr to clear
+         */
+        void SetContext(grpc::ServerContext* context) const noexcept;
+
+        /**
+         * @brief Clear the gRPC server context
+         *
+         * This method is called by the server after user-defined compute
+         * methods complete to ensure the context pointer doesn't outlive
+         * the RPC call.
+         */
+        void ClearContext() const noexcept;
+
+        /**
+         * @brief Check if the current operation has been cancelled
+         *
+         * User disciplines can call this method during long-running computations
+         * to detect if the client has cancelled the request. If true is returned,
+         * the discipline should stop computation and return/throw as appropriate.
+         *
+         * @return true if the operation has been cancelled by the client
+         * @return false if no cancellation has been requested or no context is set
+         *
+         * @par Example: Checking Cancellation in Long Computations
+         * @code
+         * void MyDiscipline::Compute(const Variables &inputs, Variables &outputs) {
+         *     for (int iter = 0; iter < 1000000; iter++) {
+         *         // Check cancellation every 1000 iterations
+         *         if (iter % 1000 == 0 && IsCancelled()) {
+         *             throw std::runtime_error("Computation cancelled by client");
+         *         }
+         *         // ... expensive computation ...
+         *     }
+         * }
+         * @endcode
+         */
+        bool IsCancelled() const noexcept;
+
     protected:
         /**
          * @brief Computes the shape for a partial derivative df/dx
@@ -212,6 +257,9 @@ namespace philote
 
         //! Stream options
         philote::StreamOptions stream_opts_;
+
+        //! Current gRPC server context for cancellation detection (mutable for const correctness)
+        mutable grpc::ServerContext* current_context_ = nullptr;
     };
 
 }

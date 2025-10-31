@@ -580,6 +580,12 @@ grpc::Status philote::ImplicitServer::ComputeResidualsImpl(grpc::ServerContext *
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Stream is null");
     }
 
+    // Check for cancellation before starting
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
+    }
+
     philote::Array array;
 
     // preallocate the variables based on meta data
@@ -662,6 +668,15 @@ grpc::Status philote::ImplicitServer::ComputeResidualsImpl(grpc::ServerContext *
         }
     }
 
+    // Check for cancellation before expensive computation
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before computation");
+    }
+
+    // Set context for discipline to check cancellation during compute
+    discipline->SetContext(context);
+
     // call the discipline developer-defined Compute function
     try
     {
@@ -669,8 +684,18 @@ grpc::Status philote::ImplicitServer::ComputeResidualsImpl(grpc::ServerContext *
     }
     catch (const std::exception &e)
     {
+        discipline->ClearContext();
         return grpc::Status(grpc::StatusCode::INTERNAL,
                       "Failed to compute residuals: " + std::string(e.what()));
+    }
+
+    // Clear context after computation
+    discipline->ClearContext();
+
+    // Check for cancellation before sending results
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before sending results");
     }
 
     // iterate through residuals
@@ -679,7 +704,7 @@ grpc::Status philote::ImplicitServer::ComputeResidualsImpl(grpc::ServerContext *
         const std::string &name = res.first;
         try
         {
-            res.second.Send(name, "", stream, discipline->stream_opts().num_double());
+            res.second.Send(name, "", stream, discipline->stream_opts().num_double(), context);
         }
         catch (const std::exception &e)
         {
@@ -702,6 +727,12 @@ grpc::Status philote::ImplicitServer::SolveResidualsImpl(grpc::ServerContext *co
     if (!stream)
     {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Stream is null");
+    }
+
+    // Check for cancellation before starting
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
     }
 
     philote::Array array;
@@ -769,6 +800,15 @@ grpc::Status philote::ImplicitServer::SolveResidualsImpl(grpc::ServerContext *co
             outputs[var.name()] = Variable(var);
     }
 
+    // Check for cancellation before expensive computation
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before computation");
+    }
+
+    // Set context for discipline to check cancellation during solve
+    discipline->SetContext(context);
+
     // call the discipline developer-defined Solve function
     try
     {
@@ -776,8 +816,18 @@ grpc::Status philote::ImplicitServer::SolveResidualsImpl(grpc::ServerContext *co
     }
     catch (const std::exception &e)
     {
+        discipline->ClearContext();
         return grpc::Status(grpc::StatusCode::INTERNAL,
                       "Failed to solve residuals: " + std::string(e.what()));
+    }
+
+    // Clear context after computation
+    discipline->ClearContext();
+
+    // Check for cancellation before sending results
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before sending results");
     }
 
     // iterate through continuous outputs
@@ -786,7 +836,7 @@ grpc::Status philote::ImplicitServer::SolveResidualsImpl(grpc::ServerContext *co
         const std::string &name = var.first;
         try
         {
-            var.second.Send(name, "", stream, discipline->stream_opts().num_double());
+            var.second.Send(name, "", stream, discipline->stream_opts().num_double(), context);
         }
         catch (const std::exception &e)
         {
@@ -809,6 +859,12 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
     if (!stream)
     {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Stream is null");
+    }
+
+    // Check for cancellation before starting
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
     }
 
     philote::Array array;
@@ -901,6 +957,15 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
         partials[std::make_pair(par.name(), par.subname())] = Variable(kOutput, shape);
     }
 
+    // Check for cancellation before expensive computation
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before computation");
+    }
+
+    // Set context for discipline to check cancellation during compute
+    discipline->SetContext(context);
+
     // call the discipline developer-defined Compute function
     try
     {
@@ -908,8 +973,18 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
     }
     catch (const std::exception &e)
     {
+        discipline->ClearContext();
         return grpc::Status(grpc::StatusCode::INTERNAL,
                       "Failed to compute residual gradients: " + std::string(e.what()));
+    }
+
+    // Clear context after computation
+    discipline->ClearContext();
+
+    // Check for cancellation before sending results
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before sending results");
     }
 
     // iterate through partials
@@ -919,7 +994,7 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
         const std::string &subname = par.first.second;
         try
         {
-            par.second.Send(name, subname, stream, discipline->stream_opts().num_double());
+            par.second.Send(name, subname, stream, discipline->stream_opts().num_double(), context);
         }
         catch (const std::exception &e)
         {

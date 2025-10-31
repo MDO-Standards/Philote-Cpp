@@ -201,12 +201,17 @@ namespace philote
         /**
          * @brief Sends the variable from the server to the client using the interface
          *
-         * @param stream
+         * @param name Variable name
+         * @param subname Variable subname (for partials)
+         * @param stream The gRPC stream to write to
+         * @param chunk_size Number of elements per chunk
+         * @param context Optional server context for cancellation detection
          */
         void Send(std::string name,
                   std::string subname,
                   grpc::ServerReaderWriterInterface<::philote::Array, ::philote::Array> *stream,
-                  const size_t &chunk_size) const;
+                  const size_t &chunk_size,
+                  grpc::ServerContext* context = nullptr) const;
 
         /**
          * @brief Sends the variable from the client to the server using the interface
