@@ -225,4 +225,4 @@ void Discipline::SetupPartials()
 {
 }
 
-philote::Discipline::~Discipline() = default;
+philote::Discipline::~Discipline() noexcept = default;
