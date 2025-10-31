@@ -66,7 +66,7 @@ namespace philote
         ExplicitServer() = default;
 
         //! Destructor
-        ~ExplicitServer();
+        ~ExplicitServer() noexcept;
 
         /**
          * @brief Links the explicit server to the discipline server and
@@ -270,7 +270,7 @@ namespace philote
         /**
          *  @brief Destroy the Explicit Discipline object
          */
-        ~ExplicitDiscipline();
+        ~ExplicitDiscipline() noexcept;
 
         /**
          * @brief Registers all services with a gRPC channel
@@ -421,7 +421,7 @@ namespace philote
         ExplicitClient() = default;
 
         //! Destructor
-        ~ExplicitClient() = default;
+        ~ExplicitClient() noexcept = default;
 
         /**
          * @brief Connects the client stub to a gRPC channel

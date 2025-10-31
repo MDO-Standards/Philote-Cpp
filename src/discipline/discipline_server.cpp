@@ -46,12 +46,12 @@ using grpc::Status;
 
 using philote::DisciplineServer;
 
-DisciplineServer::~DisciplineServer()
+DisciplineServer::~DisciplineServer() noexcept
 {
     UnlinkPointers();
 }
 
-bool DisciplineServer::DisciplinePointerNull()
+bool DisciplineServer::DisciplinePointerNull() noexcept
 {
     if (discipline_ == nullptr)
         return true;

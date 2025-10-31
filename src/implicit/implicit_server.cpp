@@ -46,7 +46,7 @@ using philote::ImplicitServer;
 using philote::Partials;
 using philote::Variables;
 
-ImplicitServer::~ImplicitServer()
+ImplicitServer::~ImplicitServer() noexcept
 {
     UnlinkPointers();
 }

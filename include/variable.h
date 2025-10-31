@@ -117,7 +117,7 @@ namespace philote
          * @brief Destroy the Variables object
          *
          */
-        ~Variable() = default;
+        ~Variable() noexcept = default;
 
         /**
          * @brief Assigns a segment of the array given a subvector
@@ -154,14 +154,14 @@ namespace philote
          * @return std::vector<size_t> vector containing the length of the
          * individual dimensions
          */
-        std::vector<size_t> Shape() const;
+        std::vector<size_t> Shape() const noexcept;
 
         /**
          * @brief Returns the size of the array.
          *
          * @return size_t size of the array
          */
-        size_t Size() const;
+        size_t Size() const noexcept;
 
         /**
          * @brief Returns the value of the array at a given index
@@ -292,6 +292,31 @@ namespace philote
         PairDict() = default;
 
         /**
+         * @brief Copy constructor
+         */
+        PairDict(const PairDict&) = default;
+
+        /**
+         * @brief Copy assignment operator
+         */
+        PairDict& operator=(const PairDict&) = default;
+
+        /**
+         * @brief Move constructor
+         */
+        PairDict(PairDict&&) noexcept = default;
+
+        /**
+         * @brief Move assignment operator
+         */
+        PairDict& operator=(PairDict&&) noexcept = default;
+
+        /**
+         * @brief Destructor
+         */
+        ~PairDict() noexcept = default;
+
+        /**
          * @brief Access/modify value using two keys
          *
          * @param key1 First key
@@ -322,7 +347,7 @@ namespace philote
          * @param key2 Second key
          * @return true if the key pair exists
          */
-        bool contains(const std::string& key1, const std::string& key2) const
+        bool contains(const std::string& key1, const std::string& key2) const noexcept
         {
             return data_.find(std::make_pair(key1, key2)) != data_.end();
         }
@@ -332,7 +357,7 @@ namespace philote
          *
          * @return Number of key-value pairs
          */
-        size_t size() const
+        size_t size() const noexcept
         {
             return data_.size();
         }
@@ -342,7 +367,7 @@ namespace philote
          *
          * @return true if empty
          */
-        bool empty() const
+        bool empty() const noexcept
         {
             return data_.empty();
         }
