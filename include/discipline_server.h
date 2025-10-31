@@ -67,14 +67,14 @@ namespace philote
          *
          * Deallocates all pointers required by the discipline base class
          */
-        ~DisciplineServer() override;
+        ~DisciplineServer() noexcept override;
 
         /**
          *	Checks if the Discipline pointer is null.
          *
          * @return true if the pointer is null, otherwise false.
          */
-        bool DisciplinePointerNull();
+        bool DisciplinePointerNull() noexcept;
 
         /**
          * @brief Links all pointers needed by the discipline base class

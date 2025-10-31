@@ -66,7 +66,7 @@ namespace philote
         ExplicitServer() = default;
 
         //! Destructor
-        ~ExplicitServer();
+        ~ExplicitServer() noexcept;
 
         /**
          * @brief Links the explicit server to the discipline server and
