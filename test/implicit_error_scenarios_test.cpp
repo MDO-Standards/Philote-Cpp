@@ -35,7 +35,7 @@ using namespace philote::test;
 class ImplicitErrorScenariosTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        server_manager_ = std::make_unique<ImplicitTestServerManager>();
+        server_manager_ = std::make_shared<ImplicitTestServerManager>();
     }
 
     void TearDown() override {
@@ -45,7 +45,7 @@ protected:
         server_manager_.reset();
     }
 
-    std::unique_ptr<ImplicitTestServerManager> server_manager_;
+    std::shared_ptr<ImplicitTestServerManager> server_manager_;
 };
 
 // ============================================================================
@@ -75,18 +75,18 @@ TEST(ImplicitClientConnectionErrors, InvalidAddress) {
 // ============================================================================
 
 TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnSetup) {
-    auto discipline = std::make_unique<ImplicitErrorDiscipline>(
+    auto discipline = std::make_shared<ImplicitErrorDiscipline>(
         ImplicitErrorDiscipline::ErrorMode::THROW_ON_SETUP);
 
     // Starting server should throw because Setup is called during StartServer
-    EXPECT_THROW(server_manager_->StartServer(discipline.get()), std::runtime_error);
+    EXPECT_THROW(server_manager_->StartServer(discipline), std::runtime_error);
 }
 
 TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnComputeResiduals) {
-    auto discipline = std::make_unique<ImplicitErrorDiscipline>(
+    auto discipline = std::make_shared<ImplicitErrorDiscipline>(
         ImplicitErrorDiscipline::ErrorMode::THROW_ON_COMPUTE_RESIDUALS);
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -108,10 +108,10 @@ TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnComputeResiduals) {
 }
 
 TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnSolveResiduals) {
-    auto discipline = std::make_unique<ImplicitErrorDiscipline>(
+    auto discipline = std::make_shared<ImplicitErrorDiscipline>(
         ImplicitErrorDiscipline::ErrorMode::THROW_ON_SOLVE_RESIDUALS);
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -132,10 +132,10 @@ TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnSolveResiduals) {
 }
 
 TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnComputeResidualGradients) {
-    auto discipline = std::make_unique<ImplicitErrorDiscipline>(
+    auto discipline = std::make_shared<ImplicitErrorDiscipline>(
         ImplicitErrorDiscipline::ErrorMode::THROW_ON_GRADIENTS);
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -167,9 +167,9 @@ TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnComputeResidualGradients) {
 // This needs to be fixed in the client implementation to handle missing variables
 // more gracefully before starting the RPC.
 TEST_F(ImplicitErrorScenariosTest, DISABLED_MissingInputForComputeResiduals) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -197,9 +197,9 @@ TEST_F(ImplicitErrorScenariosTest, DISABLED_MissingInputForComputeResiduals) {
 }
 
 TEST_F(ImplicitErrorScenariosTest, MissingInputForSolveResiduals) {
-    auto discipline = std::make_unique<QuadraticDiscipline>();
+    auto discipline = std::make_shared<QuadraticDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -222,9 +222,9 @@ TEST_F(ImplicitErrorScenariosTest, MissingInputForSolveResiduals) {
 }
 
 TEST_F(ImplicitErrorScenariosTest, ExtraUnknownVariable) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -256,9 +256,9 @@ TEST_F(ImplicitErrorScenariosTest, ExtraUnknownVariable) {
 // ============================================================================
 
 TEST_F(ImplicitErrorScenariosTest, WrongShapeInput) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -280,9 +280,9 @@ TEST_F(ImplicitErrorScenariosTest, WrongShapeInput) {
 }
 
 TEST_F(ImplicitErrorScenariosTest, MismatchedInputOutputShapes) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -309,9 +309,9 @@ TEST_F(ImplicitErrorScenariosTest, MismatchedInputOutputShapes) {
 // ============================================================================
 
 TEST_F(ImplicitErrorScenariosTest, EmptyInputsMap) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -332,9 +332,9 @@ TEST_F(ImplicitErrorScenariosTest, EmptyInputsMap) {
 }
 
 TEST_F(ImplicitErrorScenariosTest, VeryLargeValues) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -359,9 +359,9 @@ TEST_F(ImplicitErrorScenariosTest, VeryLargeValues) {
 }
 
 TEST_F(ImplicitErrorScenariosTest, VerySmallValues) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -386,9 +386,9 @@ TEST_F(ImplicitErrorScenariosTest, VerySmallValues) {
 }
 
 TEST_F(ImplicitErrorScenariosTest, InfinityValues) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -413,9 +413,9 @@ TEST_F(ImplicitErrorScenariosTest, InfinityValues) {
 }
 
 TEST_F(ImplicitErrorScenariosTest, NaNValues) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -444,11 +444,11 @@ TEST_F(ImplicitErrorScenariosTest, NaNValues) {
 // ============================================================================
 
 TEST_F(ImplicitErrorScenariosTest, MultipleServerStartStop) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
     // Start and stop multiple times
     for (int i = 0; i < 3; ++i) {
-        std::string address = server_manager_->StartServer(discipline.get());
+        std::string address = server_manager_->StartServer(discipline);
         ASSERT_FALSE(address.empty());
         ASSERT_TRUE(server_manager_->IsRunning());
 
@@ -458,9 +458,9 @@ TEST_F(ImplicitErrorScenariosTest, MultipleServerStartStop) {
 }
 
 TEST_F(ImplicitErrorScenariosTest, ClientAfterServerStop) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -489,9 +489,9 @@ TEST_F(ImplicitErrorScenariosTest, ClientAfterServerStop) {
 // ============================================================================
 
 TEST_F(ImplicitErrorScenariosTest, RapidSuccessiveCalls) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -519,9 +519,9 @@ TEST_F(ImplicitErrorScenariosTest, LargeNumberOfVariables) {
     const size_t n = 100;
     const size_t m = 50;
 
-    auto discipline = std::make_unique<VectorizedImplicitDiscipline>(n, m);
+    auto discipline = std::make_shared<VectorizedImplicitDiscipline>(n, m);
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -550,9 +550,9 @@ TEST_F(ImplicitErrorScenariosTest, LargeNumberOfVariables) {
 // ============================================================================
 
 TEST_F(ImplicitErrorScenariosTest, AlternatingMethodCalls) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;
@@ -588,9 +588,9 @@ TEST_F(ImplicitErrorScenariosTest, AlternatingMethodCalls) {
 }
 
 TEST_F(ImplicitErrorScenariosTest, WrongOutputGuessProducesNonZeroResidual) {
-    auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ImplicitClient client;

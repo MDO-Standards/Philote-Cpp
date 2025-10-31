@@ -52,6 +52,12 @@ namespace philote
      *
      * This class should be inherited from by analysis discipline developers to
      * create analysis servers.
+     *
+     * @note Thread Safety: gRPC may invoke RPC handlers concurrently on the same server
+     * instance. While the server infrastructure itself is thread-safe, the linked
+     * ExplicitDiscipline must also be thread-safe if concurrent RPC calls are expected.
+     * User-defined Compute and ComputePartials methods should include appropriate
+     * synchronization if they modify shared state.
      */
     class ExplicitServer : public ExplicitService::Service
     {
@@ -66,9 +72,9 @@ namespace philote
          * @brief Links the explicit server to the discipline server and
          * explicit discipline via pointers
          *
-         * @param discipline
+         * @param implementation Shared pointer to the explicit discipline instance
          */
-        void LinkPointers(philote::ExplicitDiscipline *implementation);
+        void LinkPointers(std::shared_ptr<philote::ExplicitDiscipline> implementation);
 
         /**
          * @brief Dereferences all pointers
@@ -119,8 +125,8 @@ namespace philote
         }
 
     private:
-        //! Pointer to the implementation of the explicit discipline
-        philote::ExplicitDiscipline *implementation_;
+        //! Shared pointer to the implementation of the explicit discipline
+        std::shared_ptr<philote::ExplicitDiscipline> implementation_;
     };
 
     /**
@@ -244,6 +250,11 @@ namespace philote
      *     return 0;
      * }
      * @endcode
+     *
+     * @note Thread Safety: This class is NOT inherently thread-safe. Concurrent calls
+     * to Compute or ComputePartials from multiple RPC handlers will access the same
+     * instance without synchronization. User-defined implementations should add
+     * appropriate locks if they modify shared state or if thread safety is required.
      *
      * @see philote::ExplicitClient
      * @see philote::ImplicitDiscipline
@@ -394,6 +405,12 @@ namespace philote
      * philote::Partials partials = client.ComputeGradient(inputs);
      * @endcode
      *
+     * @note Thread Safety: This class is NOT thread-safe. Each thread should create
+     * its own ExplicitClient instance. Concurrent calls to ComputeFunction or
+     * ComputeGradient on the same instance will cause data races. The underlying gRPC
+     * stub is thread-safe, so multiple ExplicitClient instances can safely share a
+     * channel.
+     *
      * @see philote::ExplicitDiscipline
      * @see philote::ImplicitClient
      */
@@ -469,7 +486,7 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
 
     // preallocate the inputs based on meta data
     Variables inputs;
-    const auto *discipline = static_cast<philote::Discipline *>(implementation_);
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
         return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");
@@ -576,7 +593,7 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
 
     // preallocate the inputs based on meta data
     Variables inputs;
-    const auto *discipline = static_cast<philote::Discipline *>(implementation_);
+    const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
         return grpc::Status(grpc::StatusCode::INTERNAL, "Failed to cast implementation to Discipline");

@@ -53,7 +53,7 @@ public:
 class ImplicitClientTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        client_ = std::make_unique<ImplicitClient>();
+        client_ = std::make_shared<ImplicitClient>();
         mock_implicit_stub_ = new MockImplicitServiceStub();
 
         // Inject mock implicit stub
@@ -103,7 +103,7 @@ protected:
     }
 
     MockImplicitServiceStub* mock_implicit_stub_;
-    std::unique_ptr<ImplicitClient> client_;
+    std::shared_ptr<ImplicitClient> client_;
 };
 
 // ============================================================================

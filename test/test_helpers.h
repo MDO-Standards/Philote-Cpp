@@ -196,7 +196,7 @@ public:
      * Start server with given discipline on a random available port
      * Returns the server address (e.g., "localhost:12345")
      */
-    std::string StartServer(ImplicitDiscipline *discipline);
+    std::string StartServer(std::shared_ptr<ImplicitDiscipline> discipline);
 
     /**
      * Stop the server and clean up
@@ -217,7 +217,7 @@ private:
     std::unique_ptr<grpc::Server> server_;
     std::string address_;
     bool running_;
-    ImplicitDiscipline *discipline_;
+    std::shared_ptr<ImplicitDiscipline> discipline_;
 };
 
 // ============================================================================
@@ -290,7 +290,7 @@ public:
      * Start server with given discipline on a random available port
      * Returns the server address (e.g., "localhost:12345")
      */
-    std::string StartServer(ExplicitDiscipline *discipline);
+    std::string StartServer(std::shared_ptr<ExplicitDiscipline> discipline);
 
     /**
      * Stop the server and clean up
@@ -311,7 +311,7 @@ private:
     std::unique_ptr<grpc::Server> server_;
     std::string address_;
     bool running_;
-    ExplicitDiscipline *discipline_;
+    std::shared_ptr<ExplicitDiscipline> discipline_;
 };
 
 /**

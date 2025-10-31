@@ -53,7 +53,7 @@ public:
 class ExplicitClientTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        client_ = std::make_unique<ExplicitClient>();
+        client_ = std::make_shared<ExplicitClient>();
         mock_explicit_stub_ = new MockExplicitServiceStub();
 
         // Inject mock explicit stub
@@ -97,7 +97,7 @@ protected:
     }
 
     MockExplicitServiceStub* mock_explicit_stub_;
-    std::unique_ptr<ExplicitClient> client_;
+    std::shared_ptr<ExplicitClient> client_;
 };
 
 // ============================================================================

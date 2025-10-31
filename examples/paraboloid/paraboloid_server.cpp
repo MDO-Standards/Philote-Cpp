@@ -120,11 +120,11 @@ private:
 int main()
 {
     std::string address("localhost:50051");
-    Paraboloid service;
+    auto service = std::make_shared<Paraboloid>();
 
     ServerBuilder builder;
     builder.AddListeningPort(address, grpc::InsecureServerCredentials());
-    service.RegisterServices(builder);
+    service->RegisterServices(builder);
 
     std::unique_ptr<Server> server(builder.BuildAndStart());
 

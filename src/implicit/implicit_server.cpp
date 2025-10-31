@@ -51,14 +51,14 @@ ImplicitServer::~ImplicitServer()
     UnlinkPointers();
 }
 
-void ImplicitServer::LinkPointers(philote::ImplicitDiscipline *implementation)
+void ImplicitServer::LinkPointers(std::shared_ptr<philote::ImplicitDiscipline> implementation)
 {
     implementation_ = implementation;
 }
 
 void ImplicitServer::UnlinkPointers()
 {
-    implementation_ = nullptr;
+    implementation_.reset();
 }
 
 grpc::Status ImplicitServer::ComputeResiduals(grpc::ServerContext *context,

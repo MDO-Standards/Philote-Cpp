@@ -59,14 +59,14 @@ bool DisciplineServer::DisciplinePointerNull()
         return false;
 }
 
-void DisciplineServer::LinkPointers(philote::Discipline *discipline)
+void DisciplineServer::LinkPointers(std::shared_ptr<philote::Discipline> discipline)
 {
     discipline_ = discipline;
 }
 
 void DisciplineServer::UnlinkPointers()
 {
-    discipline_ = nullptr;
+    discipline_.reset();
 }
 
 grpc::Status DisciplineServer::GetInfo(ServerContext *context,

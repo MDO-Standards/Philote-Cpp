@@ -47,6 +47,11 @@ namespace philote
     /**
      * @brief Base class for all analysis discipline servers
      *
+     * @note Thread Safety: gRPC may invoke RPC handlers concurrently on the same server
+     * instance. While the server infrastructure itself is thread-safe, the linked
+     * Discipline must also be thread-safe if concurrent RPC calls are expected. The
+     * current architecture links to a single Discipline instance, so user-defined
+     * Compute methods should include appropriate synchronization if needed.
      */
     class DisciplineServer : public DisciplineService::Service
     {
@@ -74,9 +79,9 @@ namespace philote
         /**
          * @brief Links all pointers needed by the discipline base class
          *
-         * @param discipline
+         * @param discipline Shared pointer to the discipline instance
          */
-        void LinkPointers(philote::Discipline *discipline);
+        void LinkPointers(std::shared_ptr<philote::Discipline> discipline);
 
         /**
          * @brief Unlinks all pointers
@@ -160,7 +165,7 @@ namespace philote
                            google::protobuf::Empty *response) override;
 
     private:
-        //! Pointer to the discipline implementation
-        philote::Discipline *discipline_ = nullptr;
+        //! Shared pointer to the discipline implementation
+        std::shared_ptr<philote::Discipline> discipline_;
     };
 } // namespace philote

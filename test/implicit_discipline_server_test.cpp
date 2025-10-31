@@ -69,8 +69,8 @@ protected:
     }
 
     // Helper to create a simple discipline with x input and y output
-    std::unique_ptr<SimpleImplicitDiscipline> CreateSimpleDiscipline() {
-        auto discipline = std::make_unique<SimpleImplicitDiscipline>();
+    std::shared_ptr<SimpleImplicitDiscipline> CreateSimpleDiscipline() {
+        auto discipline = std::make_shared<SimpleImplicitDiscipline>();
         discipline->Initialize();
         discipline->Configure();
         discipline->Setup();
@@ -120,7 +120,7 @@ TEST_F(ImplicitServerTest, LinkAndUnlinkPointers) {
     auto discipline = CreateSimpleDiscipline();
 
     // Link pointers
-    EXPECT_NO_THROW(server_->LinkPointers(discipline.get()));
+    EXPECT_NO_THROW(server_->LinkPointers(discipline));
 
     // Unlink pointers
     EXPECT_NO_THROW(server_->UnlinkPointers());
@@ -130,9 +130,9 @@ TEST_F(ImplicitServerTest, MultipleLinkUnlink) {
     auto discipline1 = CreateSimpleDiscipline();
     auto discipline2 = CreateSimpleDiscipline();
 
-    server_->LinkPointers(discipline1.get());
+    server_->LinkPointers(discipline1);
     server_->UnlinkPointers();
-    server_->LinkPointers(discipline2.get());
+    server_->LinkPointers(discipline2);
     server_->UnlinkPointers();
 
     EXPECT_TRUE(true);  // Should not crash
@@ -157,7 +157,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsUnlinkedPointers) {
 
 TEST_F(ImplicitServerTest, ComputeResidualsNullStream) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     grpc::Status status = server_->ComputeResidualsForTesting(context_.get(), nullptr);
 
@@ -168,7 +168,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsNullStream) {
 
 TEST_F(ImplicitServerTest, ComputeResidualsVariableNotFound) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -191,7 +191,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsVariableNotFound) {
 
 TEST_F(ImplicitServerTest, ComputeResidualsInvalidVariableType) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -213,7 +213,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsInvalidVariableType) {
 }
 
 TEST_F(ImplicitServerTest, ComputeResidualsComputeThrows) {
-    auto mock_discipline = std::make_unique<MockImplicitDiscipline>();
+    auto mock_discipline = std::make_shared<MockImplicitDiscipline>();
 
     // Setup metadata
     VariableMetaData x_meta, y_meta;
@@ -231,7 +231,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsComputeThrows) {
     EXPECT_CALL(*mock_discipline, ComputeResiduals(_, _, _))
         .WillOnce(Throw(std::runtime_error("ComputeResiduals failed")));
 
-    server_->LinkPointers(mock_discipline.get());
+    server_->LinkPointers(mock_discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -265,7 +265,7 @@ TEST_F(ImplicitServerTest, ComputeResidualsComputeThrows) {
 
 TEST_F(ImplicitServerTest, ComputeResidualsSimpleScalar) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -306,13 +306,13 @@ TEST_F(ImplicitServerTest, ComputeResidualsSimpleScalar) {
 }
 
 TEST_F(ImplicitServerTest, ComputeResidualsMultiOutput) {
-    auto discipline = std::make_unique<MultiResidualDiscipline>();
+    auto discipline = std::make_shared<MultiResidualDiscipline>();
     discipline->Initialize();
     discipline->Configure();
     discipline->Setup();
     discipline->SetupPartials();
 
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -368,13 +368,13 @@ TEST_F(ImplicitServerTest, ComputeResidualsMultiOutput) {
 }
 
 TEST_F(ImplicitServerTest, ComputeResidualsVectorData) {
-    auto discipline = std::make_unique<VectorizedImplicitDiscipline>(2, 3);
+    auto discipline = std::make_shared<VectorizedImplicitDiscipline>(2, 3);
     discipline->Initialize();
     discipline->Configure();
     discipline->Setup();
     discipline->SetupPartials();
 
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -460,7 +460,7 @@ TEST_F(ImplicitServerTest, SolveResidualsUnlinkedPointers) {
 
 TEST_F(ImplicitServerTest, SolveResidualsNullStream) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     grpc::Status status = server_->SolveResidualsForTesting(context_.get(), nullptr);
 
@@ -470,7 +470,7 @@ TEST_F(ImplicitServerTest, SolveResidualsNullStream) {
 
 TEST_F(ImplicitServerTest, SolveResidualsVariableNotFound) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -490,7 +490,7 @@ TEST_F(ImplicitServerTest, SolveResidualsVariableNotFound) {
 }
 
 TEST_F(ImplicitServerTest, SolveResidualsSolveThrows) {
-    auto mock_discipline = std::make_unique<MockImplicitDiscipline>();
+    auto mock_discipline = std::make_shared<MockImplicitDiscipline>();
 
     // Setup metadata
     VariableMetaData x_meta, y_meta;
@@ -508,7 +508,7 @@ TEST_F(ImplicitServerTest, SolveResidualsSolveThrows) {
     EXPECT_CALL(*mock_discipline, SolveResiduals(_, _))
         .WillOnce(Throw(std::runtime_error("SolveResiduals failed")));
 
-    server_->LinkPointers(mock_discipline.get());
+    server_->LinkPointers(mock_discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -535,7 +535,7 @@ TEST_F(ImplicitServerTest, SolveResidualsSolveThrows) {
 
 TEST_F(ImplicitServerTest, SolveResidualsSimpleScalar) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -564,13 +564,13 @@ TEST_F(ImplicitServerTest, SolveResidualsSimpleScalar) {
 }
 
 TEST_F(ImplicitServerTest, SolveResidualsMultiOutput) {
-    auto discipline = std::make_unique<MultiResidualDiscipline>();
+    auto discipline = std::make_shared<MultiResidualDiscipline>();
     discipline->Initialize();
     discipline->Configure();
     discipline->Setup();
     discipline->SetupPartials();
 
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -610,13 +610,13 @@ TEST_F(ImplicitServerTest, SolveResidualsMultiOutput) {
 }
 
 TEST_F(ImplicitServerTest, SolveResidualsVectorData) {
-    auto discipline = std::make_unique<VectorizedImplicitDiscipline>(2, 3);
+    auto discipline = std::make_shared<VectorizedImplicitDiscipline>(2, 3);
     discipline->Initialize();
     discipline->Configure();
     discipline->Setup();
     discipline->SetupPartials();
 
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -693,7 +693,7 @@ TEST_F(ImplicitServerTest, ComputeResidualGradientsUnlinkedPointers) {
 
 TEST_F(ImplicitServerTest, ComputeResidualGradientsNullStream) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     grpc::Status status = server_->ComputeResidualGradientsForTesting(context_.get(), nullptr);
 
@@ -703,7 +703,7 @@ TEST_F(ImplicitServerTest, ComputeResidualGradientsNullStream) {
 
 TEST_F(ImplicitServerTest, ComputeResidualGradientsVariableNotFound) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -723,7 +723,7 @@ TEST_F(ImplicitServerTest, ComputeResidualGradientsVariableNotFound) {
 }
 
 TEST_F(ImplicitServerTest, ComputeResidualGradientsComputeThrows) {
-    auto mock_discipline = std::make_unique<MockImplicitDiscipline>();
+    auto mock_discipline = std::make_shared<MockImplicitDiscipline>();
 
     // Setup metadata
     VariableMetaData x_meta, y_meta;
@@ -750,7 +750,7 @@ TEST_F(ImplicitServerTest, ComputeResidualGradientsComputeThrows) {
     EXPECT_CALL(*mock_discipline, ComputeResidualGradients(_, _, _))
         .WillOnce(Throw(std::runtime_error("ComputeResidualGradients failed")));
 
-    server_->LinkPointers(mock_discipline.get());
+    server_->LinkPointers(mock_discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -784,7 +784,7 @@ TEST_F(ImplicitServerTest, ComputeResidualGradientsComputeThrows) {
 
 TEST_F(ImplicitServerTest, ComputeResidualGradientsSimpleScalar) {
     auto discipline = CreateSimpleDiscipline();
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -824,13 +824,13 @@ TEST_F(ImplicitServerTest, ComputeResidualGradientsSimpleScalar) {
 }
 
 TEST_F(ImplicitServerTest, ComputeResidualGradientsMultiplePartials) {
-    auto discipline = std::make_unique<MultiResidualDiscipline>();
+    auto discipline = std::make_shared<MultiResidualDiscipline>();
     discipline->Initialize();
     discipline->Configure();
     discipline->Setup();
     discipline->SetupPartials();
 
-    server_->LinkPointers(discipline.get());
+    server_->LinkPointers(discipline);
 
     auto stream = std::make_unique<MockServerReaderWriter>();
 
@@ -903,7 +903,7 @@ TEST_F(ImplicitServerTest, DestructorUnlinksPointers) {
 
     {
         auto temp_server = std::make_unique<ImplicitServer>();
-        temp_server->LinkPointers(discipline.get());
+        temp_server->LinkPointers(discipline);
         // temp_server goes out of scope here
     }
 

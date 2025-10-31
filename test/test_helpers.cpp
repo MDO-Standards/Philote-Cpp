@@ -455,7 +455,7 @@ ImplicitTestServerManager::~ImplicitTestServerManager() {
     }
 }
 
-std::string ImplicitTestServerManager::StartServer(ImplicitDiscipline *discipline) {
+std::string ImplicitTestServerManager::StartServer(std::shared_ptr<ImplicitDiscipline> discipline) {
     if (running_) {
         throw std::runtime_error("Server is already running");
     }
@@ -605,7 +605,7 @@ TestServerManager::~TestServerManager() {
     }
 }
 
-std::string TestServerManager::StartServer(ExplicitDiscipline *discipline) {
+std::string TestServerManager::StartServer(std::shared_ptr<ExplicitDiscipline> discipline) {
     if (running_) {
         throw std::runtime_error("Server is already running");
     }

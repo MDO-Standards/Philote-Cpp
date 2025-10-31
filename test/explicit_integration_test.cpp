@@ -34,7 +34,7 @@ using namespace philote::test;
 class ExplicitIntegrationTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        server_manager_ = std::make_unique<TestServerManager>();
+        server_manager_ = std::make_shared<TestServerManager>();
     }
 
     void TearDown() override {
@@ -44,7 +44,7 @@ protected:
         server_manager_.reset();
     }
 
-    std::unique_ptr<TestServerManager> server_manager_;
+    std::shared_ptr<TestServerManager> server_manager_;
 };
 
 // ============================================================================
@@ -53,10 +53,10 @@ protected:
 
 TEST_F(ExplicitIntegrationTest, ParaboloidFunctionComputation) {
     // Create and setup discipline
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
     // Start server
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     // Create client and connect
@@ -85,9 +85,9 @@ TEST_F(ExplicitIntegrationTest, ParaboloidFunctionComputation) {
 }
 
 TEST_F(ExplicitIntegrationTest, ParaboloidGradientComputation) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -114,9 +114,9 @@ TEST_F(ExplicitIntegrationTest, ParaboloidGradientComputation) {
 }
 
 TEST_F(ExplicitIntegrationTest, MultiOutputDiscipline) {
-    auto discipline = std::make_unique<MultiOutputDiscipline>();
+    auto discipline = std::make_shared<MultiOutputDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -142,9 +142,9 @@ TEST_F(ExplicitIntegrationTest, MultiOutputDiscipline) {
 }
 
 TEST_F(ExplicitIntegrationTest, MultiOutputGradients) {
-    auto discipline = std::make_unique<MultiOutputDiscipline>();
+    auto discipline = std::make_shared<MultiOutputDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -180,9 +180,9 @@ TEST_F(ExplicitIntegrationTest, MultiOutputGradients) {
 
 TEST_F(ExplicitIntegrationTest, VectorizedDiscipline) {
     // Create 3x2 system: z = A*x + b where A is 3x2, x is 2-vector, b is 3-vector
-    auto discipline = std::make_unique<VectorizedDiscipline>(3, 2);
+    auto discipline = std::make_shared<VectorizedDiscipline>(3, 2);
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -223,9 +223,9 @@ TEST_F(ExplicitIntegrationTest, VectorizedDiscipline) {
 // ============================================================================
 
 TEST_F(ExplicitIntegrationTest, MultipleSequentialFunctionCalls) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -251,9 +251,9 @@ TEST_F(ExplicitIntegrationTest, MultipleSequentialFunctionCalls) {
 }
 
 TEST_F(ExplicitIntegrationTest, InterleavedFunctionAndGradientCalls) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -307,9 +307,9 @@ TEST_F(ExplicitIntegrationTest, LargeVectorDataIntegrity) {
     const size_t n = 100;
     const size_t m = 50;
 
-    auto discipline = std::make_unique<VectorizedDiscipline>(n, m);
+    auto discipline = std::make_shared<VectorizedDiscipline>(n, m);
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;
@@ -340,9 +340,9 @@ TEST_F(ExplicitIntegrationTest, LargeVectorDataIntegrity) {
 }
 
 TEST_F(ExplicitIntegrationTest, NegativeAndZeroValues) {
-    auto discipline = std::make_unique<ParaboloidDiscipline>();
+    auto discipline = std::make_shared<ParaboloidDiscipline>();
 
-    std::string address = server_manager_->StartServer(discipline.get());
+    std::string address = server_manager_->StartServer(discipline);
     ASSERT_FALSE(address.empty());
 
     ExplicitClient client;

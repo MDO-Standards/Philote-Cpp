@@ -75,6 +75,11 @@ namespace philote
      * philote::Variable temp(meta);
      * temp(0) = 300.0;
      * @endcode
+     *
+     * @note Thread Safety: This class is NOT thread-safe. Concurrent reads and writes
+     * to the same Variable instance will cause data races. If multiple threads need to
+     * access the same Variable, external synchronization is required. Each thread should
+     * preferably have its own Variable instances.
      */
     class Variable
     {
@@ -272,6 +277,10 @@ namespace philote
      * philote::PartialsPairDict pair_partials;
      * pair_partials("output", "input")(0) = 1.5;
      * @endcode
+     *
+     * @note Thread Safety: This class is NOT thread-safe. The underlying std::map
+     * does not provide thread safety for concurrent modifications. If multiple threads
+     * need to access the same PairDict, external synchronization is required.
      */
     template<typename T>
     class PairDict

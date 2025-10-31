@@ -117,11 +117,11 @@ private:
 int main()
 {
     string address("localhost:50051");
-    Quadratic service;
+    auto service = std::make_shared<Quadratic>();
 
     ServerBuilder builder;
     builder.AddListeningPort(address, grpc::InsecureServerCredentials());
-    service.RegisterServices(builder);
+    service->RegisterServices(builder);
 
     unique_ptr<Server> server(builder.BuildAndStart());
 

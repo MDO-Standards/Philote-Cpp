@@ -45,6 +45,11 @@ namespace philote
     /**
      * @brief Client class for interacting with a discipline server
      *
+     * @note Thread Safety: This class is NOT thread-safe. Each thread should create
+     * its own DisciplineClient instance. Concurrent calls to methods on the same
+     * instance (e.g., ComputeFunction, GetInfo) will cause data races as they modify
+     * internal state. The underlying gRPC channel is thread-safe, so multiple client
+     * instances can safely share the same channel.
      */
     class DisciplineClient
     {
