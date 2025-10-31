@@ -32,6 +32,7 @@
 
 #include <string>
 #include <map>
+#include <unordered_map>
 #include <utility>
 
 #include <discipline.h>
@@ -481,21 +482,25 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
             inputs[name] = Variable(var);
     }
 
+    // Build O(1) lookup map for variable metadata
+    std::unordered_map<std::string, const VariableMetaData*> var_lookup;
+    for (const auto &var : discipline->var_meta())
+    {
+        var_lookup[var.name()] = &var;
+    }
+
     while (stream->Read(&array))
     {
         // get variables from the stream message
         const std::string &name = array.name();
 
-        // get the variable corresponding to the current message
-        const auto &var = std::find_if(discipline->var_meta().begin(),
-                                       discipline->var_meta().end(),
-                                       [&name](const VariableMetaData &var)
-                                       { return var.name() == name; });
-
-        if (var == discipline->var_meta().end())
+        // get the variable corresponding to the current message using O(1) lookup
+        auto var_it = var_lookup.find(name);
+        if (var_it == var_lookup.end())
         {
             return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
         }
+        const VariableMetaData* var = var_it->second;
 
         // obtain the inputs and discrete inputs from the stream
         if (var->type() == VariableType::kInput)
@@ -584,21 +589,25 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
             inputs[name] = Variable(var);
     }
 
+    // Build O(1) lookup map for variable metadata
+    std::unordered_map<std::string, const VariableMetaData*> var_lookup;
+    for (const auto &var : discipline->var_meta())
+    {
+        var_lookup[var.name()] = &var;
+    }
+
     while (stream->Read(&array))
     {
         // get variables from the stream message
         const std::string &name = array.name();
 
-        // get the variable corresponding to the current message
-        const auto &var = std::find_if(discipline->var_meta().begin(),
-                                       discipline->var_meta().end(),
-                                       [&name](const VariableMetaData &var)
-                                       { return var.name() == name; });
-
-        if (var == discipline->var_meta().end())
+        // get the variable corresponding to the current message using O(1) lookup
+        auto var_it = var_lookup.find(name);
+        if (var_it == var_lookup.end())
         {
             return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
         }
+        const VariableMetaData* var = var_it->second;
 
         // obtain the inputs and discrete inputs from the stream
         if (var->type() == VariableType::kInput)
