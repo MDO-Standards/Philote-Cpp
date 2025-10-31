@@ -120,12 +120,12 @@ std::vector<double> Variable::Segment(const size_t &start, const size_t &end) co
     return data;
 }
 
-std::vector<size_t> Variable::Shape() const
+std::vector<size_t> Variable::Shape() const noexcept
 {
     return shape_;
 }
 
-size_t Variable::Size() const
+size_t Variable::Size() const noexcept
 {
     return data_.size();
 }
