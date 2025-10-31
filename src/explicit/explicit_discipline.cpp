@@ -47,7 +47,7 @@ ExplicitDiscipline::ExplicitDiscipline()
     // is ready to be used.
 }
 
-ExplicitDiscipline::~ExplicitDiscipline()
+ExplicitDiscipline::~ExplicitDiscipline() noexcept
 {
     explicit_.UnlinkPointers();
     discipline_server_.UnlinkPointers();

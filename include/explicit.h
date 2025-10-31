@@ -270,7 +270,7 @@ namespace philote
         /**
          *  @brief Destroy the Explicit Discipline object
          */
-        ~ExplicitDiscipline();
+        ~ExplicitDiscipline() noexcept;
 
         /**
          * @brief Registers all services with a gRPC channel

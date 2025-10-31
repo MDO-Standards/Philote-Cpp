@@ -50,7 +50,7 @@ ImplicitDiscipline::ImplicitDiscipline()
     // is ready to be used.
 }
 
-ImplicitDiscipline::~ImplicitDiscipline()
+ImplicitDiscipline::~ImplicitDiscipline() noexcept
 {
     implicit_.UnlinkPointers();
     discipline_server_.UnlinkPointers();
