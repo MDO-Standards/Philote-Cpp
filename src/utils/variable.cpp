@@ -198,7 +198,8 @@ void Variable::Send(string name,
 void philote::Variable::Send(std::string name,
                              std::string subname,
                              grpc::ServerReaderWriterInterface<::philote::Array, ::philote::Array> *stream,
-                             const size_t &chunk_size) const
+                             const size_t &chunk_size,
+                             grpc::ServerContext* context) const
 {
     Array array;
     size_t start = 0, end;
@@ -208,6 +209,15 @@ void philote::Variable::Send(std::string name,
         num_chunks = 1;
     for (size_t i = 0; i < num_chunks; i++)
     {
+        // Check for cancellation before processing each chunk
+        if (context != nullptr && context->IsCancelled())
+        {
+            throw std::runtime_error(
+                "Operation cancelled while sending variable '" + name +
+                "' (chunk " + std::to_string(i + 1) +
+                " of " + std::to_string(num_chunks) + ")");
+        }
+
         start = i * chunk_size;
         end = start + chunk_size - 1;  // end is inclusive
         if (end >= n)

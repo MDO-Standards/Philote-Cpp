@@ -482,6 +482,12 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Stream is null");
     }
 
+    // Check for cancellation before starting
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
+    }
+
     philote::Array array;
 
     // preallocate the inputs based on meta data
@@ -547,6 +553,15 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
             outputs[var.name()] = Variable(var);
     }
 
+    // Check for cancellation before expensive computation
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before computation");
+    }
+
+    // Set context for discipline to check cancellation during compute
+    discipline->SetContext(context);
+
     // call the discipline developer-defined Compute function
     try
     {
@@ -554,8 +569,18 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
     }
     catch (const std::exception &e)
     {
+        discipline->ClearContext();
         return grpc::Status(grpc::StatusCode::INTERNAL,
                       "Failed to compute outputs: " + std::string(e.what()));
+    }
+
+    // Clear context after computation
+    discipline->ClearContext();
+
+    // Check for cancellation before sending results
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before sending results");
     }
 
     // iterate through continuous outputs
@@ -564,7 +589,7 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
         const std::string &name = out.first;
         try
         {
-            out.second.Send(name, "", stream, discipline->stream_opts().num_double());
+            out.second.Send(name, "", stream, discipline->stream_opts().num_double(), context);
         }
         catch (const std::exception &e)
         {
@@ -587,6 +612,12 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
     if (!stream)
     {
         return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Stream is null");
+    }
+
+    // Check for cancellation before starting
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
     }
 
     philote::Array array;
@@ -657,6 +688,15 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
         partials[std::make_pair(par.name(), par.subname())] = Variable(kOutput, shape);
     }
 
+    // Check for cancellation before expensive computation
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before computation");
+    }
+
+    // Set context for discipline to check cancellation during compute
+    discipline->SetContext(context);
+
     // call the discipline developer-defined Compute function
     try
     {
@@ -664,8 +704,18 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
     }
     catch (const std::exception &e)
     {
+        discipline->ClearContext();
         return grpc::Status(grpc::StatusCode::INTERNAL,
                       "Failed to compute partials: " + std::string(e.what()));
+    }
+
+    // Clear context after computation
+    discipline->ClearContext();
+
+    // Check for cancellation before sending results
+    if (context && context->IsCancelled())
+    {
+        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before sending results");
     }
 
     // iterate through continuous outputs
@@ -675,7 +725,7 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
         const std::string &subname = par.first.second;
         try
         {
-            par.second.Send(name, subname, stream, discipline->stream_opts().num_double());
+            par.second.Send(name, subname, stream, discipline->stream_opts().num_double(), context);
         }
         catch (const std::exception &e)
         {

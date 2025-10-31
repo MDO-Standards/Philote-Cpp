@@ -351,6 +351,86 @@ client.SendOptions(options_message);
 - Must call parent `SetOptions()` to invoke `Configure()`
 - See `examples/rosenbrock/rosenbrock_server.cpp` for a complete working example
 
+### Handling Cancellation in Long-Running Computations
+
+The server automatically detects client cancellations (timeouts, disconnects, explicit cancellation) and can stop wasted computation. User disciplines can optionally check for cancellation during long-running operations.
+
+**Automatic Server-Side Detection**:
+The server checks for cancellation at three points:
+1. Before starting the RPC operation
+2. Before calling user compute methods
+3. Before sending results back to client
+4. Between chunks during `Variable::Send()`
+
+When cancellation is detected, the server returns `grpc::StatusCode::CANCELLED` and stops processing.
+
+**Opt-In: Checking Cancellation in User Code**:
+Disciplines can check `IsCancelled()` during long computations for early termination:
+
+```cpp
+class LongRunningDiscipline : public philote::ExplicitDiscipline {
+    void Compute(const philote::Variables &inputs,
+                 philote::Variables &outputs) override {
+        // Perform iterative computation
+        for (int iter = 0; iter < 1000000; iter++) {
+            // Check cancellation every 1000 iterations
+            if (iter % 1000 == 0 && IsCancelled()) {
+                throw std::runtime_error("Computation cancelled by client");
+            }
+
+            // ... expensive computation ...
+        }
+
+        outputs.at("result")(0) = final_value;
+    }
+};
+```
+
+**Client-Side Cancellation via Timeout**:
+Clients can trigger cancellation by setting a timeout:
+
+```cpp
+philote::ExplicitClient client;
+// ... connect and setup ...
+
+// Set timeout - server will detect if exceeded
+client.SetRPCTimeout(std::chrono::milliseconds(5000));  // 5 second timeout
+
+try {
+    philote::Variables outputs = client.ComputeFunction(inputs);
+} catch (const std::runtime_error& e) {
+    // Handle timeout/cancellation
+    std::cerr << "Operation timed out: " << e.what() << std::endl;
+}
+```
+
+**Cross-Language Support**:
+Cancellation works across all client languages (Python, C++, etc.) since it's handled at the gRPC protocol level. Any client can cancel operations:
+
+```python
+# Python client example
+import grpc
+from philote import ExplicitServiceStub
+
+channel = grpc.insecure_channel('localhost:50051')
+stub = ExplicitServiceStub(channel)
+
+# Timeout triggers server-side cancellation detection
+try:
+    response = stub.ComputeFunction(request, timeout=5.0)
+except grpc.RpcError as e:
+    if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
+        print("Operation cancelled/timed out")
+```
+
+**Key Points**:
+- Server automatically detects all forms of cancellation (timeout, disconnect, explicit cancel)
+- `IsCancelled()` is optional - only use for long-running computations that benefit from early termination
+- Check `IsCancelled()` periodically, not on every iteration (performance overhead)
+- Throw an exception or return early when `IsCancelled()` returns true
+- Works transparently across all client languages
+- No protocol changes needed - uses built-in gRPC cancellation
+
 ## Code Style
 
 Follows Google C++ Style Guide with **4-space indentation** (not 2 spaces, not tabs).

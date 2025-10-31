@@ -83,6 +83,27 @@ private:
     ErrorMode mode_;
 };
 
+/**
+ * Slow discipline for testing cancellation
+ * Sleeps during computation to allow cancellation to occur
+ * Checks IsCancelled() and throws if cancelled
+ */
+class SlowDiscipline : public ExplicitDiscipline {
+public:
+    SlowDiscipline(int sleep_ms = 100);
+    void Setup() override;
+    void SetupPartials() override;
+    void Compute(const Variables &inputs, Variables &outputs) override;
+    void ComputePartials(const Variables &inputs, Partials &partials) override;
+
+    // Track if cancellation was detected
+    bool WasCancelled() const { return was_cancelled_; }
+
+private:
+    int sleep_ms_;
+    mutable bool was_cancelled_ = false;
+};
+
 // ============================================================================
 // Test Discipline Implementations - Implicit
 // ============================================================================

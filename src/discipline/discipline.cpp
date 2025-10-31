@@ -225,4 +225,19 @@ void Discipline::SetupPartials()
 {
 }
 
+void Discipline::SetContext(grpc::ServerContext* context) const noexcept
+{
+    current_context_ = context;
+}
+
+void Discipline::ClearContext() const noexcept
+{
+    current_context_ = nullptr;
+}
+
+bool Discipline::IsCancelled() const noexcept
+{
+    return current_context_ != nullptr && current_context_->IsCancelled();
+}
+
 philote::Discipline::~Discipline() noexcept = default;

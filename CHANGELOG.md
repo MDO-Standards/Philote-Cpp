@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **gRPC stream cancellation detection support** (partial #46)
+  - Server-side detection of client cancellations in all streaming RPC methods
+  - Discipline base class adds SetContext(), ClearContext(), and IsCancelled() methods
+  - User disciplines can check IsCancelled() during long-running computations for early termination
+  - Variable::Send() checks for cancellation between chunks during transmission
+  - All server templates (Explicit and Implicit) check cancellation at three key points:
+    - Before starting operations
+    - Before expensive user computations (with context propagation)
+    - Before sending results back to client
+  - Returns grpc::StatusCode::CANCELLED when cancellation detected
+  - Works across all client languages (Python, C++, etc.) via gRPC protocol-level detection
+  - Backward compatible - existing disciplines work without modification
+  - Enables better resource utilization by stopping wasted computation on dead connections
 - **Thread safety documentation for all public API classes** (closes #42)
   - Added thread safety notes to Variable, PairDict, Variables, and Partials
   - Added thread safety notes to Discipline, DisciplineClient, and DisciplineServer

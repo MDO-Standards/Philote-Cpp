@@ -178,6 +178,61 @@ void ErrorDiscipline::ComputePartials(const Variables &inputs, Partials &partial
 }
 
 // ============================================================================
+// SlowDiscipline Implementation
+// ============================================================================
+
+SlowDiscipline::SlowDiscipline(int sleep_ms) : sleep_ms_(sleep_ms) {}
+
+void SlowDiscipline::Setup() {
+    AddInput("x", {1}, "m");
+    AddOutput("y", {1}, "m");
+}
+
+void SlowDiscipline::SetupPartials() {
+    DeclarePartials("y", "x");
+}
+
+void SlowDiscipline::Compute(const Variables &inputs, Variables &outputs) {
+    // Sleep in small increments, checking for cancellation periodically
+    const int check_interval_ms = 10;
+    int elapsed_ms = 0;
+
+    while (elapsed_ms < sleep_ms_) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(check_interval_ms));
+        elapsed_ms += check_interval_ms;
+
+        // Check if operation was cancelled
+        if (IsCancelled()) {
+            was_cancelled_ = true;
+            throw std::runtime_error("Computation cancelled by client");
+        }
+    }
+
+    // Simple computation: y = 2*x
+    outputs["y"](0) = 2.0 * inputs.at("x")(0);
+}
+
+void SlowDiscipline::ComputePartials(const Variables &inputs, Partials &partials) {
+    // Sleep in small increments, checking for cancellation periodically
+    const int check_interval_ms = 10;
+    int elapsed_ms = 0;
+
+    while (elapsed_ms < sleep_ms_) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(check_interval_ms));
+        elapsed_ms += check_interval_ms;
+
+        // Check if operation was cancelled
+        if (IsCancelled()) {
+            was_cancelled_ = true;
+            throw std::runtime_error("Gradient computation cancelled by client");
+        }
+    }
+
+    // dy/dx = 2
+    partials[{"y", "x"}](0) = 2.0;
+}
+
+// ============================================================================
 // Implicit Discipline Implementations
 // ============================================================================
 

@@ -239,6 +239,45 @@ void Compute(const philote::Variables &inputs,
 }
 ```
 
+## Handling Cancellation
+
+For long-running computations, disciplines can detect and respond to client cancellations (timeouts, disconnects) by checking `IsCancelled()`:
+
+```cpp
+class LongComputation : public philote::ExplicitDiscipline {
+    void Compute(const philote::Variables &inputs,
+                 philote::Variables &outputs) override {
+        for (int iter = 0; iter < 1000000; iter++) {
+            // Check cancellation periodically (every 1000 iterations)
+            if (iter % 1000 == 0 && IsCancelled()) {
+                throw std::runtime_error("Computation cancelled by client");
+            }
+
+            // ... perform expensive work ...
+        }
+
+        outputs.at("result")(0) = computed_value;
+    }
+};
+```
+
+**Key Points**:
+- Server automatically detects cancellations - `IsCancelled()` is optional
+- Only use for computations that would benefit from early termination
+- Check periodically (not every iteration) to minimize overhead
+- Works across all client languages (Python, C++, etc.)
+- Throw exception or return early when cancelled
+
+**Client-Side**:
+```cpp
+client.SetRPCTimeout(std::chrono::milliseconds(5000));  // 5s timeout
+try {
+    auto outputs = client.ComputeFunction(inputs);
+} catch (const std::runtime_error& e) {
+    // Handle timeout/cancellation
+}
+```
+
 ## Complete Examples
 
 See the examples directory for complete working examples:
