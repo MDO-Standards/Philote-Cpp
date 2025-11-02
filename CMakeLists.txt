@@ -63,7 +63,7 @@ set(
 )
 set(
     ENABLE_COVERAGE
-    FALSE
+    OFF
     CACHE BOOL "Enable code coverage analysis"
 )
 

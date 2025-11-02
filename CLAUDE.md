@@ -32,12 +32,36 @@ cmake --build .
 
 # Build types
 cmake .. -DCMAKE_BUILD_TYPE=Debug    # or Release, RelWithDebInfo, MinSizeRel
+
+# Custom install location
+cmake .. -DCMAKE_INSTALL_PREFIX=/opt/philote
 ```
 
 ### CMake Options
 - `BUILD_TESTS` (default: TRUE) - Build unit tests
 - `BUILD_EXAMPLES` (default: FALSE) - Build example disciplines
-- `ENABLE_COVERAGE` (default: FALSE) - Enable code coverage analysis
+- `ENABLE_COVERAGE` (default: OFF) - Enable code coverage analysis (development/CI only)
+- `CMAKE_INSTALL_PREFIX` (default: /usr/local) - Installation directory
+
+### Installing
+
+After building, install the library:
+
+```bash
+# Install to configured prefix
+cmake --build . --target install
+
+# Or using make
+make install
+
+# Install to specific directory (overrides CMAKE_INSTALL_PREFIX)
+cmake --install . --prefix /custom/path
+```
+
+Installation creates:
+- Headers in `${CMAKE_INSTALL_PREFIX}/include/`
+- Library (libPhiloteCpp.a) in `${CMAKE_INSTALL_PREFIX}/lib/`
+- CMake config files in `${CMAKE_INSTALL_PREFIX}/lib/cmake/PhiloteCpp/`
 
 ### Running Tests
 
@@ -455,6 +479,53 @@ Tests use GoogleTest and GoogleMock. Test helpers are in `test/test_helpers.cpp`
 - **No Concurrent RPC Support**: Only one RPC call at a time per server
 - **Single Server Instance**: Each discipline should run on one server
 - **Sequential Operations**: Client operations must be called sequentially
+
+## Using Philote-Cpp in Other CMake Projects
+
+After installation, Philote-Cpp can be consumed in three ways:
+
+### 1. Using Installed Package (Recommended)
+
+```cmake
+cmake_minimum_required(VERSION 3.23)
+project(MyDiscipline)
+
+find_package(PhiloteCpp REQUIRED)
+
+add_executable(my_discipline my_discipline.cpp)
+target_link_libraries(my_discipline PRIVATE PhiloteCpp::PhiloteCpp)
+```
+
+If installed in custom location:
+```bash
+cmake .. -DPhiloteCpp_DIR=/custom/path/lib/cmake/PhiloteCpp
+```
+
+### 2. Using Build Tree Directly
+
+Point directly to build directory without installation:
+
+```cmake
+find_package(PhiloteCpp REQUIRED
+    PATHS /path/to/Philote-Cpp/build
+    NO_DEFAULT_PATH
+)
+```
+
+### 3. Using add_subdirectory
+
+Include as subdirectory (builds as part of your project):
+
+```cmake
+set(BUILD_TESTS OFF CACHE BOOL "Disable PhiloteCpp tests" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "Disable PhiloteCpp examples" FORCE)
+add_subdirectory(external/Philote-Cpp)
+
+add_executable(my_discipline my_discipline.cpp)
+target_link_libraries(my_discipline PRIVATE PhiloteCpp)  # No namespace when using add_subdirectory
+```
+
+**Important**: When using `find_package`, link with `PhiloteCpp::PhiloteCpp` (with namespace). When using `add_subdirectory`, link with `PhiloteCpp` (no namespace).
 
 ## Dependencies
 

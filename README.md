@@ -23,94 +23,6 @@ or as implicit (defining a residual, e.g., R(x) = f(x) - x, which must be
 solved). The disciplines must provide a function evaluation and optionally
 may provide gradients (for gradient-based optimization).
 
-## Usage
-
-### Creating an Explicit Discipline
-
-To create an explicit discipline, inherit from `philote::ExplicitDiscipline` and implement the required methods:
-
-```cpp
-#include "explicit.h"
-
-class MyDiscipline : public philote::ExplicitDiscipline {
-public:
-    void Setup() override {
-        // Define inputs and outputs
-        AddInput("x", {1}, "m");
-        AddOutput("f", {1}, "N");
-    }
-
-    void SetupPartials() override {
-        // Declare which gradients are available
-        DeclarePartials("f", "x");
-    }
-
-    void Compute(const philote::Variables &inputs,
-                 philote::Variables &outputs) override {
-        // Implement your computation
-        outputs.at("f")(0) = inputs.at("x")(0) * 2.0;
-    }
-
-    void ComputePartials(const philote::Variables &inputs,
-                        philote::Partials &partials) override {
-        // Implement gradient computation
-        partials[{"f", "x"}](0) = 2.0;
-    }
-};
-```
-
-**Note**: You must override `Compute()` and (optionally) `ComputePartials()`.
-These methods have no default implementation and are intended to contain your
-discipline-specific logic.
-
-### Starting a Server
-
-```cpp
-#include <grpcpp/grpcpp.h>
-#include "explicit.h"
-
-int main() {
-    MyDiscipline discipline;
-
-    grpc::ServerBuilder builder;
-    builder.AddListeningPort("localhost:50051", grpc::InsecureServerCredentials());
-    discipline.RegisterServices(builder);
-
-    std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
-    server->Wait();
-
-    return 0;
-}
-```
-
-### Connecting a Client
-
-```cpp
-#include "explicit.h"
-
-int main() {
-    philote::ExplicitClient client;
-
-    auto channel = grpc::CreateChannel("localhost:50051",
-                                      grpc::InsecureChannelCredentials());
-    client.ConnectChannel(channel);
-
-    // Initialize client
-    client.GetInfo();
-    client.Setup();
-    client.GetVariableDefinitions();
-
-    // Prepare inputs
-    philote::Variables inputs;
-    inputs["x"] = philote::Variable(philote::kInput, {1});
-    inputs.at("x")(0) = 3.0;
-
-    // Compute
-    philote::Variables outputs = client.ComputeFunction(inputs);
-
-    return 0;
-}
-```
 
 ## Limitations
 
@@ -129,27 +41,155 @@ int main() {
 ### Dependencies
 
 To build Philote-Cpp you must have
-[gRPC](https://grpc.io/docs/languages/cpp/quickstart/) 
-and [protobuf](https://protobuf.dev) 
-installed (building gRPC should also install protobuf). This library uses 
-the C++-20 standard, so you must use a compliant compiler. Finally, CMake 
+[gRPC](https://grpc.io/docs/languages/cpp/quickstart/)
+and [protobuf](https://protobuf.dev)
+installed (building gRPC should also install protobuf). This library uses
+the C++-20 standard, so you must use a compliant compiler. Finally, CMake
 (version 3.23 or higher) is used to configure and build the code.
 
 ### Build Process
 
 To configure the build process, create a build directory and run CMake:
 
-    cmake <path to the source directory> <additional options>
+```bash
+mkdir build && cd build
+cmake .. [options]
+```
 
-You do not need to provide additional options, however in some cases they 
-can be used to customize the build (for example set the build type to 
-Release or Debug with -DCMAKE_BUILD_TYPE=Release). Next, the build is 
-started (here, using make, as it is the default build method for Unix[-like] 
-systems):
+#### CMake Build Options
 
-    make -j 8
+- `BUILD_TESTS` (default: ON) - Build unit tests
+- `BUILD_EXAMPLES` (default: OFF) - Build example disciplines
+- `ENABLE_COVERAGE` (default: OFF) - Enable code coverage analysis (development/CI only)
+- `CMAKE_BUILD_TYPE` - Build type: Debug, Release, RelWithDebInfo, or MinSizeRel
+- `CMAKE_INSTALL_PREFIX` - Installation directory (default: /usr/local)
 
-In this instance the build will compile with 8 workers, due to the -j flag.
+Example configurations:
+
+```bash
+# Standard release build without tests
+cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF
+
+# Development build with tests and examples
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+
+# Release build with custom install location
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/philote
+```
+
+After configuration, build the library:
+
+```bash
+cmake --build . -j 8
+```
+
+Or using make directly:
+
+```bash
+make -j 8
+```
+
+### Installing Philote-Cpp
+
+After building, install the library to make it available system-wide or in a custom location:
+
+```bash
+# Install to the configured prefix (default: /usr/local)
+cmake --build . --target install
+
+# Or using make
+make install
+
+# Install to a specific directory (overrides CMAKE_INSTALL_PREFIX)
+cmake --install . --prefix /custom/path
+```
+
+The installation will place:
+- Headers in `${CMAKE_INSTALL_PREFIX}/include/`
+- Library in `${CMAKE_INSTALL_PREFIX}/lib/` or `lib64/`
+- CMake configuration files in `${CMAKE_INSTALL_PREFIX}/lib/cmake/PhiloteCpp/`
+
+### Running Tests
+
+If built with `BUILD_TESTS=ON`:
+
+```bash
+# Run all tests
+ctest --output-on-failure
+
+# Run specific test suite
+ctest -R Explicit
+
+# Run individual test executable
+./test/ExplicitDisciplineServerTests
+```
+
+
+## Using Philote-Cpp in Your CMake Project
+
+After installing Philote-Cpp, you can use it in your own CMake projects.
+
+### Method 1: Using Installed Package (Recommended)
+
+If Philote-Cpp is installed system-wide or in a standard location:
+
+```cmake
+cmake_minimum_required(VERSION 3.23)
+project(MyDiscipline)
+
+# Find the installed PhiloteCpp package
+find_package(PhiloteCpp REQUIRED)
+
+# Create your executable
+add_executable(my_discipline my_discipline.cpp)
+
+# Link against PhiloteCpp
+target_link_libraries(my_discipline PRIVATE PhiloteCpp::PhiloteCpp)
+```
+
+If Philote-Cpp is installed in a custom location, specify the path when configuring:
+
+```bash
+cmake .. -DPhiloteCpp_DIR=/custom/path/lib/cmake/PhiloteCpp
+```
+
+### Method 2: Using Build Tree Directly
+
+You can use Philote-Cpp directly from its build directory without installation:
+
+```cmake
+cmake_minimum_required(VERSION 3.23)
+project(MyDiscipline)
+
+# Point to the PhiloteCpp build directory
+find_package(PhiloteCpp REQUIRED
+    PATHS /path/to/Philote-Cpp/build
+    NO_DEFAULT_PATH
+)
+
+add_executable(my_discipline my_discipline.cpp)
+target_link_libraries(my_discipline PRIVATE PhiloteCpp::PhiloteCpp)
+```
+
+### Method 3: Using add_subdirectory
+
+If you have Philote-Cpp source code as a subdirectory of your project:
+
+```cmake
+cmake_minimum_required(VERSION 3.23)
+project(MyDiscipline)
+
+# Add PhiloteCpp as a subdirectory
+# This will build PhiloteCpp as part of your project
+set(BUILD_TESTS OFF CACHE BOOL "Disable PhiloteCpp tests" FORCE)
+set(BUILD_EXAMPLES OFF CACHE BOOL "Disable PhiloteCpp examples" FORCE)
+add_subdirectory(external/Philote-Cpp)
+
+add_executable(my_discipline my_discipline.cpp)
+target_link_libraries(my_discipline PRIVATE PhiloteCpp)
+```
+
+See the `examples/` directory for complete discipline implementations.
 
 
 ## Platform Support
