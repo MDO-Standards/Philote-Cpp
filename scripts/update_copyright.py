@@ -173,7 +173,9 @@ def main():
     print()
     print(f"Summary: Updated {updated_count} of {len(files)} files")
 
-    return 0 if updated_count > 0 else 1
+    # Return 0 (success) - either files were updated or already up-to-date
+    # The script should only fail on actual errors, not when files are current
+    return 0
 
 
 if __name__ == '__main__':
