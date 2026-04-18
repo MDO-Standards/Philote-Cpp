@@ -265,6 +265,79 @@ void philote::Variable::Send(std::string name,
     }
 }
 
+void philote::Variable::Send(std::string name,
+                             std::string subname,
+                             grpc::ServerReaderWriterInterface<::philote::VariableMessage, ::philote::VariableMessage> *stream,
+                             const size_t &chunk_size,
+                             grpc::ServerContext* context) const
+{
+    size_t start = 0, end;
+    size_t n = Size();
+    size_t num_chunks = n / chunk_size;
+    if (num_chunks == 0)
+        num_chunks = 1;
+    for (size_t i = 0; i < num_chunks; i++)
+    {
+        if (context != nullptr && context->IsCancelled())
+        {
+            throw std::runtime_error(
+                "Operation cancelled while sending variable '" + name +
+                "' (chunk " + std::to_string(i + 1) +
+                " of " + std::to_string(num_chunks) + ")");
+        }
+
+        start = i * chunk_size;
+        end = start + chunk_size - 1;
+        if (end >= n)
+            end = n - 1;
+        Array array = CreateChunk(start, end);
+        array.set_name(name);
+        array.set_subname(subname);
+
+        VariableMessage msg;
+        *msg.mutable_continuous() = array;
+        if (!stream->Write(msg))
+        {
+            throw std::runtime_error(
+                "Failed to write variable '" + name +
+                "' to stream (chunk " + std::to_string(i + 1) +
+                " of " + std::to_string(num_chunks) + ")");
+        }
+    }
+}
+
+void philote::Variable::Send(std::string name,
+                             std::string subname,
+                             grpc::ClientReaderWriterInterface<::philote::VariableMessage, ::philote::VariableMessage> *stream,
+                             const size_t &chunk_size) const
+{
+    size_t start = 0, end;
+    size_t n = Size();
+    size_t num_chunks = n / chunk_size;
+    if (num_chunks == 0)
+        num_chunks = 1;
+    for (size_t i = 0; i < num_chunks; i++)
+    {
+        start = i * chunk_size;
+        end = start + chunk_size - 1;
+        if (end >= n)
+            end = n - 1;
+        Array array = CreateChunk(start, end);
+        array.set_name(name);
+        array.set_subname(subname);
+
+        VariableMessage msg;
+        *msg.mutable_continuous() = array;
+        if (!stream->Write(msg))
+        {
+            throw std::runtime_error(
+                "Failed to write variable '" + name +
+                "' to stream (chunk " + std::to_string(i + 1) +
+                " of " + std::to_string(num_chunks) + ")");
+        }
+    }
+}
+
 void Variable::AssignChunk(const Array &data)
 {
     // Validate indices are non-negative before casting to size_t

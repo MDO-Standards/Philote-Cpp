@@ -62,22 +62,22 @@ void ImplicitServer::UnlinkPointers()
 }
 
 grpc::Status ImplicitServer::ComputeResiduals(grpc::ServerContext *context,
-                                              grpc::ServerReaderWriter<::philote::Array,
-                                                                       ::philote::Array> *stream)
+                                              grpc::ServerReaderWriter<::philote::VariableMessage,
+                                                                       ::philote::VariableMessage> *stream)
 {
     return ComputeResidualsImpl(context, stream);
 }
 
 grpc::Status ImplicitServer::SolveResiduals(grpc::ServerContext *context,
-                                            grpc::ServerReaderWriter<::philote::Array,
-                                                                     ::philote::Array> *stream)
+                                            grpc::ServerReaderWriter<::philote::VariableMessage,
+                                                                     ::philote::VariableMessage> *stream)
 {
     return SolveResidualsImpl(context, stream);
 }
 
 grpc::Status ImplicitServer::ComputeResidualGradients(grpc::ServerContext *context,
-                                                      grpc::ServerReaderWriter<::philote::Array,
-                                                                               ::philote::Array> *stream)
+                                                      grpc::ServerReaderWriter<::philote::VariableMessage,
+                                                                               ::philote::VariableMessage> *stream)
 {
     return ComputeResidualGradientsImpl(context, stream);
 }

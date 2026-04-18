@@ -37,8 +37,12 @@ using grpc::ChannelInterface;
 using grpc::ClientContext;
 using grpc::ClientReaderWriter;
 
+using philote::Array;
+using philote::DiscreteVariable;
+using philote::DiscreteVariables;
 using philote::ImplicitClient;
 using philote::Partials;
+using philote::VariableMessage;
 using philote::Variables;
 
 void ImplicitClient::ConnectChannel(shared_ptr<ChannelInterface> channel)
@@ -51,7 +55,7 @@ Variables ImplicitClient::ComputeResiduals(const Variables &vars)
 {
     ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
-    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
+    std::unique_ptr<grpc::ClientReaderWriterInterface<VariableMessage, VariableMessage>>
         stream(stub_->ComputeResiduals(&context));
 
     // send/assign inputs and outputs, preallocate residuals
@@ -73,11 +77,90 @@ Variables ImplicitClient::ComputeResiduals(const Variables &vars)
     // finish streaming data to the server
     stream->WritesDone();
 
-    Array result;
-    while (stream->Read(&result))
+    VariableMessage var_msg;
+    while (stream->Read(&var_msg))
     {
-        const string &name = result.name();
-        res[name].AssignChunk(result);
+        if (var_msg.has_continuous())
+        {
+            const Array &result = var_msg.continuous();
+            const string &name = result.name();
+            res[name].AssignChunk(result);
+        }
+    }
+
+    grpc::Status status = stream->Finish();
+    if (!status.ok())
+    {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(GetRPCTimeout().count()) +
+                                   "ms: " + status.error_message());
+        }
+        throw std::runtime_error("ComputeResiduals RPC failed: [" +
+                                 std::to_string(status.error_code()) + "] " +
+                                 status.error_message());
+    }
+
+    return res;
+}
+
+Variables ImplicitClient::ComputeResiduals(const Variables &vars,
+                                           const DiscreteVariables &discrete_inputs,
+                                           DiscreteVariables &discrete_outputs)
+{
+    ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
+    std::unique_ptr<grpc::ClientReaderWriterInterface<VariableMessage, VariableMessage>>
+        stream(stub_->ComputeResiduals(&context));
+
+    // send/assign inputs and outputs, preallocate residuals
+    Variables res;
+    for (const VariableMetaData &var : GetVariableMetaAll())
+    {
+        const string &name = var.name();
+
+        if (var.type() == kInput)
+            vars.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
+
+        if (var.type() == kOutput)
+        {
+            vars.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
+            res[name] = Variable(var);
+        }
+    }
+
+    // send discrete inputs
+    for (const auto &dv : discrete_inputs)
+    {
+        VariableMessage msg;
+        DiscreteVariable *disc = msg.mutable_discrete();
+        disc->set_name(dv.first);
+        disc->set_type(VariableType::kDiscreteInput);
+        *disc->mutable_value() = dv.second;
+        stream->Write(msg);
+    }
+
+    // finish streaming data to the server
+    stream->WritesDone();
+
+    VariableMessage var_msg;
+    while (stream->Read(&var_msg))
+    {
+        if (var_msg.has_continuous())
+        {
+            const Array &result = var_msg.continuous();
+            const string &name = result.name();
+            res[name].AssignChunk(result);
+        }
+        else if (var_msg.has_discrete())
+        {
+            const DiscreteVariable &dv = var_msg.discrete();
+            if (dv.type() == VariableType::kDiscreteOutput)
+            {
+                discrete_outputs[dv.name()] = dv.value();
+            }
+        }
     }
 
     grpc::Status status = stream->Finish();
@@ -101,7 +184,7 @@ Variables ImplicitClient::SolveResiduals(const Variables &vars)
 {
     ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
-    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
+    std::unique_ptr<grpc::ClientReaderWriterInterface<VariableMessage, VariableMessage>>
         stream(stub_->SolveResiduals(&context));
 
     // send inputs only (outputs are solved by the server)
@@ -127,11 +210,83 @@ Variables ImplicitClient::SolveResiduals(const Variables &vars)
     // finish streaming data to the server
     stream->WritesDone();
 
-    Array result;
-    while (stream->Read(&result))
+    VariableMessage var_msg;
+    while (stream->Read(&var_msg))
     {
-        const string &name = result.name();
-        out[name].AssignChunk(result);
+        if (var_msg.has_continuous())
+        {
+            const Array &result = var_msg.continuous();
+            const string &name = result.name();
+            out[name].AssignChunk(result);
+        }
+    }
+
+    grpc::Status status = stream->Finish();
+    if (!status.ok())
+    {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(GetRPCTimeout().count()) +
+                                   "ms: " + status.error_message());
+        }
+        throw std::runtime_error("SolveResiduals RPC failed: [" +
+                                 std::to_string(status.error_code()) + "] " +
+                                 status.error_message());
+    }
+
+    return out;
+}
+
+Variables ImplicitClient::SolveResiduals(const Variables &vars,
+                                         const DiscreteVariables &discrete_inputs)
+{
+    ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
+    std::unique_ptr<grpc::ClientReaderWriterInterface<VariableMessage, VariableMessage>>
+        stream(stub_->SolveResiduals(&context));
+
+    // send inputs only (outputs are solved by the server)
+    Variables out;
+    for (const VariableMetaData &var : GetVariableMetaAll())
+    {
+        const string &name = var.name();
+
+        if (var.type() == kInput)
+        {
+            if (vars.count(name) > 0)
+                vars.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
+        }
+
+        if (var.type() == kOutput)
+        {
+            out[name] = Variable(var);
+        }
+    }
+
+    // send discrete inputs
+    for (const auto &dv : discrete_inputs)
+    {
+        VariableMessage msg;
+        DiscreteVariable *disc = msg.mutable_discrete();
+        disc->set_name(dv.first);
+        disc->set_type(VariableType::kDiscreteInput);
+        *disc->mutable_value() = dv.second;
+        stream->Write(msg);
+    }
+
+    // finish streaming data to the server
+    stream->WritesDone();
+
+    VariableMessage var_msg;
+    while (stream->Read(&var_msg))
+    {
+        if (var_msg.has_continuous())
+        {
+            const Array &result = var_msg.continuous();
+            const string &name = result.name();
+            out[name].AssignChunk(result);
+        }
     }
 
     grpc::Status status = stream->Finish();
@@ -155,7 +310,7 @@ Partials ImplicitClient::ComputeResidualGradients(const Variables &vars)
 {
     ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
-    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
+    std::unique_ptr<grpc::ClientReaderWriterInterface<VariableMessage, VariableMessage>>
         stream(stub_->ComputeResidualGradients(&context));
 
     // send/assign inputs and outputs, preallocate residuals
@@ -185,13 +340,102 @@ Partials ImplicitClient::ComputeResidualGradients(const Variables &vars)
     }
 
     // process messages from server
-    Array result;
-    while (stream->Read(&result))
+    VariableMessage var_msg;
+    while (stream->Read(&var_msg))
     {
-        const string name = result.name();
-        const string subname = result.subname();
+        if (var_msg.has_continuous())
+        {
+            const Array &result = var_msg.continuous();
+            const string name = result.name();
+            const string subname = result.subname();
 
-        partials[make_pair(name, subname)].AssignChunk(result);
+            partials[make_pair(name, subname)].AssignChunk(result);
+        }
+    }
+
+    grpc::Status status = stream->Finish();
+    if (!status.ok())
+    {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(GetRPCTimeout().count()) +
+                                   "ms: " + status.error_message());
+        }
+        throw std::runtime_error("ComputeResidualGradients RPC failed: [" +
+                                 std::to_string(status.error_code()) + "] " +
+                                 status.error_message());
+    }
+
+    return partials;
+}
+
+Partials ImplicitClient::ComputeResidualGradients(const Variables &vars,
+                                                   const DiscreteVariables &discrete_inputs,
+                                                   DiscreteVariables &discrete_outputs)
+{
+    ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
+    std::unique_ptr<grpc::ClientReaderWriterInterface<VariableMessage, VariableMessage>>
+        stream(stub_->ComputeResidualGradients(&context));
+
+    // send/assign inputs and outputs
+    Variables out;
+    for (const VariableMetaData &var : GetVariableMetaAll())
+    {
+        const string &name = var.name();
+
+        if (var.type() == kInput)
+            vars.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
+
+        if (var.type() == kOutput)
+        {
+            vars.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
+            out[name] = Variable(var);
+        }
+    }
+
+    // send discrete inputs
+    for (const auto &dv : discrete_inputs)
+    {
+        VariableMessage msg;
+        DiscreteVariable *disc = msg.mutable_discrete();
+        disc->set_name(dv.first);
+        disc->set_type(VariableType::kDiscreteInput);
+        *disc->mutable_value() = dv.second;
+        stream->Write(msg);
+    }
+
+    // finish streaming data to the server
+    stream->WritesDone();
+
+    // preallocate partials
+    Partials partials;
+    for (const auto &par : GetPartialsMetaConst())
+    {
+        partials[make_pair(par.name(), par.subname())] = Variable(par);
+    }
+
+    // process messages from server
+    VariableMessage var_msg;
+    while (stream->Read(&var_msg))
+    {
+        if (var_msg.has_continuous())
+        {
+            const Array &result = var_msg.continuous();
+            const string name = result.name();
+            const string subname = result.subname();
+
+            partials[make_pair(name, subname)].AssignChunk(result);
+        }
+        else if (var_msg.has_discrete())
+        {
+            const DiscreteVariable &dv = var_msg.discrete();
+            if (dv.type() == VariableType::kDiscreteOutput)
+            {
+                discrete_outputs[dv.name()] = dv.value();
+            }
+        }
     }
 
     grpc::Status status = stream->Finish();

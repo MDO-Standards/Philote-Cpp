@@ -135,7 +135,7 @@ TEST_F(ImplicitClientTest, ComputeResidualsSimpleScalar) {
     SetupSimpleDisciplineMetadata();
 
     // Create mock stream
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     // Expect Write calls for both input 'x' and output 'y'
     EXPECT_CALL(*mock_stream, Write(_, _))
@@ -148,7 +148,8 @@ TEST_F(ImplicitClientTest, ComputeResidualsSimpleScalar) {
 
     // Mock reading residual 'y'
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_subname("");
@@ -208,7 +209,7 @@ TEST_F(ImplicitClientTest, ComputeResidualsMultipleOutputs) {
     vars.push_back(y_meta);
     client_->SetVariableMeta(vars);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     // Expect 4 Write calls (2 inputs + 2 outputs)
     EXPECT_CALL(*mock_stream, Write(_, _))
@@ -220,7 +221,8 @@ TEST_F(ImplicitClientTest, ComputeResidualsMultipleOutputs) {
 
     // Mock reading 2 residuals
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("x");
             result->set_start(0);
@@ -228,7 +230,8 @@ TEST_F(ImplicitClientTest, ComputeResidualsMultipleOutputs) {
             result->add_data(0.1);
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_start(0);
@@ -274,7 +277,7 @@ TEST_F(ImplicitClientTest, ComputeResidualsVectorData) {
     vars.push_back(y_meta);
     client_->SetVariableMeta(vars);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     // Expect 2 Write calls (input + output)
     EXPECT_CALL(*mock_stream, Write(_, _))
@@ -285,7 +288,8 @@ TEST_F(ImplicitClientTest, ComputeResidualsVectorData) {
         .WillOnce(Return(true));
 
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_start(0);
@@ -333,7 +337,7 @@ TEST_F(ImplicitClientTest, ComputeResidualsChunkedStreaming) {
     vars.push_back(y_meta);
     client_->SetVariableMeta(vars);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     EXPECT_CALL(*mock_stream, Write(_, _))
         .Times(2)
@@ -344,7 +348,8 @@ TEST_F(ImplicitClientTest, ComputeResidualsChunkedStreaming) {
 
     // Simulate chunked response (2 chunks for single residual variable)
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_start(0);
@@ -352,7 +357,8 @@ TEST_F(ImplicitClientTest, ComputeResidualsChunkedStreaming) {
             result->add_data(0.5);
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_start(1);
@@ -388,7 +394,7 @@ TEST_F(ImplicitClientTest, ComputeResidualsChunkedStreaming) {
 TEST_F(ImplicitClientTest, SolveResidualsSimpleScalar) {
     SetupSimpleDisciplineMetadata();
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     // Expect Write call for input 'x' only (not outputs for solve)
     EXPECT_CALL(*mock_stream, Write(_, _))
@@ -399,7 +405,8 @@ TEST_F(ImplicitClientTest, SolveResidualsSimpleScalar) {
 
     // Mock reading solved output 'y'
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_subname("");
@@ -456,7 +463,7 @@ TEST_F(ImplicitClientTest, SolveResidualsMultipleOutputs) {
     vars.push_back(y_meta);
     client_->SetVariableMeta(vars);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     // Expect 2 Write calls (for inputs only)
     EXPECT_CALL(*mock_stream, Write(_, _))
@@ -468,7 +475,8 @@ TEST_F(ImplicitClientTest, SolveResidualsMultipleOutputs) {
 
     // Mock reading 2 outputs
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("x");
             result->set_start(0);
@@ -476,7 +484,8 @@ TEST_F(ImplicitClientTest, SolveResidualsMultipleOutputs) {
             result->add_data(5.0);
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_start(0);
@@ -520,7 +529,7 @@ TEST_F(ImplicitClientTest, SolveResidualsVectorData) {
     vars.push_back(y_meta);
     client_->SetVariableMeta(vars);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     EXPECT_CALL(*mock_stream, Write(_, _))
         .WillOnce(Return(true));
@@ -529,7 +538,8 @@ TEST_F(ImplicitClientTest, SolveResidualsVectorData) {
         .WillOnce(Return(true));
 
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_start(0);
@@ -576,7 +586,7 @@ TEST_F(ImplicitClientTest, SolveResidualsChunkedStreaming) {
     vars.push_back(y_meta);
     client_->SetVariableMeta(vars);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     EXPECT_CALL(*mock_stream, Write(_, _))
         .WillOnce(Return(true));
@@ -586,7 +596,8 @@ TEST_F(ImplicitClientTest, SolveResidualsChunkedStreaming) {
 
     // Simulate chunked response (2 chunks for output variable)
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_start(0);
@@ -594,7 +605,8 @@ TEST_F(ImplicitClientTest, SolveResidualsChunkedStreaming) {
             result->add_data(10.0);
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_start(1);
@@ -630,7 +642,7 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsSimple) {
     SetupSimpleDisciplineMetadata();
     SetupSimplePartialsMetadata();
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     // Expect Write for both input and output (2 writes)
     EXPECT_CALL(*mock_stream, Write(_, _))
@@ -642,7 +654,8 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsSimple) {
 
     // Mock reading partials dR/dx and dR/dy
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_subname("x");
@@ -651,7 +664,8 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsSimple) {
             result->add_data(4.0);  // dR/dx = 2x for x=2
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_subname("y");
@@ -736,7 +750,7 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsMultiplePartials) {
     partials_meta.push_back(dR_dx);
     client_->SetPartialsMetaData(partials_meta);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     // Expect 4 writes for all variables (3 inputs + 1 output)
     EXPECT_CALL(*mock_stream, Write(_, _))
@@ -748,7 +762,8 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsMultiplePartials) {
 
     // Mock reading 4 partials
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("x");
             result->set_subname("a");
@@ -757,7 +772,8 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsMultiplePartials) {
             result->add_data(9.0);  // x^2 for x=3
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("x");
             result->set_subname("b");
@@ -766,7 +782,8 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsMultiplePartials) {
             result->add_data(3.0);  // x for x=3
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("x");
             result->set_subname("c");
@@ -775,7 +792,8 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsMultiplePartials) {
             result->add_data(1.0);
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("x");
             result->set_subname("x");
@@ -840,7 +858,7 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsChunkedStreaming) {
     partials_meta.push_back(partial_meta_y);
     client_->SetPartialsMetaData(partials_meta);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     EXPECT_CALL(*mock_stream, Write(_, _))
         .Times(2)
@@ -851,7 +869,8 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsChunkedStreaming) {
 
     // Simulate chunked partial response
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_subname("x");
@@ -860,7 +879,8 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsChunkedStreaming) {
             result->add_data(1.5);
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_subname("x");
@@ -869,7 +889,8 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsChunkedStreaming) {
             result->add_data(2.5);
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_subname("y");
@@ -878,7 +899,8 @@ TEST_F(ImplicitClientTest, ComputeResidualGradientsChunkedStreaming) {
             result->add_data(-1.0);
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
+        .WillOnce(Invoke([](VariableMessage* var_msg) {
+            auto* result = var_msg->mutable_continuous();
             result->Clear();
             result->set_name("y");
             result->set_subname("y");

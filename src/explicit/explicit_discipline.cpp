@@ -72,9 +72,28 @@ void ExplicitDiscipline::Compute(const Variables &inputs,
     // No default implementation provided
 }
 
+void ExplicitDiscipline::Compute(const Variables &inputs,
+                                 Variables &outputs,
+                                 const DiscreteVariables &discrete_inputs,
+                                 DiscreteVariables &discrete_outputs)
+{
+    // Default implementation delegates to the continuous-only overload.
+    // Discipline developers should override this if they need discrete variable support.
+    Compute(inputs, outputs);
+}
+
 void ExplicitDiscipline::ComputePartials(const Variables &inputs,
                                          Partials &partials)
 {
     // This method is intended to be overridden by derived classes
     // No default implementation provided
+}
+
+void ExplicitDiscipline::ComputePartials(const Variables &inputs,
+                                         Partials &partials,
+                                         const DiscreteVariables &discrete_inputs)
+{
+    // Default implementation delegates to the continuous-only overload.
+    // Discipline developers should override this if they need discrete variable support.
+    ComputePartials(inputs, partials);
 }

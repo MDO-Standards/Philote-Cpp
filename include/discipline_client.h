@@ -105,6 +105,22 @@ namespace philote
         void GetPartialDefinitions();
 
         /**
+         * @brief Get variables that have dynamic_shape set to true
+         *
+         * @return std::vector<VariableMetaData> List of dynamic-shape variables
+         */
+        std::vector<VariableMetaData> GetDynamicVariables();
+
+        /**
+         * @brief Send resolved shapes for dynamic-shape variables to the server
+         *
+         * Must be called after GetVariableDefinitions and before compute RPCs.
+         *
+         * @param shapes List of VariableMetaData with resolved shapes
+         */
+        void SendVariableShapes(const std::vector<VariableMetaData> &shapes);
+
+        /**
          * @brief Get the variable names
          *
          * @return std::vector<std::string>
@@ -179,6 +195,20 @@ namespace philote
         void SetVariableMeta(const std::vector<VariableMetaData> &meta) { var_meta_ = meta; }
 
         /**
+         * @brief Get the discrete variable metadata
+         *
+         * @return const std::vector<VariableMetaData>&
+         */
+        const std::vector<VariableMetaData> &GetDiscreteVariableMetaAll() const noexcept { return discrete_var_meta_; }
+
+        /**
+         * @brief Set the discrete variable metadata
+         *
+         * @param meta
+         */
+        void SetDiscreteVariableMeta(const std::vector<VariableMetaData> &meta) { discrete_var_meta_ = meta; }
+
+        /**
          * @brief Get the partials metadata (const version)
          *
          * @return const std::vector<PartialsMetaData>&
@@ -218,6 +248,9 @@ namespace philote
 
         //! Variable meta data
         std::vector<philote::VariableMetaData> var_meta_;
+
+        //! Discrete variable meta data
+        std::vector<philote::VariableMetaData> discrete_var_meta_;
 
         //! Partials meta data
         std::vector<philote::PartialsMetaData> partials_meta_;

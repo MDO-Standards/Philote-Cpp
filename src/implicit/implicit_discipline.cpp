@@ -90,13 +90,38 @@ void ImplicitDiscipline::ComputeResiduals(const Variables &inputs,
 {
 }
 
+void ImplicitDiscipline::ComputeResiduals(const Variables &inputs,
+                                          const philote::Variables &outputs,
+                                          philote::Variables &residuals,
+                                          const philote::DiscreteVariables &discrete_inputs,
+                                          const philote::DiscreteVariables &discrete_outputs)
+{
+    ComputeResiduals(inputs, outputs, residuals);
+}
+
 void ImplicitDiscipline::SolveResiduals(const Variables &inputs,
                                         philote::Variables &outputs)
 {
+}
+
+void ImplicitDiscipline::SolveResiduals(const Variables &inputs,
+                                        philote::Variables &outputs,
+                                        const philote::DiscreteVariables &discrete_inputs)
+{
+    SolveResiduals(inputs, outputs);
 }
 
 void ImplicitDiscipline::ComputeResidualGradients(const Variables &inputs,
                                                   const philote::Variables &outputs,
                                                   Partials &partials)
 {
+}
+
+void ImplicitDiscipline::ComputeResidualGradients(const Variables &inputs,
+                                                  const philote::Variables &outputs,
+                                                  Partials &partials,
+                                                  const philote::DiscreteVariables &discrete_inputs,
+                                                  const philote::DiscreteVariables &discrete_outputs)
+{
+    ComputeResidualGradients(inputs, outputs, partials);
 }

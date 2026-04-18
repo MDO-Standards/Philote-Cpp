@@ -38,6 +38,7 @@ using grpc::ChannelInterface;
 
 using philote::Array;
 using philote::ExplicitClient;
+using philote::VariableMessage;
 using philote::VariableMetaData;
 
 using std::make_pair;
@@ -54,12 +55,20 @@ void ExplicitClient::ConnectChannel(std::shared_ptr<ChannelInterface> channel)
 
 philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
 {
+    DiscreteVariables discrete_outputs;
+    return ComputeFunction(inputs, {}, discrete_outputs);
+}
+
+philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs,
+                                                   const DiscreteVariables &discrete_inputs,
+                                                   DiscreteVariables &discrete_outputs)
+{
     grpc::ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
-    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
+    std::unique_ptr<grpc::ClientReaderWriterInterface<VariableMessage, VariableMessage>>
         stream(stub_->ComputeFunction(&context));
 
-    // send/assign inputs and preallocate outputs
+    // send/assign continuous inputs and preallocate outputs
     Variables outputs;
 
     for (const VariableMetaData &var : GetVariableMetaAll())
@@ -77,14 +86,34 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
             outputs[var.name()] = Variable(var);
     }
 
+    // send discrete inputs
+    for (const auto &[name, value] : discrete_inputs)
+    {
+        VariableMessage msg;
+        DiscreteVariable *dv = msg.mutable_discrete();
+        dv->set_name(name);
+        dv->set_type(VariableType::kDiscreteInput);
+        *dv->mutable_value() = value;
+        stream->Write(msg);
+    }
+
     // finish streaming data to the server
     stream->WritesDone();
 
-    Array result;
+    VariableMessage result;
     while (stream->Read(&result))
     {
-        const string &name = result.name();
-        outputs[name].AssignChunk(result);
+        if (result.has_continuous())
+        {
+            const Array &array = result.continuous();
+            const string &name = array.name();
+            outputs[name].AssignChunk(array);
+        }
+        else if (result.has_discrete())
+        {
+            const DiscreteVariable &dv = result.discrete();
+            discrete_outputs[dv.name()] = dv.value();
+        }
     }
 
     grpc::Status status = stream->Finish();
@@ -106,12 +135,18 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
 
 philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
 {
+    return ComputeGradient(inputs, {});
+}
+
+philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs,
+                                                   const DiscreteVariables &discrete_inputs)
+{
     grpc::ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
-    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
+    std::unique_ptr<grpc::ClientReaderWriterInterface<VariableMessage, VariableMessage>>
         stream(stub_->ComputeGradient(&context));
 
-    // send/assign inputs
+    // send/assign continuous inputs
     for (const VariableMetaData &var : GetVariableMetaAll())
     {
         const string name = var.name();
@@ -122,6 +157,17 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
             if (inputs.count(name) > 0)
                 inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
         }
+    }
+
+    // send discrete inputs
+    for (const auto &[name, value] : discrete_inputs)
+    {
+        VariableMessage msg;
+        DiscreteVariable *dv = msg.mutable_discrete();
+        dv->set_name(name);
+        dv->set_type(VariableType::kDiscreteInput);
+        *dv->mutable_value() = value;
+        stream->Write(msg);
     }
 
     // finish streaming data to the server
@@ -135,13 +181,17 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
     }
 
     // process messages from server
-    Array result;
+    VariableMessage result;
     while (stream->Read(&result))
     {
-        const string name = result.name();
-        const string subname = result.subname();
-
-        partials[make_pair(name, subname)].AssignChunk(result);
+        if (result.has_continuous())
+        {
+            const Array &array = result.continuous();
+            const string name = array.name();
+            const string subname = array.subname();
+            partials[make_pair(name, subname)].AssignChunk(array);
+        }
+        // discrete messages are not expected in gradient responses
     }
 
     grpc::Status status = stream->Finish();
