@@ -61,6 +61,11 @@ void ExplicitDiscipline::RegisterServices(ServerBuilder &builder)
     discipline_server_.LinkPointers(shared_from_this());
     explicit_.LinkPointers(self);
 
+    // Call Initialize() here (C++ equivalent of Python's __init__ calling
+    // self.initialize()). Virtual dispatch requires a fully constructed object,
+    // so this cannot be done in the Discipline constructor.
+    Initialize();
+
     builder.RegisterService(&discipline_server_);
     builder.RegisterService(&explicit_);
 }
