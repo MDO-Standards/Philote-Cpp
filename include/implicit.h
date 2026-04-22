@@ -1092,7 +1092,7 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
         for (const int64_t &dim : par.shape())
             shape.push_back(dim);
 
-        partials[std::make_pair(par.name(), par.subname())] = Variable(kOutput, shape);
+        partials[std::make_pair(par.name(), par.subname())] = Variable(kPartial, shape);
     }
 
     // Check for cancellation before expensive computation
