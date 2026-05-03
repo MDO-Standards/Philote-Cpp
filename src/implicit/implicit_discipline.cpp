@@ -64,6 +64,11 @@ void ImplicitDiscipline::RegisterServices(ServerBuilder &builder)
     discipline_server_.LinkPointers(shared_from_this());
     implicit_.LinkPointers(self);
 
+    // Call Initialize() here (C++ equivalent of Python's __init__ calling
+    // self.initialize()). Virtual dispatch requires a fully constructed object,
+    // so this cannot be done in the Discipline constructor.
+    Initialize();
+
     builder.RegisterService(&discipline_server_);
     builder.RegisterService(&implicit_);
 }
@@ -90,13 +95,38 @@ void ImplicitDiscipline::ComputeResiduals(const Variables &inputs,
 {
 }
 
+void ImplicitDiscipline::ComputeResiduals(const Variables &inputs,
+                                          const philote::Variables &outputs,
+                                          philote::Variables &residuals,
+                                          const philote::DiscreteVariables &discrete_inputs,
+                                          const philote::DiscreteVariables &discrete_outputs)
+{
+    ComputeResiduals(inputs, outputs, residuals);
+}
+
 void ImplicitDiscipline::SolveResiduals(const Variables &inputs,
                                         philote::Variables &outputs)
 {
+}
+
+void ImplicitDiscipline::SolveResiduals(const Variables &inputs,
+                                        philote::Variables &outputs,
+                                        const philote::DiscreteVariables &discrete_inputs)
+{
+    SolveResiduals(inputs, outputs);
 }
 
 void ImplicitDiscipline::ComputeResidualGradients(const Variables &inputs,
                                                   const philote::Variables &outputs,
                                                   Partials &partials)
 {
+}
+
+void ImplicitDiscipline::ComputeResidualGradients(const Variables &inputs,
+                                                  const philote::Variables &outputs,
+                                                  Partials &partials,
+                                                  const philote::DiscreteVariables &discrete_inputs,
+                                                  const philote::DiscreteVariables &discrete_outputs)
+{
+    ComputeResidualGradients(inputs, outputs, partials);
 }

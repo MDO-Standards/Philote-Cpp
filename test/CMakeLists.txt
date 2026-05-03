@@ -35,6 +35,12 @@ add_library(PhiloteTestHelpers test_helpers.cpp)
 target_link_libraries(PhiloteTestHelpers PUBLIC PhiloteCpp GTest::gtest GTest::gmock)
 target_include_directories(PhiloteTestHelpers PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+# validation tests
+add_executable(ValidationTests validation_tests.cpp)
+target_link_libraries(ValidationTests PhiloteCpp GTest::gtest_main GTest::gmock)
+enable_coverage(ValidationTests)
+gtest_discover_tests(ValidationTests)
+
 # array tests
 add_executable(VariableTests variable_tests.cpp)
 target_link_libraries(VariableTests PhiloteCpp GTest::gtest_main GTest::gmock)

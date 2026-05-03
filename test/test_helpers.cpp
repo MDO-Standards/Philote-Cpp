@@ -524,6 +524,12 @@ std::string ImplicitTestServerManager::StartServer(std::shared_ptr<ImplicitDisci
     // Initialize discipline
     discipline_->Initialize();
     discipline_->Configure();
+
+    // Clear any existing metadata (supports restarting the same discipline)
+    discipline_->var_meta().clear();
+    discipline_->discrete_var_meta().clear();
+    discipline_->partials_meta().clear();
+
     discipline_->Setup();
     discipline_->SetupPartials();
 
@@ -674,6 +680,12 @@ std::string TestServerManager::StartServer(std::shared_ptr<ExplicitDiscipline> d
     // Initialize discipline
     discipline_->Initialize();
     discipline_->Configure();
+
+    // Clear any existing metadata (supports restarting the same discipline)
+    discipline_->var_meta().clear();
+    discipline_->discrete_var_meta().clear();
+    discipline_->partials_meta().clear();
+
     discipline_->Setup();
     discipline_->SetupPartials();
 

@@ -90,8 +90,8 @@ namespace philote
          * @return grpc::Status
          */
         grpc::Status ComputeFunction(grpc::ServerContext *context,
-                                     grpc::ServerReaderWriter<::philote::Array,
-                                                             ::philote::Array> *stream) override;
+                                     grpc::ServerReaderWriter<::philote::VariableMessage,
+                                                             ::philote::VariableMessage> *stream) override;
 
         /**
          * @brief RPC that computes initiates gradient evaluation
@@ -101,8 +101,8 @@ namespace philote
          * @return grpc::Status
          */
         grpc::Status ComputeGradient(grpc::ServerContext *context,
-                                     grpc::ServerReaderWriter<::philote::Array,
-                                                             ::philote::Array> *stream) override;
+                                     grpc::ServerReaderWriter<::philote::VariableMessage,
+                                                             ::philote::VariableMessage> *stream) override;
 
         // Test helper methods that accept interface pointers for unit testing with mocks
         template<typename StreamType>
@@ -113,14 +113,14 @@ namespace philote
 
         // Public wrappers for tests
         grpc::Status ComputeFunctionForTesting(grpc::ServerContext *context,
-                                               grpc::ServerReaderWriterInterface<::philote::Array,
-                                                                                ::philote::Array> *stream) {
+                                               grpc::ServerReaderWriterInterface<::philote::VariableMessage,
+                                                                                ::philote::VariableMessage> *stream) {
             return ComputeFunctionImpl(context, stream);
         }
 
         grpc::Status ComputeGradientForTesting(grpc::ServerContext *context,
-                                               grpc::ServerReaderWriterInterface<::philote::Array,
-                                                                                ::philote::Array> *stream) {
+                                               grpc::ServerReaderWriterInterface<::philote::VariableMessage,
+                                                                                ::philote::VariableMessage> *stream) {
             return ComputeGradientImpl(context, stream);
         }
 
@@ -292,6 +292,22 @@ namespace philote
         virtual void Compute(const philote::Variables &inputs, philote::Variables &outputs);
 
         /**
+         * @brief Function evaluation with discrete variable support.
+         *
+         * This overload should be overridden by discipline developers that
+         * need to handle discrete variables alongside continuous variables.
+         *
+         * @param inputs continuous input variables
+         * @param outputs continuous output variables
+         * @param discrete_inputs discrete input variables
+         * @param discrete_outputs discrete output variables
+         */
+        virtual void Compute(const Variables &inputs,
+                             Variables &outputs,
+                             const DiscreteVariables &discrete_inputs,
+                             DiscreteVariables &discrete_outputs);
+
+        /**
          * @brief Gradient evaluation for the discipline.
          *
          * This function should be overridden by the developer of the
@@ -303,6 +319,20 @@ namespace philote
          */
         virtual void ComputePartials(const philote::Variables &inputs,
                                      Partials &partials);
+
+        /**
+         * @brief Gradient evaluation with discrete variable support.
+         *
+         * This overload should be overridden by discipline developers that
+         * need to account for discrete variables during gradient evaluation.
+         *
+         * @param inputs continuous input variables
+         * @param partials partial derivatives
+         * @param discrete_inputs discrete input variables
+         */
+        virtual void ComputePartials(const Variables &inputs,
+                                     Partials &partials,
+                                     const DiscreteVariables &discrete_inputs);
 
     private:
         //! Explicit discipline server
@@ -442,12 +472,34 @@ namespace philote
         Variables ComputeFunction(const Variables &inputs);
 
         /**
+         * @brief Calls the remote function evaluation with discrete variables
+         *
+         * @param inputs continuous input variables
+         * @param discrete_inputs discrete input variables
+         * @param discrete_outputs discrete output variables (populated on return)
+         * @return Variables continuous output variables
+         */
+        Variables ComputeFunction(const Variables &inputs,
+                                  const DiscreteVariables &discrete_inputs,
+                                  DiscreteVariables &discrete_outputs);
+
+        /**
          * @brief Calls the remote analysis server gradient evaluation via gRPC
          *
          * @param inputs
          * @return Partials
          */
         Partials ComputeGradient(const Variables &inputs);
+
+        /**
+         * @brief Calls the remote gradient evaluation with discrete variables
+         *
+         * @param inputs continuous input variables
+         * @param discrete_inputs discrete input variables
+         * @return Partials
+         */
+        Partials ComputeGradient(const Variables &inputs,
+                                 const DiscreteVariables &discrete_inputs);
 
         /**
          * @brief Set the stub (for testing purposes)
@@ -488,10 +540,9 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
         return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
     }
 
-    philote::Array array;
-
     // preallocate the inputs based on meta data
     Variables inputs;
+    DiscreteVariables discrete_inputs;
     const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
@@ -512,36 +563,44 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
         var_lookup[var.name()] = &var;
     }
 
-    while (stream->Read(&array))
+    VariableMessage var_msg;
+    while (stream->Read(&var_msg))
     {
-        // get variables from the stream message
-        const std::string &name = array.name();
+        if (var_msg.has_continuous())
+        {
+            const Array &array = var_msg.continuous();
+            const std::string &name = array.name();
 
-        // get the variable corresponding to the current message using O(1) lookup
-        auto var_it = var_lookup.find(name);
-        if (var_it == var_lookup.end())
-        {
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
-        }
-        const VariableMetaData* var = var_it->second;
+            // get the variable corresponding to the current message using O(1) lookup
+            auto var_it = var_lookup.find(name);
+            if (var_it == var_lookup.end())
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
+            }
+            const VariableMetaData* var = var_it->second;
 
-        // obtain the inputs and discrete inputs from the stream
-        if (var->type() == VariableType::kInput)
-        {
-            try
+            // obtain the inputs from the stream
+            if (var->type() == VariableType::kInput)
             {
-                // set the variable slice
-                inputs[name].AssignChunk(array);
+                try
+                {
+                    inputs[name].AssignChunk(array);
+                }
+                catch (const std::exception &e)
+                {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                  "Failed to assign chunk for variable " + name + ": " + e.what());
+                }
             }
-            catch (const std::exception &e)
+            else
             {
-                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                              "Failed to assign chunk for variable " + name + ": " + e.what());
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid variable type for input: " + name);
             }
         }
-        else
+        else if (var_msg.has_discrete())
         {
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid variable type for input: " + name);
+            const DiscreteVariable &dv = var_msg.discrete();
+            discrete_inputs[dv.name()] = dv.value();
         }
     }
 
@@ -565,37 +624,48 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
     // call the discipline developer-defined Compute function
     try
     {
-        implementation_->Compute(inputs, outputs);
+        DiscreteVariables discrete_outputs;
+        if (!discipline->discrete_var_meta().empty() || !discrete_inputs.empty())
+        {
+            implementation_->Compute(inputs, outputs, discrete_inputs, discrete_outputs);
+        }
+        else
+        {
+            implementation_->Compute(inputs, outputs);
+        }
+
+        // Clear context after computation
+        discipline->ClearContext();
+
+        // Check for cancellation before sending results
+        if (context && context->IsCancelled())
+        {
+            return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before sending results");
+        }
+
+        // iterate through continuous outputs
+        for (const auto &out : outputs)
+        {
+            const std::string &name = out.first;
+            out.second.Send(name, "", stream, discipline->stream_opts().num_double(), context);
+        }
+
+        // send discrete outputs
+        for (auto &[name, value] : discrete_outputs)
+        {
+            VariableMessage msg;
+            DiscreteVariable *dv = msg.mutable_discrete();
+            dv->set_name(name);
+            dv->set_type(VariableType::kDiscreteOutput);
+            *dv->mutable_value() = value;
+            stream->Write(msg);
+        }
     }
     catch (const std::exception &e)
     {
         discipline->ClearContext();
         return grpc::Status(grpc::StatusCode::INTERNAL,
                       "Failed to compute outputs: " + std::string(e.what()));
-    }
-
-    // Clear context after computation
-    discipline->ClearContext();
-
-    // Check for cancellation before sending results
-    if (context && context->IsCancelled())
-    {
-        return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before sending results");
-    }
-
-    // iterate through continuous outputs
-    for (const auto &out : outputs)
-    {
-        const std::string &name = out.first;
-        try
-        {
-            out.second.Send(name, "", stream, discipline->stream_opts().num_double(), context);
-        }
-        catch (const std::exception &e)
-        {
-            return grpc::Status(grpc::StatusCode::INTERNAL,
-                          "Failed to send output " + name + ": " + e.what());
-        }
     }
 
     return grpc::Status::OK;
@@ -620,10 +690,9 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
         return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
     }
 
-    philote::Array array;
-
     // preallocate the inputs based on meta data
     Variables inputs;
+    DiscreteVariables discrete_inputs;
     const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
@@ -644,40 +713,48 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
         var_lookup[var.name()] = &var;
     }
 
-    while (stream->Read(&array))
+    VariableMessage var_msg;
+    while (stream->Read(&var_msg))
     {
-        // get variables from the stream message
-        const std::string &name = array.name();
+        if (var_msg.has_continuous())
+        {
+            const Array &array = var_msg.continuous();
+            const std::string &name = array.name();
 
-        // get the variable corresponding to the current message using O(1) lookup
-        auto var_it = var_lookup.find(name);
-        if (var_it == var_lookup.end())
-        {
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
-        }
-        const VariableMetaData* var = var_it->second;
+            // get the variable corresponding to the current message using O(1) lookup
+            auto var_it = var_lookup.find(name);
+            if (var_it == var_lookup.end())
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
+            }
+            const VariableMetaData* var = var_it->second;
 
-        // obtain the inputs and discrete inputs from the stream
-        if (var->type() == VariableType::kInput)
-        {
-            try
+            // obtain the inputs from the stream
+            if (var->type() == VariableType::kInput)
             {
-                // set the variable slice
-                inputs[name].AssignChunk(array);
+                try
+                {
+                    inputs[name].AssignChunk(array);
+                }
+                catch (const std::exception &e)
+                {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                  "Failed to assign chunk for variable " + name + ": " + e.what());
+                }
             }
-            catch (const std::exception &e)
+            else
             {
-                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                              "Failed to assign chunk for variable " + name + ": " + e.what());
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid variable type for input: " + name);
             }
         }
-        else
+        else if (var_msg.has_discrete())
         {
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid variable type for input: " + name);
+            const DiscreteVariable &dv = var_msg.discrete();
+            discrete_inputs[dv.name()] = dv.value();
         }
     }
 
-    // preallocate outputs
+    // preallocate partials
     Partials partials;
     for (const PartialsMetaData &par : discipline->partials_meta())
     {
@@ -685,7 +762,7 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
         for (const int64_t &dim : par.shape())
             shape.push_back(dim);
 
-        partials[std::make_pair(par.name(), par.subname())] = Variable(kOutput, shape);
+        partials[std::make_pair(par.name(), par.subname())] = Variable(kPartial, shape);
     }
 
     // Check for cancellation before expensive computation
@@ -697,10 +774,17 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
     // Set context for discipline to check cancellation during compute
     discipline->SetContext(context);
 
-    // call the discipline developer-defined Compute function
+    // call the discipline developer-defined ComputePartials function
     try
     {
-        implementation_->ComputePartials(inputs, partials);
+        if (!discipline->discrete_var_meta().empty() || !discrete_inputs.empty())
+        {
+            implementation_->ComputePartials(inputs, partials, discrete_inputs);
+        }
+        else
+        {
+            implementation_->ComputePartials(inputs, partials);
+        }
     }
     catch (const std::exception &e)
     {

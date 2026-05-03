@@ -153,6 +153,20 @@ namespace philote
                                            grpc::ServerWriter<::philote::PartialsMetaData> *writer) override;
 
         /**
+         * @brief RPC to set shapes for variables flagged as dynamic_shape.
+         *
+         * Must be called after GetVariableDefinitions and before compute RPCs.
+         *
+         * @param context
+         * @param reader Stream of VariableMetaData with resolved shapes
+         * @param response
+         * @return grpc::Status
+         */
+        grpc::Status SetVariableShapes(grpc::ServerContext *context,
+                                       grpc::ServerReader<::philote::VariableMetaData> *reader,
+                                       google::protobuf::Empty *response) override;
+
+        /**
          * @brief RPC that invokes the discipline setup function
          *
          * @param context

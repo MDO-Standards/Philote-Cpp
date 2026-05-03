@@ -63,15 +63,15 @@ void ExplicitServer::UnlinkPointers()
 }
 
 Status ExplicitServer::ComputeFunction(ServerContext *context,
-                                       grpc::ServerReaderWriter<::philote::Array,
-                                                               ::philote::Array> *stream)
+                                       grpc::ServerReaderWriter<::philote::VariableMessage,
+                                                               ::philote::VariableMessage> *stream)
 {
     return ComputeFunctionImpl(context, stream);
 }
 
 Status ExplicitServer::ComputeGradient(ServerContext *context,
-                                       grpc::ServerReaderWriter<::philote::Array,
-                                                               ::philote::Array> *stream)
+                                       grpc::ServerReaderWriter<::philote::VariableMessage,
+                                                               ::philote::VariableMessage> *stream)
 {
     return ComputeGradientImpl(context, stream);
 }

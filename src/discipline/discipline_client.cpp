@@ -144,12 +144,26 @@ void DisciplineClient::GetVariableDefinitions()
         // clear any existing meta data
         var_meta_.clear();
     }
+    if (!discrete_var_meta_.empty())
+    {
+        discrete_var_meta_.clear();
+    }
     // get the meta data
     reactor = stub_->GetVariableDefinitions(&context, request);
 
     VariableMetaData meta;
     while (reactor->Read(&meta))
-        var_meta_.push_back(meta);
+    {
+        if (meta.type() == philote::kDiscreteInput ||
+            meta.type() == philote::kDiscreteOutput)
+        {
+            discrete_var_meta_.push_back(meta);
+        }
+        else
+        {
+            var_meta_.push_back(meta);
+        }
+    }
 
     auto status = reactor->Finish();
     if (!status.ok())
@@ -193,6 +207,64 @@ void DisciplineClient::GetPartialDefinitions()
                                    "ms: " + status.error_message());
         }
         throw std::runtime_error("Failed to get partial definitions: " + status.error_message());
+    }
+}
+
+vector<VariableMetaData> DisciplineClient::GetDynamicVariables()
+{
+    vector<VariableMetaData> dynamic_vars;
+    for (const auto &var : var_meta_)
+    {
+        if (var.dynamic_shape())
+            dynamic_vars.push_back(var);
+    }
+    return dynamic_vars;
+}
+
+void DisciplineClient::SendVariableShapes(const vector<VariableMetaData> &shapes)
+{
+    ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + rpc_timeout_);
+    ::google::protobuf::Empty response;
+
+    std::unique_ptr<grpc::ClientWriterInterface<VariableMetaData>> writer(
+        stub_->SetVariableShapes(&context, &response));
+
+    for (const auto &meta : shapes)
+    {
+        if (!writer->Write(meta))
+        {
+            throw std::runtime_error("Failed to write variable shape for '" + meta.name() + "'");
+        }
+    }
+
+    writer->WritesDone();
+
+    auto status = writer->Finish();
+    if (!status.ok())
+    {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw std::runtime_error("RPC timeout after " +
+                                   std::to_string(rpc_timeout_.count()) +
+                                   "ms: " + status.error_message());
+        }
+        throw std::runtime_error("Failed to set variable shapes: " + status.error_message());
+    }
+
+    // update local metadata to reflect the new shapes
+    for (const auto &meta : shapes)
+    {
+        for (auto &var : var_meta_)
+        {
+            if (var.name() == meta.name() && var.type() == meta.type())
+            {
+                var.clear_shape();
+                for (int i = 0; i < meta.shape_size(); i++)
+                    var.add_shape(meta.shape(i));
+                break;
+            }
+        }
     }
 }
 

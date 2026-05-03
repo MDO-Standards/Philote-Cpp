@@ -341,3 +341,67 @@ TEST_F(DisciplineServerTest, GetAvailableOptionsNullPointer)
     EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
     EXPECT_THAT(status.error_message(), HasSubstr("not linked"));
 }
+
+// ============================================================================
+// SetVariableShapes Null Pointer Test
+// ============================================================================
+
+TEST_F(DisciplineServerTest, SetVariableShapesNullPointer)
+{
+    grpc::ServerContext context;
+    google::protobuf::Empty response;
+
+    server->UnlinkPointers();
+
+    // Pass nullptr for reader - the null discipline check happens first
+    grpc::Status status = server->SetVariableShapes(&context, nullptr, &response);
+    EXPECT_FALSE(status.ok());
+    EXPECT_EQ(status.error_code(), grpc::StatusCode::FAILED_PRECONDITION);
+    EXPECT_THAT(status.error_message(), HasSubstr("not linked"));
+}
+
+// ============================================================================
+// Discrete Variable Streaming Tests
+// ============================================================================
+
+TEST_F(DisciplineServerTest, GetVariableDefinitionsIncludesDiscreteVars)
+{
+    // Add both continuous and discrete variables
+    mock_discipline->AddInput("x", {2}, "m");
+    mock_discipline->AddOutput("y", {1}, "N");
+    mock_discipline->AddDiscreteInput("mode");
+    mock_discipline->AddDiscreteOutput("status");
+
+    EXPECT_EQ(mock_discipline->var_meta().size(), 2);
+    EXPECT_EQ(mock_discipline->discrete_var_meta().size(), 2);
+
+    grpc::ServerContext context;
+    google::protobuf::Empty request;
+
+    // Verify the call succeeds (writer is nullptr in existing test pattern)
+    grpc::Status status = server->GetVariableDefinitions(&context, &request, nullptr);
+    EXPECT_TRUE(status.ok());
+}
+
+// ============================================================================
+// Setup Clears Discrete Variables
+// ============================================================================
+
+TEST_F(DisciplineServerTest, SetupClearsDiscreteVariables)
+{
+    // Pre-populate discrete variables
+    mock_discipline->AddDiscreteInput("old_mode");
+    EXPECT_EQ(mock_discipline->discrete_var_meta().size(), 1);
+
+    grpc::ServerContext context;
+    google::protobuf::Empty request;
+    google::protobuf::Empty response;
+
+    EXPECT_CALL(*mock_discipline, Setup()).Times(1);
+
+    grpc::Status status = server->Setup(&context, &request, &response);
+    EXPECT_TRUE(status.ok());
+
+    // discrete_var_meta should have been cleared
+    EXPECT_TRUE(mock_discipline->discrete_var_meta().empty());
+}

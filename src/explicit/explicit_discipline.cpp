@@ -61,6 +61,11 @@ void ExplicitDiscipline::RegisterServices(ServerBuilder &builder)
     discipline_server_.LinkPointers(shared_from_this());
     explicit_.LinkPointers(self);
 
+    // Call Initialize() here (C++ equivalent of Python's __init__ calling
+    // self.initialize()). Virtual dispatch requires a fully constructed object,
+    // so this cannot be done in the Discipline constructor.
+    Initialize();
+
     builder.RegisterService(&discipline_server_);
     builder.RegisterService(&explicit_);
 }
@@ -72,9 +77,28 @@ void ExplicitDiscipline::Compute(const Variables &inputs,
     // No default implementation provided
 }
 
+void ExplicitDiscipline::Compute(const Variables &inputs,
+                                 Variables &outputs,
+                                 const DiscreteVariables &discrete_inputs,
+                                 DiscreteVariables &discrete_outputs)
+{
+    // Default implementation delegates to the continuous-only overload.
+    // Discipline developers should override this if they need discrete variable support.
+    Compute(inputs, outputs);
+}
+
 void ExplicitDiscipline::ComputePartials(const Variables &inputs,
                                          Partials &partials)
 {
     // This method is intended to be overridden by derived classes
     // No default implementation provided
+}
+
+void ExplicitDiscipline::ComputePartials(const Variables &inputs,
+                                         Partials &partials,
+                                         const DiscreteVariables &discrete_inputs)
+{
+    // Default implementation delegates to the continuous-only overload.
+    // Discipline developers should override this if they need discrete variable support.
+    ComputePartials(inputs, partials);
 }

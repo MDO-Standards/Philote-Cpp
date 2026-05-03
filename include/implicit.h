@@ -81,8 +81,8 @@ namespace philote
          * @return grpc::Status
          */
         grpc::Status ComputeResiduals(grpc::ServerContext *context,
-                                      grpc::ServerReaderWriter<::philote::Array,
-                                                               ::philote::Array> *stream);
+                                      grpc::ServerReaderWriter<::philote::VariableMessage,
+                                                               ::philote::VariableMessage> *stream) override;
 
         /**
          * @brief RPC that computes the residual evaluation
@@ -92,8 +92,8 @@ namespace philote
          * @return grpc::Status
          */
         grpc::Status SolveResiduals(grpc::ServerContext *context,
-                                    grpc::ServerReaderWriter<::philote::Array,
-                                                             ::philote::Array> *stream);
+                                    grpc::ServerReaderWriter<::philote::VariableMessage,
+                                                             ::philote::VariableMessage> *stream) override;
 
         /**
          * @brief RPC that computes the residual evaluation
@@ -103,8 +103,8 @@ namespace philote
          * @return grpc::Status
          */
         grpc::Status ComputeResidualGradients(grpc::ServerContext *context,
-                                              grpc::ServerReaderWriter<::philote::Array,
-                                                                       ::philote::Array> *stream);
+                                              grpc::ServerReaderWriter<::philote::VariableMessage,
+                                                                       ::philote::VariableMessage> *stream) override;
 
         // Test helper methods that accept interface pointers for unit testing with mocks
         template<typename StreamType>
@@ -118,20 +118,20 @@ namespace philote
 
         // Public wrappers for tests
         grpc::Status ComputeResidualsForTesting(grpc::ServerContext *context,
-                                                grpc::ServerReaderWriterInterface<::philote::Array,
-                                                                                 ::philote::Array> *stream) {
+                                                grpc::ServerReaderWriterInterface<::philote::VariableMessage,
+                                                                                 ::philote::VariableMessage> *stream) {
             return ComputeResidualsImpl(context, stream);
         }
 
         grpc::Status SolveResidualsForTesting(grpc::ServerContext *context,
-                                              grpc::ServerReaderWriterInterface<::philote::Array,
-                                                                               ::philote::Array> *stream) {
+                                              grpc::ServerReaderWriterInterface<::philote::VariableMessage,
+                                                                               ::philote::VariableMessage> *stream) {
             return SolveResidualsImpl(context, stream);
         }
 
         grpc::Status ComputeResidualGradientsForTesting(grpc::ServerContext *context,
-                                                        grpc::ServerReaderWriterInterface<::philote::Array,
-                                                                                         ::philote::Array> *stream) {
+                                                        grpc::ServerReaderWriterInterface<::philote::VariableMessage,
+                                                                                         ::philote::VariableMessage> *stream) {
             return ComputeResidualGradientsImpl(context, stream);
         }
 
@@ -332,6 +332,21 @@ namespace philote
                                       philote::Variables &residuals);
 
         /**
+         * @brief Computes the residuals with discrete variable support.
+         *
+         * @param inputs continuous input variables
+         * @param outputs continuous output variables
+         * @param residuals computed residuals (output)
+         * @param discrete_inputs discrete input variables
+         * @param discrete_outputs discrete output variables
+         */
+        virtual void ComputeResiduals(const philote::Variables &inputs,
+                                      const philote::Variables &outputs,
+                                      philote::Variables &residuals,
+                                      const DiscreteVariables &discrete_inputs,
+                                      const DiscreteVariables &discrete_outputs);
+
+        /**
          * @brief Solves the residuals to obtain the outputs for the discipline.
          *
          * This function should be overridden by the developer of the
@@ -342,6 +357,17 @@ namespace philote
          * during the function call)
          */
         virtual void SolveResiduals(const philote::Variables &inputs, philote::Variables &outputs);
+
+        /**
+         * @brief Solves the residuals with discrete variable support.
+         *
+         * @param inputs continuous input variables
+         * @param outputs continuous output variables (will be assigned)
+         * @param discrete_inputs discrete input variables
+         */
+        virtual void SolveResiduals(const philote::Variables &inputs,
+                                    philote::Variables &outputs,
+                                    const DiscreteVariables &discrete_inputs);
 
         /**
          * @brief Computes the gradients of the residuals evaluation for the
@@ -357,6 +383,21 @@ namespace philote
         virtual void ComputeResidualGradients(const philote::Variables &inputs,
                                               const philote::Variables &outputs,
                                               Partials &partials);
+
+        /**
+         * @brief Computes residual gradients with discrete variable support.
+         *
+         * @param inputs continuous input variables
+         * @param outputs continuous output variables
+         * @param partials computed partial derivatives (output)
+         * @param discrete_inputs discrete input variables
+         * @param discrete_outputs discrete output variables
+         */
+        virtual void ComputeResidualGradients(const philote::Variables &inputs,
+                                              const philote::Variables &outputs,
+                                              Partials &partials,
+                                              const DiscreteVariables &discrete_inputs,
+                                              const DiscreteVariables &discrete_outputs);
 
     private:
         //! Implicit discipline server
@@ -530,6 +571,18 @@ namespace philote
         Variables ComputeResiduals(const Variables &vars);
 
         /**
+         * @brief Calls the remote analysis server residuals evaluation with discrete variables
+         *
+         * @param vars inputs and outputs for the discipline
+         * @param discrete_inputs discrete input variables
+         * @param discrete_outputs discrete output variables (populated on return)
+         * @return Variables residuals
+         */
+        Variables ComputeResiduals(const Variables &vars,
+                                   const DiscreteVariables &discrete_inputs,
+                                   DiscreteVariables &discrete_outputs);
+
+        /**
          * @brief Calls the remote analysis server to solve  via gRPC.
          *
          * Unlike the analysis server, this function does not need to be
@@ -541,12 +594,34 @@ namespace philote
         Variables SolveResiduals(const Variables &vars);
 
         /**
+         * @brief Calls the remote analysis server to solve with discrete variables
+         *
+         * @param vars inputs for the discipline
+         * @param discrete_inputs discrete input variables
+         * @return Variables solved outputs
+         */
+        Variables SolveResiduals(const Variables &vars,
+                                 const DiscreteVariables &discrete_inputs);
+
+        /**
          * @brief Calls the remote analysis server gradient evaluation via gRPC
          *
          * @param vars inputs and outputs for the discipline
          * @return Partials
          */
         Partials ComputeResidualGradients(const Variables &vars);
+
+        /**
+         * @brief Calls the remote analysis server gradient evaluation with discrete variables
+         *
+         * @param vars inputs and outputs for the discipline
+         * @param discrete_inputs discrete input variables
+         * @param discrete_outputs discrete output variables (populated on return)
+         * @return Partials
+         */
+        Partials ComputeResidualGradients(const Variables &vars,
+                                          const DiscreteVariables &discrete_inputs,
+                                          DiscreteVariables &discrete_outputs);
 
         /**
          * @brief Sets the stub for testing purposes (allows dependency injection)
@@ -586,10 +661,9 @@ grpc::Status philote::ImplicitServer::ComputeResidualsImpl(grpc::ServerContext *
         return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
     }
 
-    philote::Array array;
-
     // preallocate the variables based on meta data
     Variables inputs, outputs, residuals;
+    DiscreteVariables discrete_inputs, discrete_outputs;
     const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
@@ -614,57 +688,80 @@ grpc::Status philote::ImplicitServer::ComputeResidualsImpl(grpc::ServerContext *
     {
         var_lookup[var.name()] = &var;
     }
-
-    while (stream->Read(&array))
+    for (const auto &var : discipline->discrete_var_meta())
     {
-        // get variables from the stream message
-        const std::string &name = array.name();
+        var_lookup[var.name()] = &var;
+    }
 
-        // get the variable corresponding to the current message using O(1) lookup
-        auto var_it = var_lookup.find(name);
-        if (var_it == var_lookup.end())
+    philote::VariableMessage var_msg;
+    while (stream->Read(&var_msg))
+    {
+        if (var_msg.has_continuous())
         {
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
-        }
-        const VariableMetaData* var = var_it->second;
+            const philote::Array &array = var_msg.continuous();
+            // get variables from the stream message
+            const std::string &name = array.name();
 
-        // Validate that the message type matches the metadata type
-        if (array.type() != var->type())
-        {
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                         "Type mismatch for variable " + name + ": expected " +
-                         std::to_string(var->type()) + " but received " + std::to_string(array.type()));
-        }
-
-        // obtain the inputs and outputs from the stream
-        if (var->type() == VariableType::kInput)
-        {
-            try
+            // get the variable corresponding to the current message using O(1) lookup
+            auto var_it = var_lookup.find(name);
+            if (var_it == var_lookup.end())
             {
-                inputs[name].AssignChunk(array);
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
             }
-            catch (const std::exception &e)
+            const VariableMetaData* var = var_it->second;
+
+            // Validate that the message type matches the metadata type
+            if (array.type() != var->type())
             {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                              "Failed to assign chunk for input " + name + ": " + e.what());
+                             "Type mismatch for variable " + name + ": expected " +
+                             std::to_string(var->type()) + " but received " + std::to_string(array.type()));
             }
-        }
-        else if (var->type() == VariableType::kOutput)
-        {
-            try
+
+            // obtain the inputs and outputs from the stream
+            if (var->type() == VariableType::kInput)
             {
-                outputs[name].AssignChunk(array);
+                try
+                {
+                    inputs[name].AssignChunk(array);
+                }
+                catch (const std::exception &e)
+                {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                  "Failed to assign chunk for input " + name + ": " + e.what());
+                }
             }
-            catch (const std::exception &e)
+            else if (var->type() == VariableType::kOutput)
+            {
+                try
+                {
+                    outputs[name].AssignChunk(array);
+                }
+                catch (const std::exception &e)
+                {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                  "Failed to assign chunk for output " + name + ": " + e.what());
+                }
+            }
+            else
             {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                              "Failed to assign chunk for output " + name + ": " + e.what());
+                             "Invalid variable type received for variable: " + name);
             }
         }
-        else
+        else if (var_msg.has_discrete())
         {
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                         "Invalid variable type received for variable: " + name);
+            const philote::DiscreteVariable &dv = var_msg.discrete();
+            const std::string &name = dv.name();
+
+            if (dv.type() == VariableType::kDiscreteInput)
+            {
+                discrete_inputs[name] = dv.value();
+            }
+            else if (dv.type() == VariableType::kDiscreteOutput)
+            {
+                discrete_outputs[name] = dv.value();
+            }
         }
     }
 
@@ -680,7 +777,8 @@ grpc::Status philote::ImplicitServer::ComputeResidualsImpl(grpc::ServerContext *
     // call the discipline developer-defined Compute function
     try
     {
-        implementation_->ComputeResiduals(inputs, outputs, residuals);
+        implementation_->ComputeResiduals(inputs, outputs, residuals,
+                                          discrete_inputs, discrete_outputs);
     }
     catch (const std::exception &e)
     {
@@ -735,10 +833,9 @@ grpc::Status philote::ImplicitServer::SolveResidualsImpl(grpc::ServerContext *co
         return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
     }
 
-    philote::Array array;
-
     // preallocate the inputs based on meta data
     Variables inputs;
+    DiscreteVariables discrete_inputs;
     const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
@@ -758,37 +855,56 @@ grpc::Status philote::ImplicitServer::SolveResidualsImpl(grpc::ServerContext *co
     {
         var_lookup[var.name()] = &var;
     }
-
-    while (stream->Read(&array))
+    for (const auto &var : discipline->discrete_var_meta())
     {
-        // get variables from the stream message
-        const std::string &name = array.name();
+        var_lookup[var.name()] = &var;
+    }
 
-        // get the variable corresponding to the current message using O(1) lookup
-        auto var_it = var_lookup.find(name);
-        if (var_it == var_lookup.end())
+    philote::VariableMessage var_msg;
+    while (stream->Read(&var_msg))
+    {
+        if (var_msg.has_continuous())
         {
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
-        }
-        const VariableMetaData* var = var_it->second;
+            const philote::Array &array = var_msg.continuous();
+            // get variables from the stream message
+            const std::string &name = array.name();
 
-        // obtain the inputs from the stream (only inputs expected for solve)
-        if (var->type() == VariableType::kInput)
-        {
-            try
+            // get the variable corresponding to the current message using O(1) lookup
+            auto var_it = var_lookup.find(name);
+            if (var_it == var_lookup.end())
             {
-                inputs[name].AssignChunk(array);
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
             }
-            catch (const std::exception &e)
+            const VariableMetaData* var = var_it->second;
+
+            // obtain the inputs from the stream (only inputs expected for solve)
+            if (var->type() == VariableType::kInput)
+            {
+                try
+                {
+                    inputs[name].AssignChunk(array);
+                }
+                catch (const std::exception &e)
+                {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                  "Failed to assign chunk for input " + name + ": " + e.what());
+                }
+            }
+            else
             {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                              "Failed to assign chunk for input " + name + ": " + e.what());
+                             "Expected input variable but received different type for: " + name);
             }
         }
-        else
+        else if (var_msg.has_discrete())
         {
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                         "Expected input variable but received different type for: " + name);
+            const philote::DiscreteVariable &dv = var_msg.discrete();
+            const std::string &name = dv.name();
+
+            if (dv.type() == VariableType::kDiscreteInput)
+            {
+                discrete_inputs[name] = dv.value();
+            }
         }
     }
 
@@ -812,7 +928,7 @@ grpc::Status philote::ImplicitServer::SolveResidualsImpl(grpc::ServerContext *co
     // call the discipline developer-defined Solve function
     try
     {
-        implementation_->SolveResiduals(inputs, outputs);
+        implementation_->SolveResiduals(inputs, outputs, discrete_inputs);
     }
     catch (const std::exception &e)
     {
@@ -867,10 +983,9 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
         return grpc::Status(grpc::StatusCode::CANCELLED, "Request cancelled before start");
     }
 
-    philote::Array array;
-
     // preallocate the inputs and outputs based on meta data
     Variables inputs, outputs;
+    DiscreteVariables discrete_inputs, discrete_outputs;
     const auto *discipline = static_cast<philote::Discipline *>(implementation_.get());
     if (!discipline)
     {
@@ -892,57 +1007,80 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
     {
         var_lookup[var.name()] = &var;
     }
-
-    while (stream->Read(&array))
+    for (const auto &var : discipline->discrete_var_meta())
     {
-        // get variables from the stream message
-        const std::string &name = array.name();
+        var_lookup[var.name()] = &var;
+    }
 
-        // get the variable corresponding to the current message using O(1) lookup
-        auto var_it = var_lookup.find(name);
-        if (var_it == var_lookup.end())
+    philote::VariableMessage var_msg;
+    while (stream->Read(&var_msg))
+    {
+        if (var_msg.has_continuous())
         {
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
-        }
-        const VariableMetaData* var = var_it->second;
+            const philote::Array &array = var_msg.continuous();
+            // get variables from the stream message
+            const std::string &name = array.name();
 
-        // Validate that the message type matches the metadata type
-        if (array.type() != var->type())
-        {
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                         "Type mismatch for variable " + name + ": expected " +
-                         std::to_string(var->type()) + " but received " + std::to_string(array.type()));
-        }
-
-        // obtain the inputs and outputs from the stream
-        if (var->type() == VariableType::kInput)
-        {
-            try
+            // get the variable corresponding to the current message using O(1) lookup
+            auto var_it = var_lookup.find(name);
+            if (var_it == var_lookup.end())
             {
-                inputs[name].AssignChunk(array);
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
             }
-            catch (const std::exception &e)
+            const VariableMetaData* var = var_it->second;
+
+            // Validate that the message type matches the metadata type
+            if (array.type() != var->type())
             {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                              "Failed to assign chunk for input " + name + ": " + e.what());
+                             "Type mismatch for variable " + name + ": expected " +
+                             std::to_string(var->type()) + " but received " + std::to_string(array.type()));
             }
-        }
-        else if (var->type() == VariableType::kOutput)
-        {
-            try
+
+            // obtain the inputs and outputs from the stream
+            if (var->type() == VariableType::kInput)
             {
-                outputs[name].AssignChunk(array);
+                try
+                {
+                    inputs[name].AssignChunk(array);
+                }
+                catch (const std::exception &e)
+                {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                  "Failed to assign chunk for input " + name + ": " + e.what());
+                }
             }
-            catch (const std::exception &e)
+            else if (var->type() == VariableType::kOutput)
+            {
+                try
+                {
+                    outputs[name].AssignChunk(array);
+                }
+                catch (const std::exception &e)
+                {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                  "Failed to assign chunk for output " + name + ": " + e.what());
+                }
+            }
+            else
             {
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                              "Failed to assign chunk for output " + name + ": " + e.what());
+                             "Invalid variable type received for variable: " + name);
             }
         }
-        else
+        else if (var_msg.has_discrete())
         {
-            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
-                         "Invalid variable type received for variable: " + name);
+            const philote::DiscreteVariable &dv = var_msg.discrete();
+            const std::string &name = dv.name();
+
+            if (dv.type() == VariableType::kDiscreteInput)
+            {
+                discrete_inputs[name] = dv.value();
+            }
+            else if (dv.type() == VariableType::kDiscreteOutput)
+            {
+                discrete_outputs[name] = dv.value();
+            }
         }
     }
 
@@ -954,7 +1092,7 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
         for (const int64_t &dim : par.shape())
             shape.push_back(dim);
 
-        partials[std::make_pair(par.name(), par.subname())] = Variable(kOutput, shape);
+        partials[std::make_pair(par.name(), par.subname())] = Variable(kPartial, shape);
     }
 
     // Check for cancellation before expensive computation
@@ -969,7 +1107,8 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
     // call the discipline developer-defined Compute function
     try
     {
-        implementation_->ComputeResidualGradients(inputs, outputs, partials);
+        implementation_->ComputeResidualGradients(inputs, outputs, partials,
+                                                  discrete_inputs, discrete_outputs);
     }
     catch (const std::exception &e)
     {
