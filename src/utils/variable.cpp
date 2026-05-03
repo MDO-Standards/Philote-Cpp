@@ -171,7 +171,7 @@ void Variable::Send(string name,
     size_t n = Size();
 
     // find the chunk indices and create the chunk
-    size_t num_chunks = n / chunk_size;
+    size_t num_chunks = (n + chunk_size - 1) / chunk_size;
     if (num_chunks == 0)
         num_chunks = 1;
 
@@ -204,7 +204,7 @@ void philote::Variable::Send(std::string name,
     Array array;
     size_t start = 0, end;
     size_t n = Size();
-    size_t num_chunks = n / chunk_size;
+    size_t num_chunks = (n + chunk_size - 1) / chunk_size;
     if (num_chunks == 0)
         num_chunks = 1;
     for (size_t i = 0; i < num_chunks; i++)
@@ -243,7 +243,7 @@ void philote::Variable::Send(std::string name,
     Array array;
     size_t start = 0, end;
     size_t n = Size();
-    size_t num_chunks = n / chunk_size;
+    size_t num_chunks = (n + chunk_size - 1) / chunk_size;
     if (num_chunks == 0)
         num_chunks = 1;
     for (size_t i = 0; i < num_chunks; i++)
@@ -273,7 +273,7 @@ void philote::Variable::Send(std::string name,
 {
     size_t start = 0, end;
     size_t n = Size();
-    size_t num_chunks = n / chunk_size;
+    size_t num_chunks = (n + chunk_size - 1) / chunk_size;
     if (num_chunks == 0)
         num_chunks = 1;
     for (size_t i = 0; i < num_chunks; i++)
@@ -313,7 +313,7 @@ void philote::Variable::Send(std::string name,
 {
     size_t start = 0, end;
     size_t n = Size();
-    size_t num_chunks = n / chunk_size;
+    size_t num_chunks = (n + chunk_size - 1) / chunk_size;
     if (num_chunks == 0)
         num_chunks = 1;
     for (size_t i = 0; i < num_chunks; i++)
