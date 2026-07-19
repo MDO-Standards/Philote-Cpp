@@ -29,6 +29,7 @@
     control over the information you may find at these locations.
 */
 #include "explicit.h"
+#include "validation.h"
 
 #include <data.pb.h>
 #include <disciplines.pb.h>
@@ -79,7 +80,7 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs,
         {
             // Only send if the input was actually provided
             if (inputs.count(name) > 0)
-                inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
+                inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double(), kInput);
         }
 
         if (var.type() == kOutput)
@@ -94,7 +95,8 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs,
         dv->set_name(name);
         dv->set_type(VariableType::kDiscreteInput);
         *dv->mutable_value() = value;
-        stream->Write(msg);
+        if (!stream->Write(msg))
+            throw PhiloteServerError("Failed to write discrete input '" + name + "'");
     }
 
     // finish streaming data to the server
@@ -107,6 +109,8 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs,
         {
             const Array &array = result.continuous();
             const string &name = array.name();
+            if (outputs.find(name) == outputs.end())
+                throw PhiloteServerError("Unexpected output variable received: " + name);
             outputs[name].AssignChunk(array);
         }
         else if (result.has_discrete())
@@ -121,11 +125,11 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs,
     {
         if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
         {
-            throw std::runtime_error("RPC timeout after " +
+            throw PhiloteServerError("RPC timeout after " +
                                    std::to_string(GetRPCTimeout().count()) +
                                    "ms: " + status.error_message());
         }
-        throw std::runtime_error("ComputeFunction RPC failed: [" +
+        throw PhiloteServerError("ComputeFunction RPC failed: [" +
                                  std::to_string(status.error_code()) + "] " +
                                  status.error_message());
     }
@@ -155,7 +159,7 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs,
         {
             // Only send if the input was actually provided
             if (inputs.count(name) > 0)
-                inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
+                inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double(), kInput);
         }
     }
 
@@ -167,7 +171,8 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs,
         dv->set_name(name);
         dv->set_type(VariableType::kDiscreteInput);
         *dv->mutable_value() = value;
-        stream->Write(msg);
+        if (!stream->Write(msg))
+            throw PhiloteServerError("Failed to write discrete input '" + name + "'");
     }
 
     // finish streaming data to the server
@@ -189,7 +194,10 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs,
             const Array &array = result.continuous();
             const string name = array.name();
             const string subname = array.subname();
-            partials[make_pair(name, subname)].AssignChunk(array);
+            const auto key = make_pair(name, subname);
+            if (partials.find(key) == partials.end())
+                throw PhiloteServerError("Unexpected partial received: " + name + "/" + subname);
+            partials[key].AssignChunk(array);
         }
         // discrete messages are not expected in gradient responses
     }
@@ -199,11 +207,11 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs,
     {
         if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
         {
-            throw std::runtime_error("RPC timeout after " +
+            throw PhiloteServerError("RPC timeout after " +
                                    std::to_string(GetRPCTimeout().count()) +
                                    "ms: " + status.error_message());
         }
-        throw std::runtime_error("ComputeGradient RPC failed: [" +
+        throw PhiloteServerError("ComputeGradient RPC failed: [" +
                                  std::to_string(status.error_code()) + "] " +
                                  status.error_message());
     }

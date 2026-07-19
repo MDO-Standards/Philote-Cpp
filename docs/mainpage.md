@@ -227,7 +227,7 @@ Philote-Cpp is tested on:
 - **Ubuntu 24.04** with gcc-12/13/14 and clang-16/17/18
 - **Build types**: Release and Debug
 
-The library should work on any system that supports gRPC and C++20.
+The library should work on any system that supports gRPC and C++17.
 
 ## License
 

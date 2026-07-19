@@ -22,6 +22,7 @@
 
 #include "explicit.h"
 #include "test_helpers.h"
+#include "validation.h"
 
 using namespace philote;
 using namespace philote::test;
@@ -76,9 +77,13 @@ TEST(ExplicitClientConnectionErrors, InvalidAddress) {
 TEST_F(ExplicitErrorScenariosTest, DisciplineThrowsOnSetup) {
     auto discipline = std::make_shared<ErrorDiscipline>(ErrorDiscipline::ErrorMode::THROW_ON_SETUP);
 
-    // Starting server should succeed even if discipline setup throws
-    // because Setup is called after server start in TestServerManager
-    EXPECT_THROW(server_manager_->StartServer(discipline), std::runtime_error);
+    const std::string address = server_manager_->StartServer(discipline);
+    ExplicitClient client;
+    client.ConnectChannel(CreateTestChannel(address));
+
+    // Setup failures are reported through the protocol, not while the server
+    // process is being constructed.
+    EXPECT_THROW(client.Setup(), PhiloteServerError);
 }
 
 TEST_F(ExplicitErrorScenariosTest, DisciplineThrowsOnCompute) {

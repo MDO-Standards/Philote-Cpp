@@ -332,7 +332,7 @@ Use TODO comments with your name or GitHub issue:
 
 ### C++ Version
 
-Philote-Cpp uses **C++20**. Modern C++ features are encouraged:
+Philote-Cpp uses **C++17**. Modern C++ features are encouraged:
 
 ```cpp
 // Good - use auto for complex types

@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Philote 0.8 protocol and Philote-Python feature parity**
+  - Pinned the protocol submodule to the same v0.8.0 revision used by
+    Philote-Python
+  - Added dynamic input/output shapes with client helpers and propagation to
+    implicit residual and Jacobian metadata
+  - Added discrete inputs and outputs using `google.protobuf.Value`, including
+    nested list/struct values, across explicit and implicit RPCs
+  - Added structured option discovery (`kStruct` / `dict`) and canonical option
+    type mapping
+  - Added implicit residual metadata and `kResidual` wire tagging
+  - Added client-side `PhiloteServerError` wrapping and server-side validation
+    status propagation
+  - Added bidirectional C++/Python interoperability tests plus dynamic,
+    discrete, and implicit parity integration coverage
+  - Re-enabled the complete implicit integration test suite
 - **gRPC stream cancellation detection support** (partial #46)
   - Server-side detection of client cancellations in all streaming RPC methods
   - Discipline base class adds SetContext(), ClearContext(), and IsCancelled() methods

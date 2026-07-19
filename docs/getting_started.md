@@ -34,7 +34,7 @@ Partials represent derivatives of outputs with respect to inputs: ∂f/∂x
 
 ## Prerequisites
 
-- C++20 compliant compiler
+- C++17 compliant compiler
 - gRPC and Protocol Buffers
 - CMake 3.23 or higher
 

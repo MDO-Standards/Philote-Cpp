@@ -255,7 +255,22 @@ void Discipline::AddOption(const string &name, const string &type)
     ValidateName(name, "add_option");
     ValidateOptionType(type, name);
 
+    if (options_list_.find(name) != options_list_.end())
+        throw PhiloteValidationError("add_option: option '" + name + "' is already defined.");
+
     options_list_[name] = type;
+}
+
+void Discipline::RefreshPartialShapes()
+{
+    for (auto &partial : partials_meta_)
+    {
+        const vector<int64_t> shape =
+            ComputePartialShape(partial.name(), partial.subname(), is_implicit_);
+        partial.clear_shape();
+        for (const auto dim : shape)
+            partial.add_shape(dim);
+    }
 }
 
 void Discipline::Initialize()

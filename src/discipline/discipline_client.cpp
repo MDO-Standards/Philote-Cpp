@@ -29,6 +29,7 @@
     control over the information you may find at these locations.
 */
 #include "discipline_client.h"
+#include "validation.h"
 
 using google::protobuf::Empty;
 using grpc::ChannelInterface;
@@ -64,14 +65,14 @@ void DisciplineClient::GetInfo()
     {
         if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
         {
-            throw std::runtime_error("RPC timeout after " +
+            throw PhiloteServerError("RPC timeout after " +
                                    std::to_string(rpc_timeout_.count()) +
                                    "ms: " + status.error_message());
         }
         std::string error_msg = "Failed to get discipline info [code=" +
                                std::to_string(status.error_code()) + "]: " +
                                status.error_message();
-        throw std::runtime_error(error_msg);
+        throw PhiloteServerError(error_msg);
     }
 }
 
@@ -86,11 +87,62 @@ void DisciplineClient::SendStreamOptions()
     {
         if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
         {
-            throw std::runtime_error("RPC timeout after " +
+            throw PhiloteServerError("RPC timeout after " +
                                    std::to_string(rpc_timeout_.count()) +
                                    "ms: " + status.error_message());
         }
-        throw std::runtime_error("Failed to set stream options: " + status.error_message());
+        throw PhiloteServerError("Failed to set stream options: " + status.error_message());
+    }
+}
+
+void DisciplineClient::GetAvailableOptions()
+{
+    ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + rpc_timeout_);
+    Empty request;
+    OptionsList response;
+
+    const auto status = stub_->GetAvailableOptions(&context, request, &response);
+    if (!status.ok())
+    {
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
+        {
+            throw PhiloteServerError("RPC timeout after " +
+                                     std::to_string(rpc_timeout_.count()) +
+                                     "ms: " + status.error_message());
+        }
+        throw PhiloteServerError("Failed to get available options: " + status.error_message());
+    }
+
+    if (response.options_size() != response.type_size())
+        throw PhiloteServerError("Invalid options response: option and type counts differ");
+
+    options_list_.clear();
+    for (int i = 0; i < response.options_size(); ++i)
+    {
+        string type;
+        switch (response.type(i))
+        {
+        case DataType::kBool:
+            type = "bool";
+            break;
+        case DataType::kInt:
+            type = "int";
+            break;
+        case DataType::kDouble:
+            type = "float";
+            break;
+        case DataType::kString:
+            type = "str";
+            break;
+        case DataType::kStruct:
+            type = "dict";
+            break;
+        default:
+            throw PhiloteServerError("Invalid option type returned for '" +
+                                     response.options(i) + "'");
+        }
+        options_list_[response.options(i)] = type;
     }
 }
 
@@ -105,11 +157,11 @@ void DisciplineClient::SendOptions(const DisciplineOptions &options)
     {
         if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
         {
-            throw std::runtime_error("RPC timeout after " +
+            throw PhiloteServerError("RPC timeout after " +
                                    std::to_string(rpc_timeout_.count()) +
                                    "ms: " + status.error_message());
         }
-        throw std::runtime_error("Failed to set options: " + status.error_message());
+        throw PhiloteServerError("Failed to set options: " + status.error_message());
     }
 }
 
@@ -124,11 +176,11 @@ void DisciplineClient::Setup()
     {
         if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
         {
-            throw std::runtime_error("RPC timeout after " +
+            throw PhiloteServerError("RPC timeout after " +
                                    std::to_string(rpc_timeout_.count()) +
                                    "ms: " + status.error_message());
         }
-        throw std::runtime_error("Failed to setup discipline: " + status.error_message());
+        throw PhiloteServerError("Failed to setup discipline: " + status.error_message());
     }
 }
 
@@ -170,11 +222,11 @@ void DisciplineClient::GetVariableDefinitions()
     {
         if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
         {
-            throw std::runtime_error("RPC timeout after " +
+            throw PhiloteServerError("RPC timeout after " +
                                    std::to_string(rpc_timeout_.count()) +
                                    "ms: " + status.error_message());
         }
-        throw std::runtime_error("Failed to get variable definitions: " + status.error_message());
+        throw PhiloteServerError("Failed to get variable definitions: " + status.error_message());
     }
 }
 
@@ -202,12 +254,17 @@ void DisciplineClient::GetPartialDefinitions()
     {
         if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
         {
-            throw std::runtime_error("RPC timeout after " +
+            throw PhiloteServerError("RPC timeout after " +
                                    std::to_string(rpc_timeout_.count()) +
                                    "ms: " + status.error_message());
         }
-        throw std::runtime_error("Failed to get partial definitions: " + status.error_message());
+        throw PhiloteServerError("Failed to get partial definitions: " + status.error_message());
     }
+
+    // Philote-Python intentionally leaves PartialsMetaData.shape empty and
+    // derives it from the variable definitions.  Do the same locally so a
+    // C++ client can consume either Python or C++ servers.
+    RefreshPartialShapes();
 }
 
 vector<VariableMetaData> DisciplineClient::GetDynamicVariables()
@@ -223,6 +280,16 @@ vector<VariableMetaData> DisciplineClient::GetDynamicVariables()
 
 void DisciplineClient::SendVariableShapes(const vector<VariableMetaData> &shapes)
 {
+    for (const auto &meta : shapes)
+    {
+        ValidateName(meta.name(), "send_variable_shapes");
+        vector<int64_t> shape(meta.shape().begin(), meta.shape().end());
+        ValidateShape(shape, "send_variable_shapes");
+        if (meta.type() != kInput && meta.type() != kOutput)
+            throw PhiloteValidationError(
+                "send_variable_shapes: variable type must be kInput or kOutput");
+    }
+
     ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() + rpc_timeout_);
     ::google::protobuf::Empty response;
@@ -234,7 +301,7 @@ void DisciplineClient::SendVariableShapes(const vector<VariableMetaData> &shapes
     {
         if (!writer->Write(meta))
         {
-            throw std::runtime_error("Failed to write variable shape for '" + meta.name() + "'");
+            throw PhiloteServerError("Failed to write variable shape for '" + meta.name() + "'");
         }
     }
 
@@ -245,11 +312,11 @@ void DisciplineClient::SendVariableShapes(const vector<VariableMetaData> &shapes
     {
         if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
         {
-            throw std::runtime_error("RPC timeout after " +
+            throw PhiloteServerError("RPC timeout after " +
                                    std::to_string(rpc_timeout_.count()) +
                                    "ms: " + status.error_message());
         }
-        throw std::runtime_error("Failed to set variable shapes: " + status.error_message());
+        throw PhiloteServerError("Failed to set variable shapes: " + status.error_message());
     }
 
     // update local metadata to reflect the new shapes
@@ -265,6 +332,89 @@ void DisciplineClient::SendVariableShapes(const vector<VariableMetaData> &shapes
                 break;
             }
         }
+
+        if (meta.type() == kOutput)
+        {
+            for (auto &var : var_meta_)
+            {
+                if (var.name() == meta.name() && var.type() == kResidual)
+                {
+                    var.clear_shape();
+                    for (const auto dim : meta.shape())
+                        var.add_shape(dim);
+                    break;
+                }
+            }
+        }
+    }
+
+    RefreshPartialShapes();
+}
+
+VariableMetaData DisciplineClient::CreateVariableShape(const string &name,
+                                                       const vector<int64_t> &shape,
+                                                       VariableType type) const
+{
+    ValidateName(name, "create_variable_shape");
+    ValidateShape(shape, "create_variable_shape");
+    if (type != kInput && type != kOutput)
+        throw PhiloteValidationError(
+            "create_variable_shape: variable type must be kInput or kOutput");
+
+    VariableMetaData meta;
+    meta.set_name(name);
+    meta.set_type(type);
+    for (const auto dim : shape)
+        meta.add_shape(dim);
+    return meta;
+}
+
+void DisciplineClient::RefreshPartialShapes()
+{
+    const auto find_shape = [this](const string &name,
+                                   std::initializer_list<VariableType> allowed)
+        -> const VariableMetaData *
+    {
+        for (const auto type : allowed)
+        {
+            for (const auto &var : var_meta_)
+            {
+                if (var.name() == name && var.type() == type)
+                    return &var;
+            }
+        }
+        return nullptr;
+    };
+
+    for (auto &partial : partials_meta_)
+    {
+        const VariableMetaData *meta_f =
+            find_shape(partial.name(), {kOutput, kResidual});
+        const VariableMetaData *meta_x =
+            find_shape(partial.subname(), {kInput, kOutput});
+
+        // Preserve a server-provided shape if the caller has not fetched the
+        // corresponding variable definitions yet.
+        if (meta_f == nullptr || meta_x == nullptr)
+            continue;
+
+        const vector<int64_t> shape_f(meta_f->shape().begin(), meta_f->shape().end());
+        const vector<int64_t> shape_x(meta_x->shape().begin(), meta_x->shape().end());
+
+        vector<int64_t> shape;
+        if (shape_f == vector<int64_t>{1})
+            shape = (shape_x == vector<int64_t>{1}) ? vector<int64_t>{1} : shape_x;
+        else if (shape_x == vector<int64_t>{1})
+            shape = shape_f;
+        else
+        {
+            shape = shape_f;
+            shape.insert(shape.end(), shape_x.begin(), shape_x.end());
+        }
+
+        partial.clear_shape();
+        for (const auto dim : shape)
+            partial.add_shape(dim);
     }
 }
 
@@ -290,7 +440,7 @@ VariableMetaData DisciplineClient::GetVariableMeta(const string &name)
         }
     }
 
-    throw std::runtime_error("Variable not found: " + name);
+    throw PhiloteValidationError("Variable not found: " + name);
 }
 
 std::vector<philote::PartialsMetaData> DisciplineClient::GetPartialsMeta()

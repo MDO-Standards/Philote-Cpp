@@ -29,6 +29,9 @@
     control over the information you may find at these locations.
 */
 #include "variable.h"
+#include "validation.h"
+
+#include <limits>
 
 using grpc::ClientReaderWriter;
 using grpc::ClientReaderWriterInterface;
@@ -41,6 +44,27 @@ using std::vector;
 
 using namespace philote;
 
+namespace
+{
+size_t CheckedSize(const std::vector<size_t> &shape)
+{
+    size_t size = 1;
+    for (const auto dim : shape)
+    {
+        if (dim != 0 && size > std::numeric_limits<size_t>::max() / dim)
+            throw PhiloteValidationError("Variable shape size overflows size_t");
+        size *= dim;
+    }
+    return size;
+}
+
+void ValidateChunkSize(size_t chunk_size)
+{
+    if (chunk_size == 0)
+        throw PhiloteValidationError("Variable stream chunk size must be positive");
+}
+} // namespace
+
 Variable::Variable(const philote::VariableType &type,
                    const std::vector<size_t> &shape)
 {
@@ -48,44 +72,46 @@ Variable::Variable(const philote::VariableType &type,
     shape_ = shape;
 
     // serialized array size
-    size_t size = 1;
-    for (unsigned long i : shape_)
-        size *= i;
-
     // initialize the array from the shape input
-    data_.resize(size);
+    data_.resize(CheckedSize(shape_));
 }
 
 Variable::Variable(const philote::VariableMetaData &meta)
 {
-    for (auto &val : meta.shape())
-        shape_.push_back(val);
+    if (meta.dynamic_shape() && meta.shape().empty())
+        throw PhiloteValidationError(
+            "Variable '" + meta.name() +
+            "' has dynamic_shape=true but no shape has been set. "
+            "Call SetVariableShapes before computing.");
+
+    for (const auto val : meta.shape())
+    {
+        if (val < 0)
+            throw PhiloteValidationError("Variable shape dimensions cannot be negative");
+        shape_.push_back(static_cast<size_t>(val));
+    }
 
     type_ = meta.type();
 
     // serialized array size
-    size_t size = 1;
-    for (unsigned long i : shape_)
-        size *= i;
-
     // initialize the array from the shape input
-    data_.resize(size);
+    data_.resize(CheckedSize(shape_));
 }
 
 Variable::Variable(const philote::PartialsMetaData &meta)
 {
-    for (auto &val : meta.shape())
-        shape_.push_back(val);
+    for (const auto val : meta.shape())
+    {
+        if (val < 0)
+            throw PhiloteValidationError("Partial shape dimensions cannot be negative");
+        shape_.push_back(static_cast<size_t>(val));
+    }
 
     type_ = kPartial;
 
     // serialized array size
-    size_t size = 1;
-    for (unsigned long i : shape_)
-        size *= i;
-
     // initialize the array from the shape input
-    data_.resize(size);
+    data_.resize(CheckedSize(shape_));
 }
 
 void Variable::Segment(const size_t &start, const size_t &end,
@@ -165,6 +191,10 @@ void Variable::Send(string name,
                     ClientReaderWriter<Array, Array> *stream,
                     const size_t &chunk_size) const
 {
+    ValidateChunkSize(chunk_size);
+    if (Size() == 0)
+        return;
+
     Array array;
 
     size_t start, end;
@@ -201,6 +231,10 @@ void philote::Variable::Send(std::string name,
                              const size_t &chunk_size,
                              grpc::ServerContext* context) const
 {
+    ValidateChunkSize(chunk_size);
+    if (Size() == 0)
+        return;
+
     Array array;
     size_t start = 0, end;
     size_t n = Size();
@@ -240,6 +274,10 @@ void philote::Variable::Send(std::string name,
                              grpc::ClientReaderWriterInterface<::philote::Array, ::philote::Array> *stream,
                              const size_t &chunk_size) const
 {
+    ValidateChunkSize(chunk_size);
+    if (Size() == 0)
+        return;
+
     Array array;
     size_t start = 0, end;
     size_t n = Size();
@@ -271,6 +309,10 @@ void philote::Variable::Send(std::string name,
                              const size_t &chunk_size,
                              grpc::ServerContext* context) const
 {
+    ValidateChunkSize(chunk_size);
+    if (Size() == 0)
+        return;
+
     size_t start = 0, end;
     size_t n = Size();
     size_t num_chunks = (n + chunk_size - 1) / chunk_size;
@@ -309,8 +351,13 @@ void philote::Variable::Send(std::string name,
 void philote::Variable::Send(std::string name,
                              std::string subname,
                              grpc::ClientReaderWriterInterface<::philote::VariableMessage, ::philote::VariableMessage> *stream,
-                             const size_t &chunk_size) const
+                             const size_t &chunk_size,
+                             std::optional<VariableType> wire_type) const
 {
+    ValidateChunkSize(chunk_size);
+    if (Size() == 0)
+        return;
+
     size_t start = 0, end;
     size_t n = Size();
     size_t num_chunks = (n + chunk_size - 1) / chunk_size;
@@ -323,6 +370,8 @@ void philote::Variable::Send(std::string name,
         if (end >= n)
             end = n - 1;
         Array array = CreateChunk(start, end);
+        if (wire_type.has_value())
+            array.set_type(*wire_type);
         array.set_name(name);
         array.set_subname(subname);
 

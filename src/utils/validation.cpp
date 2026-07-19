@@ -35,7 +35,7 @@
 using philote::PhiloteValidationError;
 
 static const std::set<std::string> VALID_OPTION_TYPES = {
-    "bool", "int", "float", "double", "string", "dict"};
+    "bool", "int", "float", "double", "str", "string", "dict", "struct"};
 
 void philote::ValidateName(const std::string &name, const std::string &context)
 {

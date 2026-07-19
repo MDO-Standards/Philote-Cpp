@@ -24,6 +24,7 @@
 
 #include "implicit.h"
 #include "test_helpers.h"
+#include "validation.h"
 
 using namespace philote;
 using namespace philote::test;
@@ -78,8 +79,10 @@ TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnSetup) {
     auto discipline = std::make_shared<ImplicitErrorDiscipline>(
         ImplicitErrorDiscipline::ErrorMode::THROW_ON_SETUP);
 
-    // Starting server should throw because Setup is called during StartServer
-    EXPECT_THROW(server_manager_->StartServer(discipline), std::runtime_error);
+    const std::string address = server_manager_->StartServer(discipline);
+    ImplicitClient client;
+    client.ConnectChannel(CreateTestChannel(address));
+    EXPECT_THROW(client.Setup(), PhiloteServerError);
 }
 
 TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnComputeResiduals) {
@@ -161,12 +164,7 @@ TEST_F(ImplicitErrorScenariosTest, DisciplineThrowsOnComputeResidualGradients) {
 // Missing Variable Tests
 // ============================================================================
 
-// TODO: This test causes issues with gRPC stream cleanup when exception is thrown
-// The vars.at() call for missing output throws std::out_of_range during streaming,
-// which can leave the gRPC stream in an inconsistent state causing segfaults or hangs.
-// This needs to be fixed in the client implementation to handle missing variables
-// more gracefully before starting the RPC.
-TEST_F(ImplicitErrorScenariosTest, DISABLED_MissingInputForComputeResiduals) {
+TEST_F(ImplicitErrorScenariosTest, MissingInputForComputeResiduals) {
     auto discipline = std::make_shared<SimpleImplicitDiscipline>();
 
     std::string address = server_manager_->StartServer(discipline);
@@ -180,20 +178,14 @@ TEST_F(ImplicitErrorScenariosTest, DISABLED_MissingInputForComputeResiduals) {
     client.Setup();
     client.GetVariableDefinitions();
 
-    // Get a properly typed output variable first
-    Variables inputs;
-    inputs["x"] = CreateScalarVariable(3.0);
-    Variables correct_outputs = client.SolveResiduals(inputs);
-
     // Now try ComputeResiduals with only input (missing output 'y')
     Variables vars_missing_output;
     vars_missing_output["x"] = CreateScalarVariable(3.0);
     // Missing 'y' output variable
 
-    // This throws std::out_of_range on client side when trying to access missing 'y'
     EXPECT_THROW({
         Variables residuals = client.ComputeResiduals(vars_missing_output);
-    }, std::out_of_range);
+    }, PhiloteValidationError);
 }
 
 TEST_F(ImplicitErrorScenariosTest, MissingInputForSolveResiduals) {

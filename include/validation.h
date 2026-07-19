@@ -85,7 +85,8 @@ namespace philote
     /**
      * @brief Validate that an option type string is one of the allowed types.
      *
-     * Allowed types: "bool", "int", "float", "double", "string", "dict"
+     * Canonical types are "bool", "int", "float", "str", and "dict".
+     * The C++ aliases "double", "string", and "struct" are also accepted.
      *
      * @param type The option type string to validate
      * @param name The option name (for error messages)

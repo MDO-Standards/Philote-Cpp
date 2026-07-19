@@ -11,7 +11,9 @@ Philote MDO is a standard currently being defined by a working group sponsored
 by the AIAA Multidisciplinary Design Optimization Technical Committee. While the
 Philote standard defines how disciplines are defined and how data is
 transmitted, the standard does not encompass language interfaces. This library
-is an implementation of C++ bindings for the Philote standard.
+is an implementation of C++ bindings for the Philote standard. The current
+API implements the Philote 0.8 protocol and is interoperable with
+Philote-Python 0.8.
 
 ## Premise
 
@@ -70,17 +72,41 @@ discipline-specific logic.
 #include "explicit.h"
 
 int main() {
-    MyDiscipline discipline;
+    auto discipline = std::make_shared<MyDiscipline>();
 
     grpc::ServerBuilder builder;
     builder.AddListeningPort("localhost:50051", grpc::InsecureServerCredentials());
-    discipline.RegisterServices(builder);
+    discipline->RegisterServices(builder);
 
     std::unique_ptr<grpc::Server> server = builder.BuildAndStart();
     server->Wait();
 
     return 0;
 }
+```
+
+### Philote 0.8 Features
+
+The C++ and Python general-purpose bindings support the same protocol features:
+
+- Dynamic continuous shapes through `dynamic_shape` and `SetVariableShapes`
+- Discrete inputs and outputs backed by `google::protobuf::Value`, including
+  scalars, lists, and nested structures
+- Structured (`dict`) discipline options and option discovery
+- Explicit and implicit function, residual, solve, and Jacobian RPCs
+- Validation errors mapped to `INVALID_ARGUMENT` and client RPC failures
+  wrapped in `PhiloteServerError`
+
+For a dynamic variable, resolve its shape after setup and metadata discovery:
+
+```cpp
+client.Setup();
+client.GetVariableDefinitions();
+client.SendVariableShapes({
+    client.CreateVariableShape("x", {8}, philote::kInput),
+    client.CreateVariableShape("y", {8}, philote::kOutput),
+});
+client.GetPartialDefinitions();
 ```
 
 ### Connecting a Client
@@ -131,15 +157,15 @@ int main() {
 To build Philote-Cpp you must have
 [gRPC](https://grpc.io/docs/languages/cpp/quickstart/) 
 and [protobuf](https://protobuf.dev) 
-installed (building gRPC should also install protobuf). This library uses 
-the C++-20 standard, so you must use a compliant compiler. Finally, CMake 
+installed (building gRPC should also install protobuf). This library uses
+the C++17 standard, so you must use a compliant compiler. Finally, CMake
 (version 3.23 or higher) is used to configure and build the code.
 
 ### Build Process
 
 To configure the build process, create a build directory and run CMake:
 
-    cmake <path to the source directory> <additional options>
+    cmake -S <path to the source directory> -B build <additional options>
 
 You do not need to provide additional options, however in some cases they 
 can be used to customize the build (for example set the build type to 
@@ -147,7 +173,7 @@ Release or Debug with -DCMAKE_BUILD_TYPE=Release). Next, the build is
 started (here, using make, as it is the default build method for Unix[-like] 
 systems):
 
-    make -j 8
+    cmake --build build -j 8
 
 In this instance the build will compile with 8 workers, due to the -j flag.
 
@@ -210,5 +236,4 @@ Lupp, C.A., Xu, A. "Creating a Universal Communication
 Standard to Enable Heterogeneous Multidisciplinary Design Optimization." 
 AIAA SCITECH 2024 Forum. American Institute of Aeronautics and Astronautics. 
 Orlando, FL.
-
 
