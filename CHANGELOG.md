@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Philote 0.8 protocol and Philote-Python feature parity**
+  - Pinned the protocol submodule to the Philote-MDO v0.8.0 release tag
+    (`6f2d8a1`), the revision used by Philote-Python and Philote-Rust 0.2.0.
+    `develop` previously pinned an untagged commit before that release; the
+    `.proto` files are unchanged between the two
+  - Added dynamic input/output shapes with client helpers and propagation to
+    implicit residual and Jacobian metadata
+  - Added discrete inputs and outputs using `google.protobuf.Value`, including
+    nested list/struct values, across explicit and implicit RPCs
+  - Added structured option discovery (`kStruct` / `dict`) and canonical option
+    type mapping
+  - Added implicit residual metadata and `kResidual` wire tagging
+  - Added client-side `PhiloteServerError` wrapping and server-side validation
+    status propagation
+  - Added bidirectional C++/Python interoperability tests plus dynamic,
+    discrete, and implicit parity integration coverage
+  - Re-enabled the complete implicit integration test suite
+
 ### Fixed
 - The release workflow now merges `main` back into `develop` after every
   release (opening a pull request if the merge conflicts). Previously the

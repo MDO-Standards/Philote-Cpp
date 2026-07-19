@@ -41,6 +41,7 @@
 
 #include <disciplines.grpc.pb.h>
 #include "discipline_server.h"
+#include "validation.h"
 
 namespace philote
 {
@@ -551,6 +552,15 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
 
     for (const auto &var : discipline->var_meta())
     {
+        if (var.dynamic_shape() && var.shape().empty())
+        {
+            return grpc::Status(
+                grpc::StatusCode::INVALID_ARGUMENT,
+                "Variable '" + var.name() +
+                    "' has dynamic_shape=true but no shape has been set. "
+                    "Call SetVariableShapes before computing.");
+        }
+
         std::string name = var.name();
         if (var.type() == kInput)
             inputs[name] = Variable(var);
@@ -560,7 +570,8 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
     std::unordered_map<std::string, const VariableMetaData*> var_lookup;
     for (const auto &var : discipline->var_meta())
     {
-        var_lookup[var.name()] = &var;
+        if (var.type() == kInput)
+            var_lookup[var.name()] = &var;
     }
 
     VariableMessage var_msg;
@@ -578,6 +589,15 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
             }
             const VariableMetaData* var = var_it->second;
+
+            if (array.type() != var->type())
+            {
+                return grpc::Status(
+                    grpc::StatusCode::INVALID_ARGUMENT,
+                    "Type mismatch for variable " + name + ": expected " +
+                        std::to_string(var->type()) + " but received " +
+                        std::to_string(array.type()));
+            }
 
             // obtain the inputs from the stream
             if (var->type() == VariableType::kInput)
@@ -600,6 +620,11 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
         else if (var_msg.has_discrete())
         {
             const DiscreteVariable &dv = var_msg.discrete();
+            if (dv.type() != VariableType::kDiscreteInput)
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "Expected a discrete input variable: " + dv.name());
+            }
             discrete_inputs[dv.name()] = dv.value();
         }
     }
@@ -658,8 +683,17 @@ grpc::Status ExplicitServer::ComputeFunctionImpl(grpc::ServerContext *context, S
             dv->set_name(name);
             dv->set_type(VariableType::kDiscreteOutput);
             *dv->mutable_value() = value;
-            stream->Write(msg);
+            if (!stream->Write(msg))
+            {
+                return grpc::Status(grpc::StatusCode::INTERNAL,
+                                    "Failed to send discrete output " + name);
+            }
         }
+    }
+    catch (const PhiloteValidationError &e)
+    {
+        discipline->ClearContext();
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, e.what());
     }
     catch (const std::exception &e)
     {
@@ -701,6 +735,15 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
 
     for (const auto &var : discipline->var_meta())
     {
+        if (var.dynamic_shape() && var.shape().empty())
+        {
+            return grpc::Status(
+                grpc::StatusCode::INVALID_ARGUMENT,
+                "Variable '" + var.name() +
+                    "' has dynamic_shape=true but no shape has been set. "
+                    "Call SetVariableShapes before computing.");
+        }
+
         std::string name = var.name();
         if (var.type() == kInput)
             inputs[name] = Variable(var);
@@ -710,7 +753,8 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
     std::unordered_map<std::string, const VariableMetaData*> var_lookup;
     for (const auto &var : discipline->var_meta())
     {
-        var_lookup[var.name()] = &var;
+        if (var.type() == kInput)
+            var_lookup[var.name()] = &var;
     }
 
     VariableMessage var_msg;
@@ -728,6 +772,15 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
                 return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Variable not found: " + name);
             }
             const VariableMetaData* var = var_it->second;
+
+            if (array.type() != var->type())
+            {
+                return grpc::Status(
+                    grpc::StatusCode::INVALID_ARGUMENT,
+                    "Type mismatch for variable " + name + ": expected " +
+                        std::to_string(var->type()) + " but received " +
+                        std::to_string(array.type()));
+            }
 
             // obtain the inputs from the stream
             if (var->type() == VariableType::kInput)
@@ -750,6 +803,11 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
         else if (var_msg.has_discrete())
         {
             const DiscreteVariable &dv = var_msg.discrete();
+            if (dv.type() != VariableType::kDiscreteInput)
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                    "Expected a discrete input variable: " + dv.name());
+            }
             discrete_inputs[dv.name()] = dv.value();
         }
     }
@@ -785,6 +843,11 @@ grpc::Status ExplicitServer::ComputeGradientImpl(grpc::ServerContext *context, S
         {
             implementation_->ComputePartials(inputs, partials);
         }
+    }
+    catch (const PhiloteValidationError &e)
+    {
+        discipline->ClearContext();
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, e.what());
     }
     catch (const std::exception &e)
     {

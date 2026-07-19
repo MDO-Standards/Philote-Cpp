@@ -32,6 +32,7 @@
 
 #include <string>
 #include <map>
+#include <optional>
 #include <vector>
 
 #include <google/protobuf/struct.pb.h>
@@ -240,7 +241,8 @@ namespace philote
         void Send(std::string name,
                   std::string subname,
                   grpc::ClientReaderWriterInterface<::philote::VariableMessage, ::philote::VariableMessage> *stream,
-                  const size_t &chunk_size) const;
+                  const size_t &chunk_size,
+                  std::optional<VariableType> wire_type = std::nullopt) const;
 
         /**
          * @brief Assigns a chunk to the variable

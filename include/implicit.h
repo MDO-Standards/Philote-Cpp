@@ -32,6 +32,7 @@
 
 #include <disciplines.grpc.pb.h>
 #include "discipline_server.h"
+#include "validation.h"
 
 #include <discipline.h>
 #include "discipline_client.h"
@@ -308,6 +309,17 @@ namespace philote
          * @param builder
          */
         void RegisterServices(grpc::ServerBuilder &builder);
+
+        /**
+         * @brief Declares an implicit output and its matching residual.
+         *
+         * The residual metadata entry is required by the Philote 0.8
+         * protocol and mirrors Philote-Python's implicit discipline model.
+         */
+        void AddOutput(const std::string &name,
+                       const std::vector<int64_t> &shape,
+                       const std::string &units,
+                       bool dynamic_shape = false);
 
         /**
          * @brief Declare a (set of) partial(s) for the discipline
@@ -672,25 +684,30 @@ grpc::Status philote::ImplicitServer::ComputeResidualsImpl(grpc::ServerContext *
 
     for (const auto &var : discipline->var_meta())
     {
+        if (var.dynamic_shape() && var.shape().empty())
+        {
+            return grpc::Status(
+                grpc::StatusCode::INVALID_ARGUMENT,
+                "Variable '" + var.name() +
+                    "' has dynamic_shape=true but no shape has been set. "
+                    "Call SetVariableShapes before computing.");
+        }
+
         std::string name = var.name();
         if (var.type() == kInput)
             inputs[name] = Variable(var);
         if (var.type() == kOutput)
-        {
             outputs[var.name()] = Variable(var);
+        if (var.type() == kResidual)
             residuals[var.name()] = Variable(var);
-        }
     }
 
     // Build O(1) lookup map for variable metadata
     std::unordered_map<std::string, const VariableMetaData*> var_lookup;
     for (const auto &var : discipline->var_meta())
     {
-        var_lookup[var.name()] = &var;
-    }
-    for (const auto &var : discipline->discrete_var_meta())
-    {
-        var_lookup[var.name()] = &var;
+        if (var.type() == kInput || var.type() == kOutput)
+            var_lookup[var.name()] = &var;
     }
 
     philote::VariableMessage var_msg;
@@ -777,8 +794,21 @@ grpc::Status philote::ImplicitServer::ComputeResidualsImpl(grpc::ServerContext *
     // call the discipline developer-defined Compute function
     try
     {
-        implementation_->ComputeResiduals(inputs, outputs, residuals,
-                                          discrete_inputs, discrete_outputs);
+        if (!discipline->discrete_var_meta().empty() || !discrete_inputs.empty() ||
+            !discrete_outputs.empty())
+        {
+            implementation_->ComputeResiduals(inputs, outputs, residuals,
+                                              discrete_inputs, discrete_outputs);
+        }
+        else
+        {
+            implementation_->ComputeResiduals(inputs, outputs, residuals);
+        }
+    }
+    catch (const PhiloteValidationError &e)
+    {
+        discipline->ClearContext();
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, e.what());
     }
     catch (const std::exception &e)
     {
@@ -844,6 +874,15 @@ grpc::Status philote::ImplicitServer::SolveResidualsImpl(grpc::ServerContext *co
 
     for (const auto &var : discipline->var_meta())
     {
+        if (var.dynamic_shape() && var.shape().empty())
+        {
+            return grpc::Status(
+                grpc::StatusCode::INVALID_ARGUMENT,
+                "Variable '" + var.name() +
+                    "' has dynamic_shape=true but no shape has been set. "
+                    "Call SetVariableShapes before computing.");
+        }
+
         std::string name = var.name();
         if (var.type() == kInput)
             inputs[name] = Variable(var);
@@ -853,11 +892,8 @@ grpc::Status philote::ImplicitServer::SolveResidualsImpl(grpc::ServerContext *co
     std::unordered_map<std::string, const VariableMetaData*> var_lookup;
     for (const auto &var : discipline->var_meta())
     {
-        var_lookup[var.name()] = &var;
-    }
-    for (const auto &var : discipline->discrete_var_meta())
-    {
-        var_lookup[var.name()] = &var;
+        if (var.type() == kInput || var.type() == kOutput)
+            var_lookup[var.name()] = &var;
     }
 
     philote::VariableMessage var_msg;
@@ -928,7 +964,15 @@ grpc::Status philote::ImplicitServer::SolveResidualsImpl(grpc::ServerContext *co
     // call the discipline developer-defined Solve function
     try
     {
-        implementation_->SolveResiduals(inputs, outputs, discrete_inputs);
+        if (!discipline->discrete_var_meta().empty() || !discrete_inputs.empty())
+            implementation_->SolveResiduals(inputs, outputs, discrete_inputs);
+        else
+            implementation_->SolveResiduals(inputs, outputs);
+    }
+    catch (const PhiloteValidationError &e)
+    {
+        discipline->ClearContext();
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, e.what());
     }
     catch (const std::exception &e)
     {
@@ -994,6 +1038,15 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
 
     for (const auto &var : discipline->var_meta())
     {
+        if (var.dynamic_shape() && var.shape().empty())
+        {
+            return grpc::Status(
+                grpc::StatusCode::INVALID_ARGUMENT,
+                "Variable '" + var.name() +
+                    "' has dynamic_shape=true but no shape has been set. "
+                    "Call SetVariableShapes before computing.");
+        }
+
         const std::string &name = var.name();
         if (var.type() == kInput)
             inputs[name] = Variable(var);
@@ -1005,11 +1058,8 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
     std::unordered_map<std::string, const VariableMetaData*> var_lookup;
     for (const auto &var : discipline->var_meta())
     {
-        var_lookup[var.name()] = &var;
-    }
-    for (const auto &var : discipline->discrete_var_meta())
-    {
-        var_lookup[var.name()] = &var;
+        if (var.type() == kInput || var.type() == kOutput)
+            var_lookup[var.name()] = &var;
     }
 
     philote::VariableMessage var_msg;
@@ -1107,8 +1157,21 @@ grpc::Status philote::ImplicitServer::ComputeResidualGradientsImpl(grpc::ServerC
     // call the discipline developer-defined Compute function
     try
     {
-        implementation_->ComputeResidualGradients(inputs, outputs, partials,
-                                                  discrete_inputs, discrete_outputs);
+        if (!discipline->discrete_var_meta().empty() || !discrete_inputs.empty() ||
+            !discrete_outputs.empty())
+        {
+            implementation_->ComputeResidualGradients(inputs, outputs, partials,
+                                                      discrete_inputs, discrete_outputs);
+        }
+        else
+        {
+            implementation_->ComputeResidualGradients(inputs, outputs, partials);
+        }
+    }
+    catch (const PhiloteValidationError &e)
+    {
+        discipline->ClearContext();
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, e.what());
     }
     catch (const std::exception &e)
     {

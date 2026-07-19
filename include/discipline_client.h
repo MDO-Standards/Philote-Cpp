@@ -37,6 +37,7 @@
 #include <disciplines.grpc.pb.h>
 #include <chrono>
 #include <memory>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -80,6 +81,11 @@ namespace philote
         void SendStreamOptions();
 
         /**
+         * @brief Query the option names and canonical Philote type names.
+         */
+        void GetAvailableOptions();
+
+        /**
          * @brief Send the discipline options to the server
          *
          * @param options
@@ -119,6 +125,13 @@ namespace philote
          * @param shapes List of VariableMetaData with resolved shapes
          */
         void SendVariableShapes(const std::vector<VariableMetaData> &shapes);
+
+        /**
+         * @brief Create metadata suitable for SendVariableShapes.
+         */
+        VariableMetaData CreateVariableShape(const std::string &name,
+                                             const std::vector<int64_t> &shape,
+                                             VariableType type = VariableType::kInput) const;
 
         /**
          * @brief Get the variable names
@@ -216,6 +229,11 @@ namespace philote
         const std::vector<PartialsMetaData> &GetPartialsMetaConst() const noexcept { return partials_meta_; }
 
         /**
+         * @brief Get the available option names and canonical type strings.
+         */
+        const std::map<std::string, std::string> &GetOptionsList() const noexcept { return options_list_; }
+
+        /**
          * @brief Set the partials metadata
          *
          * @param meta
@@ -255,7 +273,13 @@ namespace philote
         //! Partials meta data
         std::vector<philote::PartialsMetaData> partials_meta_;
 
+        //! Available option definitions returned by GetAvailableOptions.
+        std::map<std::string, std::string> options_list_;
+
         //! RPC timeout in milliseconds (default: 60 seconds)
         std::chrono::milliseconds rpc_timeout_{60000};
+
+        //! Recompute partial shapes from local variable metadata.
+        void RefreshPartialShapes();
     };
 } // namespace philote
