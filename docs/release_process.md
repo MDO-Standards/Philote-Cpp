@@ -14,6 +14,7 @@ Philote-Cpp uses an automated release workflow that is triggered when a pull req
 6. Creates a signed git commit and tag
 7. Pushes directly to `main` (using PAT with write permissions)
 8. Creates a GitHub Release
+9. Merges `main` back into `develop`
 
 ## Prerequisites
 
@@ -21,7 +22,7 @@ The automated release workflow requires the following repository settings:
 
 ### 1. Personal Access Token (PAT)
 
-The workflow requires a fine-grained Personal Access Token with permissions to push to the protected `main` branch.
+The workflow requires a fine-grained Personal Access Token with permissions to push to the protected `main` and `develop` branches. The token's owner must be a repository admin, since the release commit goes straight to `main` and the merge back into `develop` bypasses the pull request requirement.
 
 **Creating the PAT:**
 1. Go to your GitHub profile → **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**
@@ -34,7 +35,8 @@ The workflow requires a fine-grained Personal Access Token with permissions to p
    - **Repository permissions**:
      - **Contents**: Read and write
      - **Metadata**: Read-only (auto-selected)
-     - **Pull requests**: Read-only
+     - **Pull requests**: Read and write (to open a `main` → `develop` pull
+       request when the automatic merge back into `develop` fails)
 4. Click **Generate token** and copy it immediately
 
 **Adding to repository:**
@@ -197,6 +199,9 @@ After the workflow completes:
 2. Verify the git tag was created: `git tag -l`
 3. View the GitHub Release at: `https://github.com/MDO-Standards/Philote-Cpp/releases`
 4. Confirm the CHANGELOG.md was updated correctly
+5. Confirm `develop` contains the release commit (`CMakeLists.txt` on `develop`
+   shows the new version). If the workflow logged a warning instead, merge the
+   `main` → `develop` pull request it opened, using a merge commit
 
 ## Label Validation Rules
 
@@ -272,6 +277,20 @@ The workflow automatically:
 2. Adds a new `## [VERSION] - DATE` section below it
 3. Adds prerelease version comparison links
 
+### Merge Back into `develop`
+
+The release commit is pushed only to `main`, so the workflow finally merges
+`main` into `develop` through the GitHub API. Without this step `develop`
+keeps the previous version number, and when it is next merged into `main`,
+git files its new `CHANGELOG.md` entries under the section of the release
+that was already published, leaving the new release notes empty.
+
+If the merge conflicts (for example because `develop` changed the same lines
+after the release pull request was merged), the workflow does not fail, since
+the release is already published. It opens a `main` → `develop` pull request
+and logs a warning; merge that pull request with a merge commit before the next
+release.
+
 ### CMakeLists.txt Version Update
 
 The workflow updates the VERSION in the root CMakeLists.txt:
@@ -312,6 +331,12 @@ If the release was created but has the wrong version:
 3. Manually update `CMakeLists.txt` and `CHANGELOG.md` to correct versions
 
 4. Create a new PR with correct labels
+
+### Workflow warns that `main` could not be merged into `develop`
+
+**Solution:** Merge the `main` → `develop` pull request the workflow opened,
+resolving any conflicts, with a merge commit (not squash). Keep new
+`CHANGELOG.md` entries under `[Unreleased]`, above the released section.
 
 ### Copyright years not updated
 

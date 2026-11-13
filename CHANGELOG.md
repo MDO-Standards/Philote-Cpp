@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The release workflow now merges `main` back into `develop` after every
+  release (opening a pull request if the merge conflicts). Previously the
+  release commit reached only `main`, so `develop` kept the old version and its
+  next changelog entries would have been filed under the already published
+  release instead of `[Unreleased]`.
+- `develop` reports the released library version, 0.5.0, instead of 0.4.0.
+
 ## [0.5.0] - 2025-10-31
 
 ### Added
