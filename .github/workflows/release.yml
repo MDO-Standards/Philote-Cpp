@@ -31,27 +31,10 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Import GPG key for signing
+      # Identity for the annotated release tag. The release commit itself is
+      # created by GitHub (see "Commit and push changes"), not by local git.
+      - name: Configure git identity
         run: |
-          # Create a GPG key for github-actions bot
-          cat >key-config <<EOF
-          %no-protection
-          Key-Type: RSA
-          Key-Length: 4096
-          Name-Real: github-actions[bot]
-          Name-Email: github-actions[bot]@users.noreply.github.com
-          Expire-Date: 0
-          EOF
-
-          gpg --batch --gen-key key-config
-          rm key-config
-
-          # Get the key ID
-          GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | awk '{print $2}' | cut -d'/' -f2)
-
-          # Configure git to use GPG
-          git config --global user.signingkey $GPG_KEY_ID
-          git config --global commit.gpgsign true
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
@@ -231,11 +214,20 @@ jobs:
             ' CHANGELOG.md > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
           fi
 
+      # Create the release commit through GitHub's API rather than pushing a
+      # locally signed one: GitHub signs it, so it is verified and satisfies
+      # "Require signed commits" when main is later merged into develop. A key
+      # generated inside the run is unknown to GitHub and shows as unverified.
       - name: Commit and push changes
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
-          git add -A
-          git commit -S -m "chore: release version ${{ steps.version.outputs.new_version }}"
-          git push origin main
+          python scripts/commit_via_api.py \
+            --repo "$GITHUB_REPOSITORY" --branch main \
+            --message "chore: release version ${{ steps.version.outputs.new_version }}"
+          # Move the checkout onto the new commit so the tag points at it.
+          git fetch origin main
+          git reset --hard origin/main
 
       - name: Create and push tag
         run: |
@@ -261,3 +253,32 @@ jobs:
           body_path: /tmp/release_notes.md
           draft: false
           prerelease: ${{ steps.labels.outputs.is_prerelease == 'true' }}
+
+      # The release commit above exists only on main. Without merging it back,
+      # develop keeps the previous version, and git files the next changelog
+      # entries under the section of the release that was just published.
+      - name: Merge main back into develop
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
+        run: |
+          TITLE="chore: merge release v${NEW_VERSION} back into develop"
+
+          # Server-side merge; succeeds (or reports nothing to merge) unless
+          # the branches conflict or develop's protection refuses the token.
+          if gh api --method POST "repos/${GITHUB_REPOSITORY}/merges" \
+              -f base=develop -f head=main -f commit_message="$TITLE" >/dev/null; then
+            echo "develop now contains the v${NEW_VERSION} release commit"
+            exit 0
+          fi
+
+          # The release is already published, so do not fail the job: hand the
+          # merge to a maintainer through a pull request instead.
+          EXISTING=$(gh pr list --repo "$GITHUB_REPOSITORY" --base develop --head main \
+            --state open --json number --jq '.[0].number')
+          if [ -z "$EXISTING" ]; then
+            gh pr create --repo "$GITHUB_REPOSITORY" --base develop --head main \
+              --title "$TITLE" \
+              --body "The release workflow could not merge main into develop automatically. Merge this pull request (with a merge commit, not squash) so develop carries v${NEW_VERSION} and its changelog section before the next release."
+          fi
+          echo "::warning::main could not be merged into develop automatically; merge the open main -> develop pull request before the next release."
