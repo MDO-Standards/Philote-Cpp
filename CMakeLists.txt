@@ -1,7 +1,7 @@
 #===============================================================================
 #    Philote C++ Bindings
 #
-#    Copyright 2022-2025 Christopher A. Lupp
+#    Copyright 2022-2026 Christopher A. Lupp
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ cmake_minimum_required (VERSION 3.23)
 
 
 project(PhiloteCpp
-    VERSION 0.5.0
+    VERSION 0.6.0
     LANGUAGES CXX
 )
 
