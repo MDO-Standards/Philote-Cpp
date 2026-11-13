@@ -521,12 +521,6 @@ std::string ImplicitTestServerManager::StartServer(std::shared_ptr<ImplicitDisci
     int port = FindAvailablePort();
     address_ = "localhost:" + std::to_string(port);
 
-    // Initialize discipline
-    discipline_->Initialize();
-    discipline_->Configure();
-    discipline_->Setup();
-    discipline_->SetupPartials();
-
     // Build and start server
     grpc::ServerBuilder builder;
     builder.AddListeningPort(address_, grpc::InsecureServerCredentials());
@@ -670,12 +664,6 @@ std::string TestServerManager::StartServer(std::shared_ptr<ExplicitDiscipline> d
     // Find an available port
     int port = FindAvailablePort();
     address_ = "localhost:" + std::to_string(port);
-
-    // Initialize discipline
-    discipline_->Initialize();
-    discipline_->Configure();
-    discipline_->Setup();
-    discipline_->SetupPartials();
 
     // Build and start server
     grpc::ServerBuilder builder;

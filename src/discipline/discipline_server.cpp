@@ -30,6 +30,7 @@
 */
 #include "discipline_server.h"
 #include "discipline.h"
+#include "validation.h"
 
 using std::string;
 using std::vector;
@@ -94,6 +95,12 @@ Status DisciplineServer::SetStreamOptions(ServerContext *context,
                           "Discipline not linked to server");
     }
 
+    if (request == nullptr || request->num_double() <= 0)
+    {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                            "SetStreamOptions: num_double must be positive");
+    }
+
     discipline_->stream_opts() = *request;
 
     return Status::OK;
@@ -109,9 +116,26 @@ grpc::Status DisciplineServer::SetOptions(ServerContext *context,
                           "Discipline not linked to server");
     }
 
-    const Struct &options = request->options();
+    if (request == nullptr)
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "SetOptions: request is null");
 
-    discipline_->SetOptions(options);
+    try
+    {
+        discipline_->SetOptions(request->options());
+    }
+    catch (const PhiloteValidationError &e)
+    {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, e.what());
+    }
+    catch (const std::exception &e)
+    {
+        return grpc::Status(grpc::StatusCode::INTERNAL,
+                            "SetOptions failed: " + string(e.what()));
+    }
+    catch (...)
+    {
+        return grpc::Status(grpc::StatusCode::INTERNAL, "SetOptions failed");
+    }
 
     return Status::OK;
 }
@@ -134,6 +158,16 @@ Status DisciplineServer::GetVariableDefinitions(ServerContext *context,
         {
             return grpc::Status(grpc::StatusCode::INTERNAL,
                               "Failed to write variable metadata for '" + var.name() + "'");
+        }
+    }
+
+    // Stream discrete variable metadata
+    for (const VariableMetaData &var : discipline_->discrete_var_meta())
+    {
+        if (!writer->Write(var))
+        {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                              "Failed to write discrete variable metadata for '" + var.name() + "'");
         }
     }
 
@@ -165,6 +199,101 @@ Status DisciplineServer::GetPartialDefinitions(ServerContext *context,
     return Status::OK;
 }
 
+grpc::Status DisciplineServer::SetVariableShapes(ServerContext *context,
+                                                  grpc::ServerReader<VariableMetaData> *reader,
+                                                  Empty *response)
+{
+    if (discipline_ == nullptr)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                          "Discipline not linked to server");
+    }
+
+    if (reader == nullptr)
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                            "SetVariableShapes: reader is null");
+
+    VariableMetaData meta;
+    while (reader->Read(&meta))
+    {
+        if (meta.name().empty())
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                "SetVariableShapes: variable name must not be empty");
+        if (meta.type() != kInput && meta.type() != kOutput)
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                "SetVariableShapes: variable type must be kInput or kOutput");
+
+        // validate shape has positive dimensions
+        for (int i = 0; i < meta.shape_size(); i++)
+        {
+            if (meta.shape(i) <= 0)
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                  "SetVariableShapes: shape dimensions must be positive for variable '" +
+                                  meta.name() + "'");
+            }
+        }
+
+        // find the matching variable and update its shape
+        bool found = false;
+        for (auto &var : discipline_->var_meta())
+        {
+            if (var.name() == meta.name() && var.type() == meta.type())
+            {
+                if (!var.dynamic_shape())
+                {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                      "Variable '" + meta.name() + "' does not allow dynamic shapes.");
+                }
+                var.clear_shape();
+                for (int i = 0; i < meta.shape_size(); i++)
+                    var.add_shape(meta.shape(i));
+                found = true;
+                break;
+            }
+        }
+
+        if (!found)
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                              "SetVariableShapes: variable '" + meta.name() + "' not found.");
+        }
+
+        // Implicit outputs have a matching residual metadata entry.
+        if (meta.type() == kOutput)
+        {
+            for (auto &var : discipline_->var_meta())
+            {
+                if (var.name() == meta.name() && var.type() == kResidual &&
+                    var.dynamic_shape())
+                {
+                    var.clear_shape();
+                    for (const auto dim : meta.shape())
+                        var.add_shape(dim);
+                    break;
+                }
+            }
+        }
+    }
+
+
+    try
+    {
+        discipline_->RefreshPartialShapes();
+    }
+    catch (const PhiloteValidationError &e)
+    {
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, e.what());
+    }
+    catch (const std::exception &e)
+    {
+        return grpc::Status(grpc::StatusCode::INTERNAL,
+                            "SetVariableShapes failed: " + string(e.what()));
+    }
+
+    return Status::OK;
+}
+
 grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
                                      const Empty *request,
                                      Empty *response)
@@ -175,10 +304,12 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
                           "Discipline not linked to server");
     }
 
-    if (!discipline_->var_meta().empty() or !discipline_->partials_meta().empty())
+    if (!discipline_->var_meta().empty() or !discipline_->partials_meta().empty()
+        or !discipline_->discrete_var_meta().empty())
     {
         // clear any existing meta data
         discipline_->var_meta().clear();
+        discipline_->discrete_var_meta().clear();
         discipline_->partials_meta().clear();
     }
 
@@ -187,9 +318,13 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
     {
         discipline_->Setup();
     }
+    catch (const PhiloteValidationError &e)
+    {
+        return Status(grpc::INVALID_ARGUMENT, e.what());
+    }
     catch (const std::exception &e)
     {
-        return Status(grpc::INTERNAL, "Internal server error during Setup call: exception.");
+        return Status(grpc::INTERNAL, "Setup failed: " + string(e.what()));
     }
     catch (...)
     {
@@ -200,9 +335,13 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
     {
         discipline_->SetupPartials();
     }
+    catch (const PhiloteValidationError &e)
+    {
+        return Status(grpc::INVALID_ARGUMENT, e.what());
+    }
     catch (const std::exception &e)
     {
-        return Status(grpc::INTERNAL, "Internal server error during SetupPartials call: exception.");
+        return Status(grpc::INTERNAL, "SetupPartials failed: " + string(e.what()));
     }
     catch (...)
     {
@@ -234,10 +373,13 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
             response->add_type(philote::DataType::kInt);
         else if (option.second == "double" || option.second == "float")
             response->add_type(philote::DataType::kDouble);
-        else if (option.second == "string")
+        else if (option.second == "str" || option.second == "string")
             response->add_type(philote::DataType::kString);
+        else if (option.second == "dict" || option.second == "struct")
+            response->add_type(philote::DataType::kStruct);
         else
-            response->add_type(philote::DataType::kString); // Default to string for unknown types
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                "Invalid value for discipline option '" + option.first + "'");
     }
 
     return Status::OK;

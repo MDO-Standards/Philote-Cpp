@@ -79,12 +79,19 @@ namespace philote
          * @return
          */
         std::map<std::string, std::string> &options_list();
+        const std::map<std::string, std::string> &options_list() const noexcept { return options_list_; }
 
         /**
          * @brief Accesses the variable meta data
          */
         std::vector<philote::VariableMetaData> &var_meta() { return var_meta_; }
         const std::vector<philote::VariableMetaData> &var_meta() const noexcept { return var_meta_; }
+
+        /**
+         * @brief Accesses the discrete variable meta data
+         */
+        std::vector<philote::VariableMetaData> &discrete_var_meta() { return discrete_var_meta_; }
+        const std::vector<philote::VariableMetaData> &discrete_var_meta() const noexcept { return discrete_var_meta_; }
 
         /**
          * @brief Accesses the partials meta data
@@ -114,7 +121,8 @@ namespace philote
          */
         void AddInput(const std::string &name,
                       const std::vector<int64_t> &shape,
-                      const std::string &units);
+                      const std::string &units,
+                      bool dynamic_shape = false);
 
         /**
          * @brief Declares an output
@@ -123,7 +131,22 @@ namespace philote
          */
         void AddOutput(const std::string &name,
                        const std::vector<int64_t> &shape,
-                       const std::string &units);
+                       const std::string &units,
+                       bool dynamic_shape = false);
+
+        /**
+         * @brief Declares a discrete input
+         *
+         * @param name The name of the discrete input variable
+         */
+        void AddDiscreteInput(const std::string &name);
+
+        /**
+         * @brief Declares a discrete output
+         *
+         * @param name The name of the discrete output variable
+         */
+        void AddDiscreteOutput(const std::string &name);
 
         /**
          * @brief Declare a (set of) partial(s) for the discipline
@@ -140,6 +163,16 @@ namespace philote
          * @param type Option type as string (e.g., "bool", "int", "float", "string")
          */
         void AddOption(const std::string &name, const std::string &type);
+
+        /**
+         * @brief Recompute derivative shapes from the current variable metadata.
+         *
+         * This is primarily used after dynamic variable shapes have been
+         * resolved by SetVariableShapes.  It is harmless for static-shape
+         * disciplines and keeps PartialsMetaData interoperable with bindings
+         * (including Philote-Python) that derive Jacobian shapes at runtime.
+         */
+        void RefreshPartialShapes();
 
         /**
          * @brief Initialize function that sets up available options
@@ -249,6 +282,9 @@ namespace philote
         //! List of variable meta data
         std::vector<philote::VariableMetaData> var_meta_;
 
+        //! List of discrete variable meta data
+        std::vector<philote::VariableMetaData> discrete_var_meta_;
+
         //! List of partials meta data
         std::vector<philote::PartialsMetaData> partials_meta_;
 
@@ -260,6 +296,9 @@ namespace philote
 
         //! Current gRPC server context for cancellation detection (mutable for const correctness)
         mutable grpc::ServerContext* current_context_ = nullptr;
+
+        //! Whether output variables also define residual variables.
+        bool is_implicit_ = false;
     };
 
 }

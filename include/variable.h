@@ -32,7 +32,10 @@
 
 #include <string>
 #include <map>
+#include <optional>
 #include <vector>
+
+#include <google/protobuf/struct.pb.h>
 
 #include <data.pb.h>
 #include <disciplines.grpc.pb.h>
@@ -224,6 +227,24 @@ namespace philote
                   const size_t &chunk_size) const;
 
         /**
+         * @brief Sends the variable wrapped in VariableMessage (server to client)
+         */
+        void Send(std::string name,
+                  std::string subname,
+                  grpc::ServerReaderWriterInterface<::philote::VariableMessage, ::philote::VariableMessage> *stream,
+                  const size_t &chunk_size,
+                  grpc::ServerContext* context = nullptr) const;
+
+        /**
+         * @brief Sends the variable wrapped in VariableMessage (client to server)
+         */
+        void Send(std::string name,
+                  std::string subname,
+                  grpc::ClientReaderWriterInterface<::philote::VariableMessage, ::philote::VariableMessage> *stream,
+                  const size_t &chunk_size,
+                  std::optional<VariableType> wire_type = std::nullopt) const;
+
+        /**
          * @brief Assigns a chunk to the variable
          *
          * @param stream
@@ -404,4 +425,5 @@ namespace philote
     typedef std::map<std::string, philote::Variable> Variables;
     typedef std::map<std::pair<std::string, std::string>, philote::Variable> Partials;
     typedef PairDict<philote::Variable> PartialsPairDict;
+    typedef std::map<std::string, google::protobuf::Value> DiscreteVariables;
 }

@@ -37,6 +37,7 @@
 #include <disciplines.grpc.pb.h>
 #include <chrono>
 #include <memory>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -80,6 +81,11 @@ namespace philote
         void SendStreamOptions();
 
         /**
+         * @brief Query the option names and canonical Philote type names.
+         */
+        void GetAvailableOptions();
+
+        /**
          * @brief Send the discipline options to the server
          *
          * @param options
@@ -103,6 +109,29 @@ namespace philote
          *
          */
         void GetPartialDefinitions();
+
+        /**
+         * @brief Get variables that have dynamic_shape set to true
+         *
+         * @return std::vector<VariableMetaData> List of dynamic-shape variables
+         */
+        std::vector<VariableMetaData> GetDynamicVariables();
+
+        /**
+         * @brief Send resolved shapes for dynamic-shape variables to the server
+         *
+         * Must be called after GetVariableDefinitions and before compute RPCs.
+         *
+         * @param shapes List of VariableMetaData with resolved shapes
+         */
+        void SendVariableShapes(const std::vector<VariableMetaData> &shapes);
+
+        /**
+         * @brief Create metadata suitable for SendVariableShapes.
+         */
+        VariableMetaData CreateVariableShape(const std::string &name,
+                                             const std::vector<int64_t> &shape,
+                                             VariableType type = VariableType::kInput) const;
 
         /**
          * @brief Get the variable names
@@ -179,11 +208,30 @@ namespace philote
         void SetVariableMeta(const std::vector<VariableMetaData> &meta) { var_meta_ = meta; }
 
         /**
+         * @brief Get the discrete variable metadata
+         *
+         * @return const std::vector<VariableMetaData>&
+         */
+        const std::vector<VariableMetaData> &GetDiscreteVariableMetaAll() const noexcept { return discrete_var_meta_; }
+
+        /**
+         * @brief Set the discrete variable metadata
+         *
+         * @param meta
+         */
+        void SetDiscreteVariableMeta(const std::vector<VariableMetaData> &meta) { discrete_var_meta_ = meta; }
+
+        /**
          * @brief Get the partials metadata (const version)
          *
          * @return const std::vector<PartialsMetaData>&
          */
         const std::vector<PartialsMetaData> &GetPartialsMetaConst() const noexcept { return partials_meta_; }
+
+        /**
+         * @brief Get the available option names and canonical type strings.
+         */
+        const std::map<std::string, std::string> &GetOptionsList() const noexcept { return options_list_; }
 
         /**
          * @brief Set the partials metadata
@@ -219,10 +267,19 @@ namespace philote
         //! Variable meta data
         std::vector<philote::VariableMetaData> var_meta_;
 
+        //! Discrete variable meta data
+        std::vector<philote::VariableMetaData> discrete_var_meta_;
+
         //! Partials meta data
         std::vector<philote::PartialsMetaData> partials_meta_;
 
+        //! Available option definitions returned by GetAvailableOptions.
+        std::map<std::string, std::string> options_list_;
+
         //! RPC timeout in milliseconds (default: 60 seconds)
         std::chrono::milliseconds rpc_timeout_{60000};
+
+        //! Recompute partial shapes from local variable metadata.
+        void RefreshPartialShapes();
     };
 } // namespace philote

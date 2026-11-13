@@ -180,7 +180,7 @@ protected:
 TEST_F(SimpleImplicitTest, VariableSetup)
 {
     const auto &var_meta = discipline->var_meta();
-    ASSERT_EQ(var_meta.size(), 2);
+    ASSERT_EQ(var_meta.size(), 3);
 
     // Check input variable
     EXPECT_EQ(var_meta[0].name(), "x");
@@ -195,6 +195,13 @@ TEST_F(SimpleImplicitTest, VariableSetup)
     EXPECT_EQ(var_meta[1].units(), "m^2");
     ASSERT_EQ(var_meta[1].shape_size(), 1);
     EXPECT_EQ(var_meta[1].shape(0), 2);
+
+    // Philote 0.8 advertises residual metadata for implicit outputs.
+    EXPECT_EQ(var_meta[2].name(), "y");
+    EXPECT_EQ(var_meta[2].type(), kResidual);
+    EXPECT_EQ(var_meta[2].units(), "m^2");
+    ASSERT_EQ(var_meta[2].shape_size(), 1);
+    EXPECT_EQ(var_meta[2].shape(0), 2);
 }
 
 // Test partials setup
@@ -303,7 +310,7 @@ TEST_F(SimpleImplicitTest, ComputeResidualGradients)
 TEST_F(ComplexImplicitTest, VariableSetup)
 {
     const auto &var_meta = discipline->var_meta();
-    ASSERT_EQ(var_meta.size(), 4);
+    ASSERT_EQ(var_meta.size(), 5);
 
     // Check input variables
     EXPECT_EQ(var_meta[0].name(), "a");
@@ -330,6 +337,12 @@ TEST_F(ComplexImplicitTest, VariableSetup)
     EXPECT_EQ(var_meta[3].units(), "");
     ASSERT_EQ(var_meta[3].shape_size(), 1);
     EXPECT_EQ(var_meta[3].shape(0), 2);
+
+    EXPECT_EQ(var_meta[4].name(), "x");
+    EXPECT_EQ(var_meta[4].type(), kResidual);
+    EXPECT_EQ(var_meta[4].units(), "");
+    ASSERT_EQ(var_meta[4].shape_size(), 1);
+    EXPECT_EQ(var_meta[4].shape(0), 2);
 }
 
 // Test complex discipline partials setup

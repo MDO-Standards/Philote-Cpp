@@ -11,7 +11,7 @@ After installation, you can use CMake's `find_package()` to easily link against 
 
 Before installing Philote-Cpp, ensure you have:
 
-- **C++20 compliant compiler** (gcc-12+, clang-16+, or equivalent)
+- **C++17 compliant compiler** (gcc-12+, clang-16+, or equivalent)
 - **CMake 3.23 or higher**
 - **gRPC** and **Protocol Buffers** installed on your system
 

@@ -35,6 +35,7 @@
 #include <gmock/gmock.h>
 
 #include <variable.h>
+#include <validation.h>
 #include <disciplines.grpc.pb.h>
 
 using std::vector;
@@ -382,7 +383,7 @@ TEST(VariableTests, MetadataEdgeCases)
 	philote::VariableMetaData neg_dim_meta;
 	neg_dim_meta.set_type(philote::kInput);
 	neg_dim_meta.add_shape(-1);
-	EXPECT_THROW((Variable(neg_dim_meta)), std::length_error);
+	EXPECT_THROW((Variable(neg_dim_meta)), PhiloteValidationError);
 }
 
 /*

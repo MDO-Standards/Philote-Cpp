@@ -271,3 +271,119 @@ TEST_F(DisciplineClientTest, GetVariableMetaNonExistent)
     client_->GetVariableDefinitions();
     EXPECT_THROW(client_->GetVariableMeta("non_existent_var"), std::runtime_error);
 }
+
+// ============================================================================
+// GetVariableDefinitions separates discrete variables
+// ============================================================================
+
+TEST_F(DisciplineClientTest, GetVariableDefinitionsSeparatesDiscreteVars)
+{
+    auto mock_reader_ptr = new MockReader<philote::VariableMetaData>();
+
+    philote::VariableMetaData continuous_var;
+    continuous_var.set_name("x");
+    continuous_var.set_type(philote::kInput);
+
+    philote::VariableMetaData discrete_var;
+    discrete_var.set_name("mode");
+    discrete_var.set_type(philote::kDiscreteInput);
+
+    philote::VariableMetaData continuous_out;
+    continuous_out.set_name("y");
+    continuous_out.set_type(philote::kOutput);
+
+    philote::VariableMetaData discrete_out;
+    discrete_out.set_name("status");
+    discrete_out.set_type(philote::kDiscreteOutput);
+
+    EXPECT_CALL(*mock_stub_, GetVariableDefinitionsRaw(_, _))
+        .WillOnce(Return(mock_reader_ptr));
+    EXPECT_CALL(*mock_reader_ptr, Read(_))
+        .WillOnce(DoAll(SetArgPointee<0>(continuous_var), Return(true)))
+        .WillOnce(DoAll(SetArgPointee<0>(discrete_var), Return(true)))
+        .WillOnce(DoAll(SetArgPointee<0>(continuous_out), Return(true)))
+        .WillOnce(DoAll(SetArgPointee<0>(discrete_out), Return(true)))
+        .WillOnce(Return(false));
+    EXPECT_CALL(*mock_reader_ptr, Finish())
+        .WillOnce(Return(grpc::Status::OK));
+
+    client_->GetVariableDefinitions();
+
+    // Continuous variables
+    auto vars = client_->GetVariableMetaAll();
+    EXPECT_EQ(vars.size(), 2);
+    EXPECT_EQ(vars[0].name(), "x");
+    EXPECT_EQ(vars[1].name(), "y");
+
+    // Discrete variables
+    auto discrete = client_->GetDiscreteVariableMetaAll();
+    EXPECT_EQ(discrete.size(), 2);
+    EXPECT_EQ(discrete[0].name(), "mode");
+    EXPECT_EQ(discrete[1].name(), "status");
+}
+
+// ============================================================================
+// GetDynamicVariables
+// ============================================================================
+
+TEST_F(DisciplineClientTest, GetDynamicVariablesReturnsOnlyDynamic)
+{
+    // Manually populate variable metadata
+    std::vector<philote::VariableMetaData> meta;
+
+    philote::VariableMetaData static_var;
+    static_var.set_name("x");
+    static_var.set_type(philote::kInput);
+    static_var.set_dynamic_shape(false);
+    static_var.add_shape(3);
+    meta.push_back(static_var);
+
+    philote::VariableMetaData dynamic_var;
+    dynamic_var.set_name("y");
+    dynamic_var.set_type(philote::kInput);
+    dynamic_var.set_dynamic_shape(true);
+    meta.push_back(dynamic_var);
+
+    client_->SetVariableMeta(meta);
+
+    auto dynamic = client_->GetDynamicVariables();
+    ASSERT_EQ(dynamic.size(), 1);
+    EXPECT_EQ(dynamic[0].name(), "y");
+    EXPECT_TRUE(dynamic[0].dynamic_shape());
+}
+
+TEST_F(DisciplineClientTest, GetDynamicVariablesEmptyWhenNoneDynamic)
+{
+    std::vector<philote::VariableMetaData> meta;
+
+    philote::VariableMetaData var;
+    var.set_name("x");
+    var.set_type(philote::kInput);
+    var.set_dynamic_shape(false);
+    var.add_shape(2);
+    meta.push_back(var);
+
+    client_->SetVariableMeta(meta);
+
+    auto dynamic = client_->GetDynamicVariables();
+    EXPECT_TRUE(dynamic.empty());
+}
+
+// ============================================================================
+// Discrete variable metadata accessors
+// ============================================================================
+
+TEST_F(DisciplineClientTest, DiscreteVariableMetaAccessors)
+{
+    std::vector<philote::VariableMetaData> discrete;
+    philote::VariableMetaData var;
+    var.set_name("mode");
+    var.set_type(philote::kDiscreteInput);
+    discrete.push_back(var);
+
+    client_->SetDiscreteVariableMeta(discrete);
+
+    auto result = client_->GetDiscreteVariableMetaAll();
+    ASSERT_EQ(result.size(), 1);
+    EXPECT_EQ(result[0].name(), "mode");
+}

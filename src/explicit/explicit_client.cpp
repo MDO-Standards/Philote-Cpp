@@ -29,6 +29,7 @@
     control over the information you may find at these locations.
 */
 #include "explicit.h"
+#include "validation.h"
 
 #include <data.pb.h>
 #include <disciplines.pb.h>
@@ -38,6 +39,7 @@ using grpc::ChannelInterface;
 
 using philote::Array;
 using philote::ExplicitClient;
+using philote::VariableMessage;
 using philote::VariableMetaData;
 
 using std::make_pair;
@@ -54,12 +56,20 @@ void ExplicitClient::ConnectChannel(std::shared_ptr<ChannelInterface> channel)
 
 philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
 {
+    DiscreteVariables discrete_outputs;
+    return ComputeFunction(inputs, {}, discrete_outputs);
+}
+
+philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs,
+                                                   const DiscreteVariables &discrete_inputs,
+                                                   DiscreteVariables &discrete_outputs)
+{
     grpc::ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
-    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
+    std::unique_ptr<grpc::ClientReaderWriterInterface<VariableMessage, VariableMessage>>
         stream(stub_->ComputeFunction(&context));
 
-    // send/assign inputs and preallocate outputs
+    // send/assign continuous inputs and preallocate outputs
     Variables outputs;
 
     for (const VariableMetaData &var : GetVariableMetaAll())
@@ -70,21 +80,44 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
         {
             // Only send if the input was actually provided
             if (inputs.count(name) > 0)
-                inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
+                inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double(), kInput);
         }
 
         if (var.type() == kOutput)
             outputs[var.name()] = Variable(var);
     }
 
+    // send discrete inputs
+    for (const auto &[name, value] : discrete_inputs)
+    {
+        VariableMessage msg;
+        DiscreteVariable *dv = msg.mutable_discrete();
+        dv->set_name(name);
+        dv->set_type(VariableType::kDiscreteInput);
+        *dv->mutable_value() = value;
+        if (!stream->Write(msg))
+            throw PhiloteServerError("Failed to write discrete input '" + name + "'");
+    }
+
     // finish streaming data to the server
     stream->WritesDone();
 
-    Array result;
+    VariableMessage result;
     while (stream->Read(&result))
     {
-        const string &name = result.name();
-        outputs[name].AssignChunk(result);
+        if (result.has_continuous())
+        {
+            const Array &array = result.continuous();
+            const string &name = array.name();
+            if (outputs.find(name) == outputs.end())
+                throw PhiloteServerError("Unexpected output variable received: " + name);
+            outputs[name].AssignChunk(array);
+        }
+        else if (result.has_discrete())
+        {
+            const DiscreteVariable &dv = result.discrete();
+            discrete_outputs[dv.name()] = dv.value();
+        }
     }
 
     grpc::Status status = stream->Finish();
@@ -92,11 +125,11 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
     {
         if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
         {
-            throw std::runtime_error("RPC timeout after " +
+            throw PhiloteServerError("RPC timeout after " +
                                    std::to_string(GetRPCTimeout().count()) +
                                    "ms: " + status.error_message());
         }
-        throw std::runtime_error("ComputeFunction RPC failed: [" +
+        throw PhiloteServerError("ComputeFunction RPC failed: [" +
                                  std::to_string(status.error_code()) + "] " +
                                  status.error_message());
     }
@@ -106,12 +139,18 @@ philote::Variables ExplicitClient::ComputeFunction(const Variables &inputs)
 
 philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
 {
+    return ComputeGradient(inputs, {});
+}
+
+philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs,
+                                                   const DiscreteVariables &discrete_inputs)
+{
     grpc::ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() + GetRPCTimeout());
-    std::unique_ptr<grpc::ClientReaderWriterInterface<Array, Array>>
+    std::unique_ptr<grpc::ClientReaderWriterInterface<VariableMessage, VariableMessage>>
         stream(stub_->ComputeGradient(&context));
 
-    // send/assign inputs
+    // send/assign continuous inputs
     for (const VariableMetaData &var : GetVariableMetaAll())
     {
         const string name = var.name();
@@ -120,8 +159,20 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
         {
             // Only send if the input was actually provided
             if (inputs.count(name) > 0)
-                inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double());
+                inputs.at(name).Send(name, "", stream.get(), GetStreamOptions().num_double(), kInput);
         }
+    }
+
+    // send discrete inputs
+    for (const auto &[name, value] : discrete_inputs)
+    {
+        VariableMessage msg;
+        DiscreteVariable *dv = msg.mutable_discrete();
+        dv->set_name(name);
+        dv->set_type(VariableType::kDiscreteInput);
+        *dv->mutable_value() = value;
+        if (!stream->Write(msg))
+            throw PhiloteServerError("Failed to write discrete input '" + name + "'");
     }
 
     // finish streaming data to the server
@@ -135,13 +186,20 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
     }
 
     // process messages from server
-    Array result;
+    VariableMessage result;
     while (stream->Read(&result))
     {
-        const string name = result.name();
-        const string subname = result.subname();
-
-        partials[make_pair(name, subname)].AssignChunk(result);
+        if (result.has_continuous())
+        {
+            const Array &array = result.continuous();
+            const string name = array.name();
+            const string subname = array.subname();
+            const auto key = make_pair(name, subname);
+            if (partials.find(key) == partials.end())
+                throw PhiloteServerError("Unexpected partial received: " + name + "/" + subname);
+            partials[key].AssignChunk(array);
+        }
+        // discrete messages are not expected in gradient responses
     }
 
     grpc::Status status = stream->Finish();
@@ -149,11 +207,11 @@ philote::Partials ExplicitClient::ComputeGradient(const Variables &inputs)
     {
         if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED)
         {
-            throw std::runtime_error("RPC timeout after " +
+            throw PhiloteServerError("RPC timeout after " +
                                    std::to_string(GetRPCTimeout().count()) +
                                    "ms: " + status.error_message());
         }
-        throw std::runtime_error("ComputeGradient RPC failed: [" +
+        throw PhiloteServerError("ComputeGradient RPC failed: [" +
                                  std::to_string(status.error_code()) + "] " +
                                  status.error_message());
     }

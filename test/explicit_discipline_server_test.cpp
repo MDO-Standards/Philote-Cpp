@@ -23,6 +23,7 @@
 
 #include "explicit.h"
 #include "test_helpers.h"
+#include "data.pb.h"
 
 using namespace philote;
 using namespace philote::test;
@@ -33,10 +34,10 @@ using namespace testing;
 // ============================================================================
 
 // Mock for grpc::ServerReaderWriterInterface
-class MockServerReaderWriter : public grpc::ServerReaderWriterInterface<philote::Array, philote::Array> {
+class MockServerReaderWriter : public grpc::ServerReaderWriterInterface<philote::VariableMessage, philote::VariableMessage> {
 public:
-    MOCK_METHOD(bool, Read, (philote::Array*), (override));
-    MOCK_METHOD(bool, Write, (const philote::Array&, grpc::WriteOptions), (override));
+    MOCK_METHOD(bool, Read, (philote::VariableMessage*), (override));
+    MOCK_METHOD(bool, Write, (const philote::VariableMessage&, grpc::WriteOptions), (override));
     MOCK_METHOD(void, SendInitialMetadata, (), (override));
     MOCK_METHOD(bool, NextMessageSize, (uint32_t*), (override));
 };
@@ -160,7 +161,8 @@ TEST_F(ExplicitServerTest, ComputeFunctionVariableNotFound) {
 
     // Mock receiving an unknown variable - server should fail immediately
     EXPECT_CALL(*stream, Read(_))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("unknown_variable");
             array->set_type(VariableType::kInput);
@@ -183,7 +185,8 @@ TEST_F(ExplicitServerTest, ComputeFunctionInvalidVariableType) {
 
     // Mock receiving an output variable as input (invalid) - server should fail immediately
     EXPECT_CALL(*stream, Read(_))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("f");  // This is an output in ParaboloidDiscipline
             array->set_type(VariableType::kOutput);  // Wrong type
@@ -210,7 +213,8 @@ TEST_F(ExplicitServerTest, ComputeFunctionSimpleScalar) {
 
     // Mock receiving inputs (x=3.0, y=4.0)
     EXPECT_CALL(*stream, Read(_))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("x");
             array->set_type(VariableType::kInput);
@@ -219,7 +223,8 @@ TEST_F(ExplicitServerTest, ComputeFunctionSimpleScalar) {
             array->add_data(3.0);
             return true;
         }))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("y");
             array->set_type(VariableType::kInput);
@@ -232,7 +237,8 @@ TEST_F(ExplicitServerTest, ComputeFunctionSimpleScalar) {
 
     // Mock sending output (f = 3^2 + 4^2 = 25)
     EXPECT_CALL(*stream, Write(_, _))
-        .WillOnce(Invoke([](const philote::Array& array, grpc::WriteOptions) {
+        .WillOnce(Invoke([](const philote::VariableMessage& msg, grpc::WriteOptions) {
+            const auto& array = msg.continuous();
             EXPECT_EQ(array.name(), "f");
             EXPECT_EQ(array.data_size(), 1);
             EXPECT_DOUBLE_EQ(array.data(0), 25.0);
@@ -256,14 +262,16 @@ TEST_F(ExplicitServerTest, ComputeFunctionMultiOutput) {
 
     // Mock receiving inputs (x=5.0, y=3.0)
     EXPECT_CALL(*stream, Read(_))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("x");
             array->set_type(VariableType::kInput);
             array->add_data(5.0);
             return true;
         }))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("y");
             array->set_type(VariableType::kInput);
@@ -275,7 +283,8 @@ TEST_F(ExplicitServerTest, ComputeFunctionMultiOutput) {
     // Mock sending 3 outputs: sum=8, product=15, difference=2
     EXPECT_CALL(*stream, Write(_, _))
         .Times(3)
-        .WillRepeatedly(Invoke([](const philote::Array& array, grpc::WriteOptions) {
+        .WillRepeatedly(Invoke([](const philote::VariableMessage& msg, grpc::WriteOptions) {
+            const auto& array = msg.continuous();
             if (array.name() == "sum") {
                 EXPECT_DOUBLE_EQ(array.data(0), 8.0);
             } else if (array.name() == "product") {
@@ -304,7 +313,8 @@ TEST_F(ExplicitServerTest, ComputeFunctionVectorData) {
 
     // Mock receiving vector/matrix inputs
     EXPECT_CALL(*stream, Read(_))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("A");  // 2x3 matrix = 6 elements
             array->set_type(VariableType::kInput);
@@ -318,7 +328,8 @@ TEST_F(ExplicitServerTest, ComputeFunctionVectorData) {
             array->add_data(6.0);
             return true;
         }))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("x");  // 3-vector = 3 elements
             array->set_type(VariableType::kInput);
@@ -329,7 +340,8 @@ TEST_F(ExplicitServerTest, ComputeFunctionVectorData) {
             array->add_data(1.0);
             return true;
         }))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("b");  // 2-vector = 2 elements
             array->set_type(VariableType::kInput);
@@ -343,7 +355,8 @@ TEST_F(ExplicitServerTest, ComputeFunctionVectorData) {
 
     // Mock sending output z = A*x + b (sent in one chunk with default chunk_size=1000)
     EXPECT_CALL(*stream, Write(_, _))
-        .WillOnce(Invoke([](const philote::Array& array, grpc::WriteOptions) {
+        .WillOnce(Invoke([](const philote::VariableMessage& msg, grpc::WriteOptions) {
+            const auto& array = msg.continuous();
             EXPECT_EQ(array.name(), "z");
             EXPECT_EQ(array.data_size(), 2);
             // z[0] = 1*1 + 2*1 + 3*1 + 1 = 7
@@ -382,7 +395,8 @@ TEST_F(ExplicitServerTest, ComputeFunctionComputeThrows) {
     auto stream = std::make_unique<MockServerReaderWriter>();
 
     EXPECT_CALL(*stream, Read(_))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("x");
             array->set_type(VariableType::kInput);
@@ -431,7 +445,8 @@ TEST_F(ExplicitServerTest, ComputeGradientVariableNotFound) {
 
     // Mock receiving an invalid variable - server should fail immediately
     EXPECT_CALL(*stream, Read(_))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("invalid_var");
             array->set_type(VariableType::kInput);
@@ -457,14 +472,16 @@ TEST_F(ExplicitServerTest, ComputeGradientSimpleScalar) {
 
     // Mock receiving inputs (x=3.0, y=4.0)
     EXPECT_CALL(*stream, Read(_))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("x");
             array->set_type(VariableType::kInput);
             array->add_data(3.0);
             return true;
         }))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("y");
             array->set_type(VariableType::kInput);
@@ -476,7 +493,8 @@ TEST_F(ExplicitServerTest, ComputeGradientSimpleScalar) {
     // Mock sending 2 partials: df/dx = 2*3 = 6, df/dy = 2*4 = 8
     EXPECT_CALL(*stream, Write(_, _))
         .Times(2)
-        .WillRepeatedly(Invoke([](const philote::Array& array, grpc::WriteOptions) {
+        .WillRepeatedly(Invoke([](const philote::VariableMessage& msg, grpc::WriteOptions) {
+            const auto& array = msg.continuous();
             if (array.name() == "f" && array.subname() == "x") {
                 EXPECT_DOUBLE_EQ(array.data(0), 6.0);
             } else if (array.name() == "f" && array.subname() == "y") {
@@ -503,13 +521,15 @@ TEST_F(ExplicitServerTest, ComputeGradientMultiplePartials) {
 
     // Mock receiving inputs (x=5.0, y=3.0)
     EXPECT_CALL(*stream, Read(_))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("x");
             array->add_data(5.0);
             return true;
         }))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("y");
             array->add_data(3.0);
@@ -520,7 +540,8 @@ TEST_F(ExplicitServerTest, ComputeGradientMultiplePartials) {
     // Mock sending 6 partials (3 outputs x 2 inputs)
     EXPECT_CALL(*stream, Write(_, _))
         .Times(6)
-        .WillRepeatedly(Invoke([](const philote::Array& array, grpc::WriteOptions) {
+        .WillRepeatedly(Invoke([](const philote::VariableMessage& msg, grpc::WriteOptions) {
+            const auto& array = msg.continuous();
             // Verify expected partial values based on MultiOutputDiscipline
             if (array.name() == "sum") {
                 EXPECT_DOUBLE_EQ(array.data(0), 1.0);  // d(sum)/dx = 1, d(sum)/dy = 1
@@ -575,7 +596,8 @@ TEST_F(ExplicitServerTest, ComputeGradientComputePartialsThrows) {
     auto stream = std::make_unique<MockServerReaderWriter>();
 
     EXPECT_CALL(*stream, Read(_))
-        .WillOnce(Invoke([](philote::Array* array) {
+        .WillOnce(Invoke([](philote::VariableMessage* msg) {
+            auto* array = msg->mutable_continuous();
             array->Clear();  // Clear any previous data
             array->set_name("x");
             array->add_data(1.0);

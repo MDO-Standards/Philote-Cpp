@@ -35,6 +35,12 @@ add_library(PhiloteTestHelpers test_helpers.cpp)
 target_link_libraries(PhiloteTestHelpers PUBLIC PhiloteCpp GTest::gtest GTest::gmock)
 target_include_directories(PhiloteTestHelpers PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+# validation tests
+add_executable(ValidationTests validation_tests.cpp)
+target_link_libraries(ValidationTests PhiloteCpp GTest::gtest_main GTest::gmock)
+enable_coverage(ValidationTests)
+gtest_discover_tests(ValidationTests)
+
 # array tests
 add_executable(VariableTests variable_tests.cpp)
 target_link_libraries(VariableTests PhiloteCpp GTest::gtest_main GTest::gmock)
@@ -190,19 +196,53 @@ target_include_directories(ImplicitClientTests PRIVATE
 gtest_discover_tests(ImplicitClientTests)
 
 # implicit integration tests
-# Temporarily disabled - needs investigation of server/client communication issues
-# add_executable(ImplicitIntegrationTests implicit_integration_test.cpp)
-# target_link_libraries(ImplicitIntegrationTests
-#     PhiloteCpp
-#     PhiloteTestHelpers
-#     GTest::gtest_main
-#     GTest::gmock
-# )
-# enable_coverage(ImplicitIntegrationTests)
-# target_include_directories(ImplicitIntegrationTests PRIVATE
-#     ${CMAKE_SOURCE_DIR}/src/implicit
-# )
-# gtest_discover_tests(ImplicitIntegrationTests)
+add_executable(ImplicitIntegrationTests implicit_integration_test.cpp)
+target_link_libraries(ImplicitIntegrationTests
+    PhiloteTestHelpers
+    GTest::gtest_main
+    GTest::gmock
+)
+enable_coverage(ImplicitIntegrationTests)
+target_include_directories(ImplicitIntegrationTests PRIVATE
+    ${CMAKE_SOURCE_DIR}/src/implicit
+)
+gtest_discover_tests(ImplicitIntegrationTests)
+
+# Philote 0.8 feature-parity integration tests
+add_executable(ProtocolParityIntegrationTests protocol_parity_integration_test.cpp)
+target_link_libraries(ProtocolParityIntegrationTests
+    PhiloteTestHelpers
+    GTest::gtest_main
+    GTest::gmock
+)
+enable_coverage(ProtocolParityIntegrationTests)
+gtest_discover_tests(ProtocolParityIntegrationTests)
+
+# Optional bidirectional tests against a sibling Philote-Python checkout.
+set(PHILOTE_PYTHON_SOURCE_DIR
+    "${CMAKE_SOURCE_DIR}/../Philote-Python"
+    CACHE PATH "Path to a Philote-Python source checkout for interoperability tests")
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND AND
+   EXISTS "${PHILOTE_PYTHON_SOURCE_DIR}/philote_mdo/general/discipline.py")
+    add_executable(PythonInteropServer python_interop_server.cpp)
+    target_link_libraries(PythonInteropServer PhiloteCpp)
+    add_executable(PythonInteropClient python_interop_client.cpp)
+    target_link_libraries(PythonInteropClient PhiloteCpp)
+
+    add_test(
+        NAME PythonInteropTest
+        COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/python_interop_test.py
+            --python-source ${PHILOTE_PYTHON_SOURCE_DIR}
+            --cpp-server $<TARGET_FILE:PythonInteropServer>
+            --cpp-client $<TARGET_FILE:PythonInteropClient>
+    )
+    set_tests_properties(PythonInteropTest PROPERTIES
+        TIMEOUT 30
+        SKIP_RETURN_CODE 77
+    )
+endif()
 
 # implicit error scenarios tests
 add_executable(ImplicitErrorScenariosTests implicit_error_scenarios_test.cpp)

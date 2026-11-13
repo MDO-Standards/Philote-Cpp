@@ -89,7 +89,7 @@ int main()
     // get the partials meta data from the server
     client.GetPartialDefinitions();
 
-    auto partials_meta = client.partials_meta();
+    auto partials_meta = client.GetPartialsMeta();
 
     cout << endl;
     cout << "Partials Meta" << endl
