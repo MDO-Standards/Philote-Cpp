@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   next changelog entries would have been filed under the already published
   release instead of `[Unreleased]`.
 - `develop` reports the released library version, 0.5.0, instead of 0.4.0.
+- Release commits are now created through GitHub's API and signed by GitHub,
+  so they show as verified. They were signed with a GPG key generated inside
+  the workflow run, which GitHub cannot verify, so merging a release back into
+  `develop` (which requires signed commits) needed an admin bypass.
 - `Variable::Send` no longer drops the last chunk when an array's size is not a
   multiple of the chunk size; it used truncating division, so for example 549
   of 3549 Jacobian entries were silently lost at a chunk size of 1000.

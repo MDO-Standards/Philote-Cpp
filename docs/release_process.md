@@ -11,8 +11,9 @@ Philote-Cpp uses an automated release workflow that is triggered when a pull req
 3. Updates copyright years (stable releases only)
 4. Updates version in `CMakeLists.txt`
 5. Updates `CHANGELOG.md`
-6. Creates a signed git commit and tag
-7. Pushes directly to `main` (using PAT with write permissions)
+6. Creates the release commit on `main` through the GitHub API (using the PAT),
+   so GitHub signs it and it shows as verified
+7. Creates and pushes an annotated tag for that commit
 8. Creates a GitHub Release
 9. Merges `main` back into `develop`
 
@@ -50,7 +51,12 @@ The workflow requires a fine-grained Personal Access Token with permissions to p
 
 The following protections should be enabled:
 - "Require pull requests before merging" - Enabled
-- "Require signed commits" - Enabled (workflow creates GPG-signed commits)
+- "Require signed commits" - Enabled. The workflow does not sign anything
+  locally: it creates the release commit with the GraphQL
+  `createCommitOnBranch` mutation (`scripts/commit_via_api.py`), which GitHub
+  signs. A key generated inside the workflow run would be unknown to GitHub, so
+  its commits would show as unverified and could not be merged into `develop`,
+  which also requires signed commits, without an admin bypass
 
 ### 3. Repository Labels
 
