@@ -129,7 +129,7 @@ TEST_F(ExplicitClientTest, ComputeFunctionSimpleScalar) {
     SetupSimpleDisciplineMetadata();
 
     // Create mock stream
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     // Expect Write call for input 'x'
     EXPECT_CALL(*mock_stream, Write(_, _))
@@ -141,13 +141,14 @@ TEST_F(ExplicitClientTest, ComputeFunctionSimpleScalar) {
 
     // Mock reading output 'y'
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
-            result->Clear();
-            result->set_name("y");
-            result->set_subname("");
-            result->set_start(0);
-            result->set_end(0);
-            result->add_data(42.0);
+        .WillOnce(Invoke([](VariableMessage* result) {
+            Array* arr = result->mutable_continuous();
+            arr->Clear();
+            arr->set_name("y");
+            arr->set_subname("");
+            arr->set_start(0);
+            arr->set_end(0);
+            arr->add_data(42.0);
             return true;
         }))
         .WillOnce(Return(false));  // End of stream
@@ -200,7 +201,7 @@ TEST_F(ExplicitClientTest, ComputeFunctionMultipleInputsOutputs) {
     vars.push_back(prod_meta);
     client_->SetVariableMeta(vars);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     // Expect 2 Write calls (for x and y)
     EXPECT_CALL(*mock_stream, Write(_, _))
@@ -212,20 +213,22 @@ TEST_F(ExplicitClientTest, ComputeFunctionMultipleInputsOutputs) {
 
     // Mock reading 2 outputs
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
-            result->Clear();
-            result->set_name("sum");
-            result->set_start(0);
-            result->set_end(0);
-            result->add_data(8.0);
+        .WillOnce(Invoke([](VariableMessage* result) {
+            Array* arr = result->mutable_continuous();
+            arr->Clear();
+            arr->set_name("sum");
+            arr->set_start(0);
+            arr->set_end(0);
+            arr->add_data(8.0);
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
-            result->Clear();
-            result->set_name("product");
-            result->set_start(0);
-            result->set_end(0);
-            result->add_data(15.0);
+        .WillOnce(Invoke([](VariableMessage* result) {
+            Array* arr = result->mutable_continuous();
+            arr->Clear();
+            arr->set_name("product");
+            arr->set_start(0);
+            arr->set_end(0);
+            arr->add_data(15.0);
             return true;
         }))
         .WillOnce(Return(false));
@@ -264,7 +267,7 @@ TEST_F(ExplicitClientTest, ComputeFunctionVectorData) {
     vars.push_back(y_meta);
     client_->SetVariableMeta(vars);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     EXPECT_CALL(*mock_stream, Write(_, _))
         .WillOnce(Return(true));
@@ -273,14 +276,15 @@ TEST_F(ExplicitClientTest, ComputeFunctionVectorData) {
         .WillOnce(Return(true));
 
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
-            result->Clear();
-            result->set_name("y");
-            result->set_start(0);
-            result->set_end(2);  // 3 elements: end = size - 1
-            result->add_data(1.0);
-            result->add_data(2.0);
-            result->add_data(3.0);
+        .WillOnce(Invoke([](VariableMessage* result) {
+            Array* arr = result->mutable_continuous();
+            arr->Clear();
+            arr->set_name("y");
+            arr->set_start(0);
+            arr->set_end(2);  // 3 elements: end = size - 1
+            arr->add_data(1.0);
+            arr->add_data(2.0);
+            arr->add_data(3.0);
             return true;
         }))
         .WillOnce(Return(false));
@@ -320,7 +324,7 @@ TEST_F(ExplicitClientTest, ComputeFunctionChunkedStreaming) {
     vars.push_back(y_meta);
     client_->SetVariableMeta(vars);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     EXPECT_CALL(*mock_stream, Write(_, _))
         .WillOnce(Return(true));
@@ -330,20 +334,22 @@ TEST_F(ExplicitClientTest, ComputeFunctionChunkedStreaming) {
 
     // Simulate chunked response (2 chunks for single variable)
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
-            result->Clear();
-            result->set_name("y");
-            result->set_start(0);
-            result->set_end(0);  // First chunk: element 0
-            result->add_data(10.0);
+        .WillOnce(Invoke([](VariableMessage* result) {
+            Array* arr = result->mutable_continuous();
+            arr->Clear();
+            arr->set_name("y");
+            arr->set_start(0);
+            arr->set_end(0);  // First chunk: element 0
+            arr->add_data(10.0);
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
-            result->Clear();
-            result->set_name("y");
-            result->set_start(1);
-            result->set_end(1);  // Second chunk: element 1
-            result->add_data(20.0);
+        .WillOnce(Invoke([](VariableMessage* result) {
+            Array* arr = result->mutable_continuous();
+            arr->Clear();
+            arr->set_name("y");
+            arr->set_start(1);
+            arr->set_end(1);  // Second chunk: element 1
+            arr->add_data(20.0);
             return true;
         }))
         .WillOnce(Return(false));
@@ -374,7 +380,7 @@ TEST_F(ExplicitClientTest, ComputeGradientSimple) {
     SetupSimpleDisciplineMetadata();
     SetupSimplePartialsMetadata();
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     // Expect Write for input
     EXPECT_CALL(*mock_stream, Write(_, _))
@@ -385,13 +391,14 @@ TEST_F(ExplicitClientTest, ComputeGradientSimple) {
 
     // Mock reading partial dy/dx
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
-            result->Clear();
-            result->set_name("y");
-            result->set_subname("x");
-            result->set_start(0);
-            result->set_end(0);
-            result->add_data(2.0);
+        .WillOnce(Invoke([](VariableMessage* result) {
+            Array* arr = result->mutable_continuous();
+            arr->Clear();
+            arr->set_name("y");
+            arr->set_subname("x");
+            arr->set_start(0);
+            arr->set_end(0);
+            arr->add_data(2.0);
             return true;
         }))
         .WillOnce(Return(false));
@@ -451,7 +458,7 @@ TEST_F(ExplicitClientTest, ComputeGradientMultiplePartials) {
     partials_meta.push_back(df_dy);
     client_->SetPartialsMetaData(partials_meta);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     // Expect 2 writes for inputs
     EXPECT_CALL(*mock_stream, Write(_, _))
@@ -463,22 +470,24 @@ TEST_F(ExplicitClientTest, ComputeGradientMultiplePartials) {
 
     // Mock reading 2 partials
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
-            result->Clear();
-            result->set_name("f");
-            result->set_subname("x");
-            result->set_start(0);
-            result->set_end(0);
-            result->add_data(6.0);
+        .WillOnce(Invoke([](VariableMessage* result) {
+            Array* arr = result->mutable_continuous();
+            arr->Clear();
+            arr->set_name("f");
+            arr->set_subname("x");
+            arr->set_start(0);
+            arr->set_end(0);
+            arr->add_data(6.0);
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
-            result->Clear();
-            result->set_name("f");
-            result->set_subname("y");
-            result->set_start(0);
-            result->set_end(0);
-            result->add_data(8.0);
+        .WillOnce(Invoke([](VariableMessage* result) {
+            Array* arr = result->mutable_continuous();
+            arr->Clear();
+            arr->set_name("f");
+            arr->set_subname("y");
+            arr->set_start(0);
+            arr->set_end(0);
+            arr->add_data(8.0);
             return true;
         }))
         .WillOnce(Return(false));
@@ -528,7 +537,7 @@ TEST_F(ExplicitClientTest, ComputeGradientChunkedStreaming) {
     partials_meta.push_back(partial_meta);
     client_->SetPartialsMetaData(partials_meta);
 
-    auto mock_stream = new MockReaderWriter<Array, Array>();
+    auto mock_stream = new MockReaderWriter<VariableMessage, VariableMessage>();
 
     EXPECT_CALL(*mock_stream, Write(_, _))
         .WillOnce(Return(true));
@@ -538,22 +547,24 @@ TEST_F(ExplicitClientTest, ComputeGradientChunkedStreaming) {
 
     // Simulate chunked partial response
     EXPECT_CALL(*mock_stream, Read(_))
-        .WillOnce(Invoke([](Array* result) {
-            result->Clear();
-            result->set_name("y");
-            result->set_subname("x");
-            result->set_start(0);
-            result->set_end(0);  // First chunk: element 0
-            result->add_data(1.5);
+        .WillOnce(Invoke([](VariableMessage* result) {
+            Array* arr = result->mutable_continuous();
+            arr->Clear();
+            arr->set_name("y");
+            arr->set_subname("x");
+            arr->set_start(0);
+            arr->set_end(0);  // First chunk: element 0
+            arr->add_data(1.5);
             return true;
         }))
-        .WillOnce(Invoke([](Array* result) {
-            result->Clear();
-            result->set_name("y");
-            result->set_subname("x");
-            result->set_start(1);
-            result->set_end(1);  // Second chunk: element 1
-            result->add_data(2.5);
+        .WillOnce(Invoke([](VariableMessage* result) {
+            Array* arr = result->mutable_continuous();
+            arr->Clear();
+            arr->set_name("y");
+            arr->set_subname("x");
+            arr->set_start(1);
+            arr->set_end(1);  // Second chunk: element 1
+            arr->add_data(2.5);
             return true;
         }))
         .WillOnce(Return(false));

@@ -2,6 +2,7 @@
 #include <gmock/gmock.h>
 
 #include "discipline.h"
+#include "validation.h"
 #include <google/protobuf/struct.pb.h>
 
 using namespace philote;
@@ -434,4 +435,202 @@ TEST_F(ConfigurableDisciplineTest, SetOptionsEmptyStruct)
     EXPECT_FALSE(discipline->enable_feature_);
     EXPECT_EQ(discipline->mode_, "default");
     EXPECT_TRUE(discipline->configure_called_);
+}
+
+// ============================================================================
+// Discrete Variable Tests
+// ============================================================================
+
+TEST_F(DisciplineTest, AddDiscreteInput)
+{
+    discipline->AddDiscreteInput("mode");
+
+    ASSERT_EQ(discipline->discrete_var_meta().size(), 1);
+    const auto &var = discipline->discrete_var_meta()[0];
+    EXPECT_EQ(var.name(), "mode");
+    EXPECT_EQ(var.type(), kDiscreteInput);
+}
+
+TEST_F(DisciplineTest, AddDiscreteOutput)
+{
+    discipline->AddDiscreteOutput("status");
+
+    ASSERT_EQ(discipline->discrete_var_meta().size(), 1);
+    const auto &var = discipline->discrete_var_meta()[0];
+    EXPECT_EQ(var.name(), "status");
+    EXPECT_EQ(var.type(), kDiscreteOutput);
+}
+
+TEST_F(DisciplineTest, AddMultipleDiscreteVariables)
+{
+    discipline->AddDiscreteInput("mode");
+    discipline->AddDiscreteInput("solver_type");
+    discipline->AddDiscreteOutput("converged");
+
+    EXPECT_EQ(discipline->discrete_var_meta().size(), 3);
+}
+
+TEST_F(DisciplineTest, DiscreteAndContinuousVariablesSeparate)
+{
+    discipline->AddInput("x", {2}, "m");
+    discipline->AddDiscreteInput("mode");
+    discipline->AddOutput("y", {1}, "N");
+    discipline->AddDiscreteOutput("status");
+
+    EXPECT_EQ(discipline->var_meta().size(), 2);
+    EXPECT_EQ(discipline->discrete_var_meta().size(), 2);
+}
+
+// ============================================================================
+// Duplicate Detection Tests
+// ============================================================================
+
+TEST_F(DisciplineTest, DuplicateInputThrows)
+{
+    discipline->AddInput("x", {1}, "m");
+    EXPECT_THROW(discipline->AddInput("x", {2}, "m"), PhiloteValidationError);
+}
+
+TEST_F(DisciplineTest, DuplicateOutputThrows)
+{
+    discipline->AddOutput("y", {1}, "N");
+    EXPECT_THROW(discipline->AddOutput("y", {2}, "N"), PhiloteValidationError);
+}
+
+TEST_F(DisciplineTest, SameNameInputAndOutputAllowed)
+{
+    EXPECT_NO_THROW({
+        discipline->AddInput("x", {1}, "m");
+        discipline->AddOutput("x", {1}, "m");
+    });
+    EXPECT_EQ(discipline->var_meta().size(), 2);
+}
+
+TEST_F(DisciplineTest, DuplicateDiscreteInputThrows)
+{
+    discipline->AddDiscreteInput("mode");
+    EXPECT_THROW(discipline->AddDiscreteInput("mode"), PhiloteValidationError);
+}
+
+TEST_F(DisciplineTest, DuplicateDiscreteOutputThrows)
+{
+    discipline->AddDiscreteOutput("status");
+    EXPECT_THROW(discipline->AddDiscreteOutput("status"), PhiloteValidationError);
+}
+
+// ============================================================================
+// Validation Error Tests
+// ============================================================================
+
+TEST_F(DisciplineTest, EmptyInputNameThrows)
+{
+    EXPECT_THROW(discipline->AddInput("", {1}, "m"), PhiloteValidationError);
+}
+
+TEST_F(DisciplineTest, EmptyOutputNameThrows)
+{
+    EXPECT_THROW(discipline->AddOutput("", {1}, "N"), PhiloteValidationError);
+}
+
+TEST_F(DisciplineTest, EmptyDiscreteInputNameThrows)
+{
+    EXPECT_THROW(discipline->AddDiscreteInput(""), PhiloteValidationError);
+}
+
+TEST_F(DisciplineTest, EmptyDiscreteOutputNameThrows)
+{
+    EXPECT_THROW(discipline->AddDiscreteOutput(""), PhiloteValidationError);
+}
+
+TEST_F(DisciplineTest, InvalidShapeThrows)
+{
+    EXPECT_THROW(discipline->AddInput("x", {0}, "m"), PhiloteValidationError);
+    EXPECT_THROW(discipline->AddInput("y", {-1}, "m"), PhiloteValidationError);
+    EXPECT_THROW(discipline->AddOutput("z", {2, 0}, "N"), PhiloteValidationError);
+}
+
+TEST_F(DisciplineTest, EmptyDeclarePartialsNameThrows)
+{
+    discipline->AddInput("x", {1}, "m");
+    discipline->AddOutput("y", {1}, "N");
+    EXPECT_THROW(discipline->DeclarePartials("", "x"), PhiloteValidationError);
+    EXPECT_THROW(discipline->DeclarePartials("y", ""), PhiloteValidationError);
+}
+
+TEST_F(DisciplineTest, InvalidOptionTypeThrows)
+{
+    EXPECT_THROW(discipline->AddOption("opt", "vector"), PhiloteValidationError);
+    EXPECT_THROW(discipline->AddOption("opt", ""), PhiloteValidationError);
+}
+
+TEST_F(DisciplineTest, EmptyOptionNameThrows)
+{
+    EXPECT_THROW(discipline->AddOption("", "int"), PhiloteValidationError);
+}
+
+TEST_F(DisciplineTest, ValidOptionTypesAccepted)
+{
+    EXPECT_NO_THROW(discipline->AddOption("a", "bool"));
+    EXPECT_NO_THROW(discipline->AddOption("b", "int"));
+    EXPECT_NO_THROW(discipline->AddOption("c", "float"));
+    EXPECT_NO_THROW(discipline->AddOption("d", "double"));
+    EXPECT_NO_THROW(discipline->AddOption("e", "string"));
+    EXPECT_NO_THROW(discipline->AddOption("f", "dict"));
+    EXPECT_EQ(discipline->options_list().size(), 6);
+}
+
+// ============================================================================
+// Dynamic Shape Tests
+// ============================================================================
+
+TEST_F(DisciplineTest, AddInputWithDynamicShape)
+{
+    discipline->AddInput("x", {}, "m", true);
+
+    ASSERT_EQ(discipline->var_meta().size(), 1);
+    const auto &var = discipline->var_meta()[0];
+    EXPECT_EQ(var.name(), "x");
+    EXPECT_EQ(var.type(), kInput);
+    EXPECT_TRUE(var.dynamic_shape());
+    EXPECT_EQ(var.shape_size(), 0);
+}
+
+TEST_F(DisciplineTest, AddOutputWithDynamicShape)
+{
+    discipline->AddOutput("y", {}, "N", true);
+
+    ASSERT_EQ(discipline->var_meta().size(), 1);
+    const auto &var = discipline->var_meta()[0];
+    EXPECT_EQ(var.name(), "y");
+    EXPECT_EQ(var.type(), kOutput);
+    EXPECT_TRUE(var.dynamic_shape());
+    EXPECT_EQ(var.shape_size(), 0);
+}
+
+TEST_F(DisciplineTest, NonDynamicShapeDefaultIsFalse)
+{
+    discipline->AddInput("x", {2}, "m");
+
+    ASSERT_EQ(discipline->var_meta().size(), 1);
+    EXPECT_FALSE(discipline->var_meta()[0].dynamic_shape());
+}
+
+TEST_F(DisciplineTest, DynamicShapeSkipsShapeValidation)
+{
+    EXPECT_NO_THROW(discipline->AddInput("x", {0}, "m", true));
+    EXPECT_NO_THROW(discipline->AddOutput("y", {-1}, "N", true));
+}
+
+TEST_F(DisciplineTest, MixedDynamicAndStaticVariables)
+{
+    discipline->AddInput("x_static", {3}, "m");
+    discipline->AddInput("x_dynamic", {}, "m", true);
+    discipline->AddOutput("y_static", {2}, "N");
+    discipline->AddOutput("y_dynamic", {}, "N", true);
+
+    ASSERT_EQ(discipline->var_meta().size(), 4);
+    EXPECT_FALSE(discipline->var_meta()[0].dynamic_shape());
+    EXPECT_TRUE(discipline->var_meta()[1].dynamic_shape());
+    EXPECT_FALSE(discipline->var_meta()[2].dynamic_shape());
+    EXPECT_TRUE(discipline->var_meta()[3].dynamic_shape());
 }

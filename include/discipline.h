@@ -87,6 +87,12 @@ namespace philote
         const std::vector<philote::VariableMetaData> &var_meta() const noexcept { return var_meta_; }
 
         /**
+         * @brief Accesses the discrete variable meta data
+         */
+        std::vector<philote::VariableMetaData> &discrete_var_meta() { return discrete_var_meta_; }
+        const std::vector<philote::VariableMetaData> &discrete_var_meta() const noexcept { return discrete_var_meta_; }
+
+        /**
          * @brief Accesses the partials meta data
          */
         std::vector<philote::PartialsMetaData> &partials_meta() { return partials_meta_; }
@@ -114,7 +120,8 @@ namespace philote
          */
         void AddInput(const std::string &name,
                       const std::vector<int64_t> &shape,
-                      const std::string &units);
+                      const std::string &units,
+                      bool dynamic_shape = false);
 
         /**
          * @brief Declares an output
@@ -123,7 +130,22 @@ namespace philote
          */
         void AddOutput(const std::string &name,
                        const std::vector<int64_t> &shape,
-                       const std::string &units);
+                       const std::string &units,
+                       bool dynamic_shape = false);
+
+        /**
+         * @brief Declares a discrete input
+         *
+         * @param name The name of the discrete input variable
+         */
+        void AddDiscreteInput(const std::string &name);
+
+        /**
+         * @brief Declares a discrete output
+         *
+         * @param name The name of the discrete output variable
+         */
+        void AddDiscreteOutput(const std::string &name);
 
         /**
          * @brief Declare a (set of) partial(s) for the discipline
@@ -248,6 +270,9 @@ namespace philote
 
         //! List of variable meta data
         std::vector<philote::VariableMetaData> var_meta_;
+
+        //! List of discrete variable meta data
+        std::vector<philote::VariableMetaData> discrete_var_meta_;
 
         //! List of partials meta data
         std::vector<philote::PartialsMetaData> partials_meta_;

@@ -29,6 +29,7 @@
     control over the information you may find at these locations.
 */
 #include "discipline.h"
+#include "validation.h"
 
 using std::string;
 using std::vector;
@@ -57,30 +58,98 @@ DisciplineProperties &Discipline::properties()
 
 void Discipline::AddInput(const string &name,
                           const vector<int64_t> &shape,
-                          const string &units)
+                          const string &units,
+                          bool dynamic_shape)
 {
+    ValidateName(name, "add_input");
+    if (!dynamic_shape)
+        ValidateShape(shape, "add_input");
+
+    // check for duplicate
+    for (const auto &v : var_meta_)
+    {
+        if (v.name() == name && v.type() == philote::kInput)
+            throw PhiloteValidationError("add_input: input '" + name + "' is already defined.");
+    }
+
     VariableMetaData var;
     var.set_name(name);
-    for (const int64_t dim : shape)
-        var.add_shape(dim);
+    if (!dynamic_shape)
+    {
+        for (const int64_t dim : shape)
+            var.add_shape(dim);
+    }
     var.set_units(units);
     var.set_type(philote::kInput);
+    var.set_dynamic_shape(dynamic_shape);
 
     var_meta().push_back(var);
 }
 
 void Discipline::AddOutput(const string &name,
                            const vector<int64_t> &shape,
-                           const string &units)
+                           const string &units,
+                           bool dynamic_shape)
 {
+    ValidateName(name, "add_output");
+    if (!dynamic_shape)
+        ValidateShape(shape, "add_output");
+
+    // check for duplicate
+    for (const auto &v : var_meta_)
+    {
+        if (v.name() == name && v.type() == philote::kOutput)
+            throw PhiloteValidationError("add_output: output '" + name + "' is already defined.");
+    }
+
     VariableMetaData var;
     var.set_name(name);
-    for (const int64_t dim : shape)
-        var.add_shape(dim);
+    if (!dynamic_shape)
+    {
+        for (const int64_t dim : shape)
+            var.add_shape(dim);
+    }
     var.set_units(units);
     var.set_type(philote::kOutput);
+    var.set_dynamic_shape(dynamic_shape);
 
     var_meta().push_back(var);
+}
+
+void Discipline::AddDiscreteInput(const string &name)
+{
+    ValidateName(name, "add_discrete_input");
+
+    // check for duplicate
+    for (const auto &v : discrete_var_meta_)
+    {
+        if (v.name() == name && v.type() == philote::kDiscreteInput)
+            throw PhiloteValidationError("add_discrete_input: input '" + name + "' is already defined.");
+    }
+
+    VariableMetaData var;
+    var.set_name(name);
+    var.set_type(philote::kDiscreteInput);
+
+    discrete_var_meta().push_back(var);
+}
+
+void Discipline::AddDiscreteOutput(const string &name)
+{
+    ValidateName(name, "add_discrete_output");
+
+    // check for duplicate
+    for (const auto &v : discrete_var_meta_)
+    {
+        if (v.name() == name && v.type() == philote::kDiscreteOutput)
+            throw PhiloteValidationError("add_discrete_output: output '" + name + "' is already defined.");
+    }
+
+    VariableMetaData var;
+    var.set_name(name);
+    var.set_type(philote::kDiscreteOutput);
+
+    discrete_var_meta().push_back(var);
 }
 
 vector<int64_t> Discipline::ComputePartialShape(const string &f,
@@ -165,6 +234,9 @@ vector<int64_t> Discipline::ComputePartialShape(const string &f,
 
 void Discipline::DeclarePartials(const string &f, const string &x)
 {
+    ValidateName(f, "declare_partials (func)");
+    ValidateName(x, "declare_partials (var)");
+
     // Compute the shape using the helper method
     vector<int64_t> shape = ComputePartialShape(f, x, false);
 
@@ -180,6 +252,9 @@ void Discipline::DeclarePartials(const string &f, const string &x)
 
 void Discipline::AddOption(const string &name, const string &type)
 {
+    ValidateName(name, "add_option");
+    ValidateOptionType(type, name);
+
     options_list_[name] = type;
 }
 

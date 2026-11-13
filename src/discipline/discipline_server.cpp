@@ -137,6 +137,16 @@ Status DisciplineServer::GetVariableDefinitions(ServerContext *context,
         }
     }
 
+    // Stream discrete variable metadata
+    for (const VariableMetaData &var : discipline_->discrete_var_meta())
+    {
+        if (!writer->Write(var))
+        {
+            return grpc::Status(grpc::StatusCode::INTERNAL,
+                              "Failed to write discrete variable metadata for '" + var.name() + "'");
+        }
+    }
+
     return Status::OK;
 }
 
@@ -165,6 +175,59 @@ Status DisciplineServer::GetPartialDefinitions(ServerContext *context,
     return Status::OK;
 }
 
+grpc::Status DisciplineServer::SetVariableShapes(ServerContext *context,
+                                                  grpc::ServerReader<VariableMetaData> *reader,
+                                                  Empty *response)
+{
+    if (discipline_ == nullptr)
+    {
+        return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION,
+                          "Discipline not linked to server");
+    }
+
+    VariableMetaData meta;
+    while (reader->Read(&meta))
+    {
+        // validate shape has positive dimensions
+        for (int i = 0; i < meta.shape_size(); i++)
+        {
+            if (meta.shape(i) <= 0)
+            {
+                return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                  "SetVariableShapes: shape dimensions must be positive for variable '" +
+                                  meta.name() + "'");
+            }
+        }
+
+        // find the matching variable and update its shape
+        bool found = false;
+        for (auto &var : discipline_->var_meta())
+        {
+            if (var.name() == meta.name() && var.type() == meta.type())
+            {
+                if (!var.dynamic_shape())
+                {
+                    return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                                      "Variable '" + meta.name() + "' does not allow dynamic shapes.");
+                }
+                var.clear_shape();
+                for (int i = 0; i < meta.shape_size(); i++)
+                    var.add_shape(meta.shape(i));
+                found = true;
+                break;
+            }
+        }
+
+        if (!found)
+        {
+            return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT,
+                              "SetVariableShapes: variable '" + meta.name() + "' not found.");
+        }
+    }
+
+    return Status::OK;
+}
+
 grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
                                      const Empty *request,
                                      Empty *response)
@@ -175,10 +238,12 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
                           "Discipline not linked to server");
     }
 
-    if (!discipline_->var_meta().empty() or !discipline_->partials_meta().empty())
+    if (!discipline_->var_meta().empty() or !discipline_->partials_meta().empty()
+        or !discipline_->discrete_var_meta().empty())
     {
         // clear any existing meta data
         discipline_->var_meta().clear();
+        discipline_->discrete_var_meta().clear();
         discipline_->partials_meta().clear();
     }
 
@@ -236,6 +301,8 @@ grpc::Status DisciplineServer::Setup(grpc::ServerContext *context,
             response->add_type(philote::DataType::kDouble);
         else if (option.second == "string")
             response->add_type(philote::DataType::kString);
+        else if (option.second == "dict" || option.second == "struct")
+            response->add_type(philote::DataType::kStruct);
         else
             response->add_type(philote::DataType::kString); // Default to string for unknown types
     }
