@@ -30,6 +30,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0] - 2025-10-31
 
 ### Added
+- **Philote 0.8 protocol and Philote-Python feature parity**
+  - Pinned the protocol submodule to the Philote-MDO v0.8.0 release tag
+    (`6f2d8a1`), the revision used by Philote-Python and Philote-Rust 0.2.0.
+    `develop` previously pinned an untagged commit before that release; the
+    `.proto` files are unchanged between the two
+  - Added dynamic input/output shapes with client helpers and propagation to
+    implicit residual and Jacobian metadata
+  - Added discrete inputs and outputs using `google.protobuf.Value`, including
+    nested list/struct values, across explicit and implicit RPCs
+  - Added structured option discovery (`kStruct` / `dict`) and canonical option
+    type mapping
+  - Added implicit residual metadata and `kResidual` wire tagging
+  - Added client-side `PhiloteServerError` wrapping and server-side validation
+    status propagation
+  - Added bidirectional C++/Python interoperability tests plus dynamic,
+    discrete, and implicit parity integration coverage
+  - Re-enabled the complete implicit integration test suite
+
+### Fixed
+- The release workflow now merges `main` back into `develop` after every
+  release (opening a pull request if the merge conflicts). Previously the
+  release commit reached only `main`, so `develop` kept the old version and its
+  next changelog entries would have been filed under the already published
+  release instead of `[Unreleased]`.
+- `develop` reports the released library version, 0.5.0, instead of 0.4.0.
+- Release commits are now created through GitHub's API and signed by GitHub,
+  so they show as verified. They were signed with a GPG key generated inside
+  the workflow run, which GitHub cannot verify, so merging a release back into
+  `develop` (which requires signed commits) needed an admin bypass.
+- `Variable::Send` no longer drops the last chunk when an array's size is not a
+  multiple of the chunk size; it used truncating division, so for example 549
+  of 3549 Jacobian entries were silently lost at a chunk size of 1000.
+- Gradient responses are tagged `kPartial` instead of `kOutput`. Clients that
+  filter by variable type, such as Philote-Python's, silently ignored them.
+- `RegisterServices` calls `Initialize()`, so options a discipline declares in
+  its `Initialize()` override are advertised. Virtual dispatch cannot reach the
+  override from the base-class constructor.
+
+## [0.5.0] - 2025-10-31
+
+### Added
 - **gRPC stream cancellation detection support** (partial #46)
   - Server-side detection of client cancellations in all streaming RPC methods
   - Discipline base class adds SetContext(), ClearContext(), and IsCancelled() methods

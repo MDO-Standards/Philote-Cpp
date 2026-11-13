@@ -79,6 +79,7 @@ namespace philote
          * @return
          */
         std::map<std::string, std::string> &options_list();
+        const std::map<std::string, std::string> &options_list() const noexcept { return options_list_; }
 
         /**
          * @brief Accesses the variable meta data
@@ -162,6 +163,16 @@ namespace philote
          * @param type Option type as string (e.g., "bool", "int", "float", "string")
          */
         void AddOption(const std::string &name, const std::string &type);
+
+        /**
+         * @brief Recompute derivative shapes from the current variable metadata.
+         *
+         * This is primarily used after dynamic variable shapes have been
+         * resolved by SetVariableShapes.  It is harmless for static-shape
+         * disciplines and keeps PartialsMetaData interoperable with bindings
+         * (including Philote-Python) that derive Jacobian shapes at runtime.
+         */
+        void RefreshPartialShapes();
 
         /**
          * @brief Initialize function that sets up available options
@@ -285,6 +296,9 @@ namespace philote
 
         //! Current gRPC server context for cancellation detection (mutable for const correctness)
         mutable grpc::ServerContext* current_context_ = nullptr;
+
+        //! Whether output variables also define residual variables.
+        bool is_implicit_ = false;
     };
 
 }

@@ -44,10 +44,31 @@ using philote::Variables;
 
 ImplicitDiscipline::ImplicitDiscipline()
 {
+    is_implicit_ = true;
     // Note: LinkPointers cannot be called here because shared_from_this()
     // requires the object to be managed by a shared_ptr first.
     // RegisterServices() will handle the linking when the discipline
     // is ready to be used.
+}
+
+void ImplicitDiscipline::AddOutput(const string &name,
+                                   const vector<int64_t> &shape,
+                                   const string &units,
+                                   bool dynamic_shape)
+{
+    Discipline::AddOutput(name, shape, units, dynamic_shape);
+
+    VariableMetaData residual;
+    residual.set_name(name);
+    residual.set_units(units);
+    residual.set_type(kResidual);
+    residual.set_dynamic_shape(dynamic_shape);
+    if (!dynamic_shape)
+    {
+        for (const auto dim : shape)
+            residual.add_shape(dim);
+    }
+    var_meta_.push_back(residual);
 }
 
 ImplicitDiscipline::~ImplicitDiscipline() noexcept
@@ -75,6 +96,9 @@ void ImplicitDiscipline::RegisterServices(ServerBuilder &builder)
 
 void ImplicitDiscipline::DeclarePartials(const string &f, const string &x)
 {
+    ValidateName(f, "declare_partials (func)");
+    ValidateName(x, "declare_partials (var)");
+
     // Compute the shape using the base class helper method
     // Pass true to allow outputs as the x parameter (for implicit disciplines)
     vector<int64_t> shape = ComputePartialShape(f, x, true);

@@ -84,10 +84,16 @@ client.Setup();
 client.GetVariableDefinitions();
 std::vector<std::string> var_names = client.GetVariableNames();
 
-// Step 4: Get partial definitions (if computing gradients)
+// Step 4: Resolve any dynamic input/output shapes
+client.SendVariableShapes({
+    client.CreateVariableShape("dynamic_input", {8}, philote::kInput),
+    client.CreateVariableShape("dynamic_output", {8}, philote::kOutput),
+});
+
+// Step 5: Get partial definitions (if computing gradients)
 client.GetPartialDefinitions();
 
-// Step 5: Prepare inputs dynamically
+// Step 6: Prepare inputs dynamically
 philote::Variables inputs;
 for (const auto& name : var_names) {
     auto meta = client.GetVariableMeta(name);
@@ -97,7 +103,7 @@ for (const auto& name : var_names) {
     }
 }
 
-// Step 6: Compute
+// Step 7: Compute
 philote::Variables outputs = client.ComputeFunction(inputs);
 philote::Partials partials = client.ComputeGradient(inputs);
 ```
